@@ -24,8 +24,8 @@ public class AuthInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        // 公开端点（列表 / 数字 ID 详情）无需登录
-        if (isPublicPath(request.getRequestURI())) {
+        // 公开端点（GET 列表 / 数字 ID 详情）无需登录；写操作一律要求登录
+        if (isPublicPath(request)) {
             return true;
         }
         String auth = request.getHeader("Authorization");
@@ -41,8 +41,12 @@ public class AuthInterceptor implements HandlerInterceptor {
         return true;
     }
 
-    /** 公开端点判断：列表页与数字 ID 详情页（/mine、/status 等业务路径需登录） */
-    private boolean isPublicPath(String uri) {
+    /** 公开端点判断：仅 GET 的列表页与数字 ID 详情页公开（/mine、/status 等业务路径需登录） */
+    private boolean isPublicPath(HttpServletRequest request) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        String uri = request.getRequestURI();
         if (uri.startsWith("/api/v1/reviews")) {
             return true;
         }

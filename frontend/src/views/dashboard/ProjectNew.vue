@@ -149,9 +149,12 @@
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import { createProject } from '@/api/project'
 
+const router = useRouter()
 const step = ref(0)
 const submitting = ref(false)
 
@@ -208,8 +211,25 @@ function next() {
 async function submit() {
   submitting.value = true
   try {
-    // TODO(阶段3)：接入 POST /api/v1/projects
-    ElMessage.info('发布接口将在阶段 3 接入，当前为样式演示')
+    // 高级选项（题材 / 格式）并入需求描述，避免信息丢失
+    const extras = []
+    if (form.subject.length) extras.push('题材：' + form.subject.join(' / '))
+    if (form.formats.length) extras.push('交付格式：' + form.formats.join(' / '))
+    const description = extras.length
+      ? `${form.description}\n\n[高级选项] ${extras.join('；')}`
+      : form.description
+
+    await createProject({
+      title: form.title,
+      description,
+      budget: form.budgetMax,
+      deadline: form.deadline,
+      tags: form.tags,
+      mode: form.mode,
+      invitePainterId: form.mode === 1 ? form.invitePainterId : null,
+    })
+    ElMessage.success('企划发布成功！等待画师应征')
+    router.push({ name: 'DashboardProjects' })
   } finally {
     submitting.value = false
   }
