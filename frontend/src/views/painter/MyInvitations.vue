@@ -33,6 +33,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getInvitations, respondInvitation } from '@/api/invitation'
 import { formatDateTime } from '@/utils/date'
+import { statusText, statusType } from '@/utils/status'
 
 const INVITE_STATUS = {
   0: { text: '待处理', type: 'warning' },

@@ -119,16 +119,16 @@ const avatarText = computed(() => {
 })
 
 const roleText = computed(() => {
-  const role = userStore.user?.role
+  const role = userStore.workbenchRole
   return role === 1 ? '企划方' : role === 2 ? '画师' : role === 3 ? '管理员' : '-'
 })
 
 const oppositeRoleText = computed(() => {
-  return userStore.user?.role === 2 ? '企划方' : '画师'
+  return userStore.workbenchRole === 2 ? '企划方' : '画师'
 })
 
 function goPublish() {
-  if (userStore.user?.role === 2) {
+  if (userStore.workbenchRole === 2) {
     router.push({ name: 'PainterStalls' })
   } else {
     router.push({ name: 'ProjectNew' })
@@ -140,8 +140,9 @@ function goMessages() {
 }
 
 function switchRole() {
-  // 演示环境：企划方与画师工作台互相切换
-  router.push(userStore.user?.role === 2 ? '/dashboard' : '/painter')
+  // 演示环境：真正切换工作台身份
+  userStore.switchRole(userStore.workbenchRole === 2 ? 1 : 2)
+  router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
 }
 
 function onCommand(command) {

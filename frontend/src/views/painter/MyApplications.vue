@@ -35,6 +35,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMyApplications, deleteApplication } from '@/api/project'
 import { formatDateTime } from '@/utils/date'
+import { statusText, statusType } from '@/utils/status'
 
 const APP_STATUS = {
   0: { text: '待处理', type: 'info' },
