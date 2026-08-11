@@ -53,7 +53,13 @@
 
         <div class="form-row">
           <el-form-item label="截稿日期" required class="inline-item">
-            <el-date-picker v-model="form.deadline" type="date" placeholder="选择截稿日期" value-format="YYYY-MM-DD" />
+            <el-date-picker
+              v-model="form.deadline"
+              type="date"
+              placeholder="选择截稿日期（至少 7 天后）"
+              value-format="YYYY-MM-DD"
+              :disabled-date="disabledDate"
+            />
           </el-form-item>
           <el-form-item label="稿酬预算（元/张）" required class="inline-item">
             <el-input-number v-model="form.budgetMin" :min="0" :max="100000" placeholder="最低" />
@@ -189,6 +195,14 @@ const form = reactive({
 })
 
 const typeText = computed(() => types.find((t) => t.value === form.manuscriptType)?.label || '-')
+
+/** 截稿日期至少为发布后 7 天 */
+function disabledDate(date) {
+  const min = new Date()
+  min.setDate(min.getDate() + 7)
+  min.setHours(0, 0, 0, 0)
+  return date.getTime() < min.getTime()
+}
 
 function next() {
   if (step.value === 0) {

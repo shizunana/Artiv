@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Service
@@ -48,6 +49,11 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public Project create(ProjectRequest request, Long employerId) {
+        // 截稿日期不能早于发布后 7 天
+        LocalDate minDeadline = LocalDate.now().plusDays(7);
+        if (request.getDeadline().isBefore(minDeadline)) {
+            throw new BusinessException(2001, "截稿日期不能早于发布后 7 天");
+        }
         LocalDateTime now = LocalDateTime.now();
         Project project = new Project();
         project.setEmployerId(employerId);
