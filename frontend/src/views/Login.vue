@@ -1,21 +1,30 @@
 <template>
-  <div class="login-page">
-    <el-card class="login-card">
-      <h1 class="title">绘约 HuiYue</h1>
-      <p class="subtitle">美术约稿交易平台</p>
-      <el-form :model="loginForm" :rules="rules" label-position="top">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="auth-logo">绘</span>
+        <h1>绘约 HuiYue</h1>
+        <p>带给你自由、高效、专业的美术约稿体验</p>
+      </div>
+
+      <el-form :model="loginForm" :rules="rules" ref="formRef" label-position="top" size="large" @keyup.enter="onLogin">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="loginForm.username" placeholder="请输入用户名" />
+          <el-input v-model="loginForm.username" placeholder="请输入用户名" :prefix-icon="User" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input v-model="loginForm.password" type="password" show-password placeholder="请输入密码" @keyup.enter="onLogin" />
+          <el-input v-model="loginForm.password" type="password" show-password placeholder="请输入密码" :prefix-icon="Lock" />
         </el-form-item>
-        <el-button type="primary" class="submit" :loading="loading" @click="onLogin">登 录</el-button>
-        <div class="tip">
-          还没有账号？<router-link to="/register">去注册</router-link>
+        <div class="auth-links">
+          <router-link to="/register">注册新账号</router-link>
+          <span class="forget">忘记密码？</span>
         </div>
+        <el-button type="primary" class="auth-submit" :loading="loading" @click="onLogin">登 录</el-button>
       </el-form>
-    </el-card>
+
+      <div class="auth-switch">
+        还没有账号？<router-link to="/register">立即注册</router-link>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -23,15 +32,18 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
-
 const loading = ref(false)
 
-const loginForm = reactive({ username: '', password: '' })
+const loginForm = reactive({
+  username: route.query.username || '',
+  password: '',
+})
 
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -51,37 +63,79 @@ async function onLogin() {
 </script>
 
 <style scoped>
-.login-page {
+.auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #eef2ff, #fdf2f8);
+  background: linear-gradient(135deg, #eaf7ff 0%, #f5f8ff 50%, #fdf5ec 100%);
+  padding: 20px;
 }
 
-.login-card {
-  width: 400px;
-  padding: 8px 16px 24px;
+.auth-card {
+  width: 420px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 168, 233, 0.12);
+  padding: 44px 40px 36px;
 }
 
-.title {
+.auth-brand {
   text-align: center;
-  margin: 8px 0 4px;
+  margin-bottom: 32px;
 }
 
-.subtitle {
-  text-align: center;
+.auth-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--huiyue-primary);
+  color: #fff;
+  font-size: 28px;
+  margin-bottom: 14px;
+}
+
+.auth-brand h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--huiyue-text);
+  letter-spacing: 1px;
+}
+
+.auth-brand p {
+  margin: 0;
+  font-size: 13px;
   color: var(--huiyue-text-secondary);
-  margin: 0 0 16px;
 }
 
-.submit {
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0 20px;
+  font-size: 13px;
+}
+
+.forget {
+  color: var(--huiyue-text-secondary);
+  cursor: pointer;
+}
+
+.auth-submit {
   width: 100%;
+  border-radius: 22px;
+  letter-spacing: 6px;
+  font-size: 16px;
+  padding: 22px 0;
 }
 
-.tip {
-  margin-top: 12px;
+.auth-switch {
+  margin-top: 24px;
   text-align: center;
+  font-size: 13px;
   color: var(--huiyue-text-secondary);
 }
 </style>
