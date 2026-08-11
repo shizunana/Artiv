@@ -40,6 +40,7 @@ import AppHeader from './AppHeader.vue'
 
 .landing-layout__main {
   flex: 1;
+  padding-top: var(--huiyue-header-height);
 }
 
 /* ---------- 页脚 ---------- */

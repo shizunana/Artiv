@@ -203,7 +203,6 @@ onMounted(async () => {
   background: linear-gradient(120deg, #0f2027 0%, #203a43 55%, #2c5364 100%);
   color: #fff;
   overflow: hidden;
-  margin-top: var(--huiyue-header-height);
 }
 
 .hero-unit__mask {
