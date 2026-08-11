@@ -29,6 +29,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
         String token = auth.substring(7);
+        if (!jwtUtil.validate(token)) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
         Long userId = jwtUtil.parseUserId(token);
         UserContext.set(new LoginUser(userId, null, null));
         return true;

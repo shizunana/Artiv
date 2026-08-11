@@ -37,6 +37,7 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setNickname(request.getNickname());
         user.setRole(request.getRole());
+        user.setCertStatus(0);
         user.setStatus(0);
         user.setDeleted(0);
         LocalDateTime now = LocalDateTime.now();
