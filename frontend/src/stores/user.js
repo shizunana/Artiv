@@ -43,19 +43,5 @@ export const useUserStore = defineStore('user', {
     switchRole(role) {
       this.activeRole = role
     },
-    /** 演示环境：切换为对应角色的演示账号（planner / artist），覆盖当前登录态 */
-    async switchDemoRole() {
-      const target = this.workbenchRole === 2 ? 1 : 2
-      const demo = target === 1
-        ? { username: 'planner', password: '123456' }
-        : { username: 'artist', password: '123456' }
-      const data = await loginApi(demo)
-      this.token = data.token
-      this.user = data.user
-      this.activeRole = null
-      setToken(data.token)
-      setUser(data.user)
-      return target
-    },
   },
 })

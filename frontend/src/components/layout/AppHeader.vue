@@ -51,7 +51,6 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { ArrowDown, Bell } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
@@ -83,15 +82,14 @@ function goMessages() {
   router.push(`${base}/messages`)
 }
 
-async function onCommand(command) {
+function onCommand(command) {
   if (command === 'profile') {
     router.push(userStore.workbenchRole === 2 ? '/painter/profile' : workbenchHome.value)
   } else if (command === 'workbench') {
     router.push(workbenchHome.value)
   } else if (command === 'switchRole') {
-    const target = await userStore.switchDemoRole()
-    ElMessage.success(`已切换到${target === 1 ? '企划方' : '画师'}演示账号`)
-    router.push(target === 2 ? '/painter' : '/dashboard')
+    userStore.switchRole(userStore.workbenchRole === 2 ? 1 : 2)
+    router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
   } else if (command === 'logout') {
     userStore.logout()
     router.push({ name: 'Home' })
