@@ -69,7 +69,7 @@
       <div v-else-if="step === 1" class="wizard-body">
         <el-form label-position="top">
           <el-form-item label="企划标题" required>
-            <el-input v-model="form.title" maxlength="50" show-word-limit placeholder="一句话描述您的需求" />
+          <el-input v-model="form.title" maxlength="20" show-word-limit placeholder="一句话描述您的需求（最多 20 字）" />
           </el-form-item>
           <el-form-item label="需求描述" required>
             <el-input

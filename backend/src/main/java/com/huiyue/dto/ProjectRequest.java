@@ -3,6 +3,7 @@ package com.huiyue.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ import java.util.List;
 public class ProjectRequest {
 
     @NotBlank(message = "企划标题不能为空")
+    @Size(max = 20, message = "企划标题最长 20 个字")
     private String title;
 
     @NotBlank(message = "需求描述不能为空")
