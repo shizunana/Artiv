@@ -45,6 +45,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Right } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import AppHeader from './AppHeader.vue'
@@ -96,10 +97,11 @@ const oppositeRoleText = computed(() => {
   return userStore.workbenchRole === 2 ? '企划方' : '画师'
 })
 
-function switchRole() {
-  // 演示环境：真正切换工作台身份
-  userStore.switchRole(userStore.workbenchRole === 2 ? 1 : 2)
-  router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
+async function switchRole() {
+  // 演示环境：切换为对应角色的演示账号
+  const target = await userStore.switchDemoRole()
+  ElMessage.success(`已切换到${target === 1 ? '企划方' : '画师'}演示账号`)
+  router.push(target === 2 ? '/painter' : '/dashboard')
 }
 </script>
 
