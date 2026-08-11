@@ -1,39 +1,7 @@
 <template>
   <div class="workbench-page">
-    <!-- 顶部导航（登录后状态，参考站 mhs-header） -->
-    <header class="wb-header">
-      <div class="wb-header__inner page-container">
-        <router-link to="/" class="wb-header__logo">绘约</router-link>
-        <nav class="wb-header__nav">
-          <router-link to="/projects">企划</router-link>
-          <router-link to="/stalls">橱窗</router-link>
-          <router-link to="/works">作品</router-link>
-          <router-link to="/artists">画师</router-link>
-        </nav>
-        <div class="wb-header__actions">
-          <el-button type="primary" size="small" round @click="goPublish">发布需求</el-button>
-          <el-badge :value="0" :max="99" class="msg-badge">
-            <el-button circle size="small" @click="goMessages">
-              <el-icon><Bell /></el-icon>
-            </el-button>
-          </el-badge>
-          <el-dropdown @command="onCommand">
-            <span class="wb-header__user">
-              <el-avatar :size="30" :src="userStore.user?.avatar" class="wb-avatar">{{ avatarText }}</el-avatar>
-              <span class="wb-user-name">{{ userStore.user?.nickname || userStore.user?.username }}</span>
-              <el-icon class="wb-caret"><ArrowDown /></el-icon>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-                <el-dropdown-item command="switchRole">切换身份</el-dropdown-item>
-                <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </div>
-    </header>
+    <!-- 统一顶部导航 -->
+    <AppHeader />
 
     <div class="page-container wb-body">
       <!-- 左侧工作台卡片（参考站 dashboard-sidebar） -->
@@ -77,8 +45,9 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Bell, Right } from '@element-plus/icons-vue'
+import { Right } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import AppHeader from './AppHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -127,34 +96,10 @@ const oppositeRoleText = computed(() => {
   return userStore.workbenchRole === 2 ? '企划方' : '画师'
 })
 
-function goPublish() {
-  if (userStore.workbenchRole === 2) {
-    router.push({ name: 'PainterStalls' })
-  } else {
-    router.push({ name: 'ProjectNew' })
-  }
-}
-
-function goMessages() {
-  router.push({ path: `${workbench.value}/messages` })
-}
-
 function switchRole() {
   // 演示环境：真正切换工作台身份
   userStore.switchRole(userStore.workbenchRole === 2 ? 1 : 2)
   router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
-}
-
-function onCommand(command) {
-  if (command === 'profile') {
-    const path = userStore.user?.role === 2 ? '/painter/profile' : '/dashboard'
-    router.push(path)
-  } else if (command === 'switchRole') {
-    switchRole()
-  } else if (command === 'logout') {
-    userStore.logout()
-    router.push({ name: 'Home' })
-  }
 }
 </script>
 
@@ -162,82 +107,8 @@ function onCommand(command) {
 .workbench-page {
   min-height: 100vh;
   background: #f5f6f8;
+  padding-top: var(--huiyue-header-height);
   padding-bottom: 48px;
-}
-
-/* ---------- 顶部导航 ---------- */
-.wb-header {
-  position: sticky;
-  top: 0;
-  z-index: 90;
-  background: #fff;
-  border-bottom: 1px solid var(--huiyue-border);
-  height: 56px;
-}
-
-.wb-header__inner {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  height: 100%;
-}
-
-.wb-header__logo {
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--huiyue-text);
-}
-
-.wb-header__nav {
-  display: flex;
-  gap: 22px;
-  flex: 1;
-}
-
-.wb-header__nav a {
-  color: var(--huiyue-text-secondary);
-  font-size: 15px;
-}
-
-.wb-header__nav a:hover,
-.wb-header__nav a.router-link-active {
-  color: var(--huiyue-primary);
-}
-
-.wb-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.msg-badge {
-  line-height: 1;
-}
-
-.wb-header__user {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  outline: none;
-  color: var(--huiyue-text);
-}
-
-.wb-avatar {
-  background: var(--huiyue-primary);
-  color: #fff;
-}
-
-.wb-user-name {
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wb-caret {
-  font-size: 12px;
-  color: var(--huiyue-text-secondary);
 }
 
 /* ---------- 主体布局 ---------- */
@@ -374,8 +245,5 @@ function onCommand(command) {
     flex-wrap: wrap;
   }
 
-  .wb-header__nav {
-    display: none;
-  }
 }
 </style>
