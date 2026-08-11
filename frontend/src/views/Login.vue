@@ -3,7 +3,7 @@
     <div class="auth-card">
       <div class="auth-brand">
         <span class="auth-logo">绘</span>
-        <h1>绘约 HuiYue</h1>
+        <h1>绘约</h1>
         <p>带给你自由、高效、专业的美术约稿体验</p>
       </div>
 

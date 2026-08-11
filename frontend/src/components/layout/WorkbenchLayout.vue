@@ -2,7 +2,7 @@
   <el-container class="workbench">
     <el-aside width="200px" class="sidebar">
       <div class="logo">
-        <router-link to="/">绘约 HuiYue</router-link>
+        <router-link to="/">绘约</router-link>
       </div>
       <el-menu :default-active="activePath" router class="menu">
         <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">

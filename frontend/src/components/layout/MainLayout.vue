@@ -5,7 +5,7 @@
       <div class="header-bar__inner page-container">
         <router-link to="/" class="header-bar__logo">
           <span class="logo-mark">绘</span>
-          <span class="logo-text">绘约 HuiYue</span>
+          <span class="logo-text">绘约</span>
         </router-link>
 
         <nav class="header-bar__nav">
@@ -60,8 +60,8 @@
           <router-link to="/register">注册</router-link>
         </div>
         <div class="page-footer__copyright">
-          <p>绘约 HuiYue · 带给你自由、高效、专业的美术约稿体验</p>
-          <p class="records">Copyright © 2026 HuiYue.com 保留所有权利 · 毕业设计作品</p>
+          <p>绘约 · 带给你自由、高效、专业的美术约稿体验</p>
+          <p class="records">Copyright © 2026 绘约 保留所有权利 · 毕业设计作品</p>
         </div>
       </div>
     </footer>
