@@ -48,10 +48,6 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public Project create(ProjectRequest request, Long employerId) {
-        User employer = userMapper.selectById(employerId);
-        if (employer == null || employer.getRole() == null || employer.getRole() != 1) {
-            throw new BusinessException(ResultCode.NO_PERMISSION);
-        }
         LocalDateTime now = LocalDateTime.now();
         Project project = new Project();
         project.setEmployerId(employerId);

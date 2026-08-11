@@ -38,6 +38,7 @@
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { applyCert as applyCertApi } from '@/api/user'
 import { CERT_STATUS, statusText, statusType } from '@/utils/status'
 
 const userStore = useUserStore()
@@ -46,9 +47,10 @@ const certStatus = computed(() => userStore.user?.certStatus ?? 0)
 const certText = computed(() => statusText(CERT_STATUS, certStatus.value))
 const certType = computed(() => statusType(CERT_STATUS, certStatus.value))
 
-function applyCert() {
-  // TODO(阶段4)：提交认证申请（PUT /admin/users/{id}/cert 或专用接口）
-  ElMessage.info('认证申请接口将在阶段 4 接入')
+async function applyCert() {
+  const user = await applyCertApi()
+  userStore.user = user
+  ElMessage.success('认证申请已提交，请等待管理员审核')
 }
 </script>
 

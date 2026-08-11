@@ -23,3 +23,7 @@ export function getUsers(params) {
 export function updateUserStatus(id, status) {
   return request.put(`/admin/users/${id}/status`, null, { params: { status } })
 }
+
+export function applyCert() {
+  return request.put('/users/me/cert')
+}

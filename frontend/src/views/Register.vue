@@ -18,6 +18,7 @@
           <el-input v-model="form.password" type="password" show-password placeholder="6-32 位" :prefix-icon="Lock" />
         </el-form-item>
         <el-form-item label="我是" prop="role">
+          <div class="role-tip">选择主要身份用于默认工作台入口；注册后发布企划、浏览均可用，画师功能需通过画师认证。</div>
           <div class="role-picker">
             <div
               class="role-option"
@@ -139,6 +140,16 @@ async function onRegister() {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   width: 100%;
+}
+
+.role-tip {
+  font-size: 12px;
+  color: var(--huiyue-text-secondary);
+  background: var(--huiyue-section-alt);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  line-height: 1.7;
 }
 
 .role-option {
