@@ -19,7 +19,7 @@ public class Project {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long plannerId;
+    private Long employerId;
 
     private String title;
 
@@ -33,7 +33,13 @@ public class Project {
 
     private String images;
 
-    /** 状态：0 招募中、1 已选定、2 已完成、3 已下架 */
+    /** 合作方式：0 公开招募、1 定向邀请 */
+    private Integer mode;
+
+    /** 招募截止时间 */
+    private LocalDateTime recruitDeadline;
+
+    /** 状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已关闭 */
     private Integer status;
 
     private Integer deleted;

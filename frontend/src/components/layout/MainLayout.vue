@@ -4,9 +4,11 @@
       <div class="page-container header-inner">
         <router-link to="/" class="logo">绘约 HuiYue</router-link>
         <nav class="nav">
+          <router-link to="/artists">画师</router-link>
+          <router-link to="/works">作品</router-link>
           <router-link to="/projects">企划大厅</router-link>
-          <router-link v-if="userStore.isLoggedIn" to="/orders">我的订单</router-link>
-          <router-link v-if="userStore.isLoggedIn" to="/messages">消息中心</router-link>
+          <router-link to="/stalls">服务板</router-link>
+          <router-link v-if="userStore.isLoggedIn" :to="workbenchHome">我的工作台</router-link>
           <router-link v-if="userStore.isAdmin" to="/admin">管理后台</router-link>
         </nav>
         <div v-if="userStore.isLoggedIn" class="user-area">
@@ -43,6 +45,13 @@ import { useUserStore } from '@/stores/user'
 const router = useRouter()
 const userStore = useUserStore()
 
+const workbenchHome = computed(() => {
+  const role = userStore.user?.role
+  if (role === 2) return '/painter'
+  if (role === 3) return '/admin'
+  return '/dashboard'
+})
+
 const nickname = computed(() => {
   const n = userStore.user?.nickname || ''
   return n ? n.slice(0, 1) : '绘'
@@ -50,7 +59,7 @@ const nickname = computed(() => {
 
 function onCommand(command) {
   if (command === 'me') {
-    router.push({ name: 'Me' })
+    router.push(workbenchHome.value)
   } else if (command === 'logout') {
     userStore.logout()
     router.push({ name: 'Home' })

@@ -10,6 +10,9 @@ export const useUserStore = defineStore('user', {
   getters: {
     isLoggedIn: (state) => !!state.token,
     isAdmin: (state) => state.user?.role === 3,
+    isPainter: (state) => state.user?.role === 2,
+    isEmployer: (state) => state.user?.role === 1,
+    certStatus: (state) => state.user?.certStatus ?? 0,
   },
   actions: {
     async login(payload) {

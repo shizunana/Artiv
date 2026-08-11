@@ -6,6 +6,7 @@
         <el-descriptions-item label="用户名">{{ userStore.user.username }}</el-descriptions-item>
         <el-descriptions-item label="昵称">{{ userStore.user.nickname }}</el-descriptions-item>
         <el-descriptions-item label="角色">{{ roleText }}</el-descriptions-item>
+        <el-descriptions-item label="认证状态">{{ certText }}</el-descriptions-item>
         <el-descriptions-item label="注册时间">{{ formatDateTime(userStore.user.createdAt) }}</el-descriptions-item>
       </el-descriptions>
     </el-card>
@@ -22,5 +23,10 @@ const userStore = useUserStore()
 const roleText = computed(() => {
   const role = userStore.user?.role
   return role === 1 ? '企划方' : role === 2 ? '画师' : role === 3 ? '管理员' : '-'
+})
+
+const certText = computed(() => {
+  const status = userStore.user?.certStatus
+  return status === 0 ? '未认证' : status === 1 ? '审核中' : status === 2 ? '已认证' : status === 3 ? '已驳回' : '-'
 })
 </script>

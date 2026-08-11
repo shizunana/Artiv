@@ -12,6 +12,22 @@ export function createProject(data) {
   return request.post('/projects', data)
 }
 
-export function applyProject(id, data) {
-  return request.post(`/projects/${id}/applications`, data)
+export function updateProject(id, data) {
+  return request.put(`/projects/${id}`, data)
+}
+
+export function deleteProject(id) {
+  return request.delete(`/projects/${id}`)
+}
+
+export function getApplications(projectId, params) {
+  return request.get(`/projects/${projectId}/applications`, { params })
+}
+
+export function applyProject(projectId, data) {
+  return request.post(`/projects/${projectId}/applications`, data)
+}
+
+export function deleteApplication(id) {
+  return request.delete(`/applications/${id}`)
 }

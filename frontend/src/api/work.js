@@ -1,0 +1,13 @@
+import request from '@/utils/request'
+
+export function getWorks(params) {
+  return request.get('/works', { params })
+}
+
+export function createWork(data) {
+  return request.post('/works', data)
+}
+
+export function deleteWork(id) {
+  return request.delete(`/works/${id}`)
+}

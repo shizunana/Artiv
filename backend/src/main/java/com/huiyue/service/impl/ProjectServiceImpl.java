@@ -19,6 +19,7 @@ public class ProjectServiceImpl implements ProjectService {
     public Page<Project> listProjects(long page, long size, String keyword, Integer status) {
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
                 .eq(Project::getDeleted, 0)
+                .eq(Project::getMode, 0)
                 .eq(status != null, Project::getStatus, status)
                 .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
                 .orderByDesc(Project::getCreatedAt);

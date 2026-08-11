@@ -15,3 +15,11 @@ export function getMe() {
 export function updateProfile(id, data) {
   return request.put(`/users/${id}`, data)
 }
+
+export function getUsers(params) {
+  return request.get('/admin/users', { params })
+}
+
+export function updateUserStatus(id, status) {
+  return request.put(`/admin/users/${id}/status`, null, { params: { status } })
+}

@@ -9,45 +9,66 @@ const routes = [
     meta: { title: '登录' },
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@/views/Register.vue'),
+    meta: { title: '注册' },
+  },
+  // ---- 公开页面 ----
+  {
     path: '/',
     component: () => import('@/components/layout/MainLayout.vue'),
     children: [
-      {
-        path: '',
-        name: 'Home',
-        component: () => import('@/views/Home.vue'),
-        meta: { title: '首页' },
-      },
-      {
-        path: 'projects',
-        name: 'Projects',
-        component: () => import('@/views/projects/ProjectList.vue'),
-        meta: { title: '企划大厅', requiresAuth: false },
-      },
-      {
-        path: 'orders',
-        name: 'Orders',
-        component: () => import('@/views/orders/OrderList.vue'),
-        meta: { title: '我的订单', requiresAuth: true },
-      },
-      {
-        path: 'messages',
-        name: 'Messages',
-        component: () => import('@/views/messages/MessageList.vue'),
-        meta: { title: '消息中心', requiresAuth: true },
-      },
-      {
-        path: 'me',
-        name: 'Me',
-        component: () => import('@/views/me/Profile.vue'),
-        meta: { title: '个人中心', requiresAuth: true },
-      },
-      {
-        path: 'admin',
-        name: 'Admin',
-        component: () => import('@/views/admin/Dashboard.vue'),
-        meta: { title: '管理后台', requiresAuth: true, requiresAdmin: true },
-      },
+      { path: '', name: 'Home', component: () => import('@/views/Home.vue'), meta: { title: '首页' } },
+      { path: 'artists', name: 'Artists', component: () => import('@/views/artists/ArtistList.vue'), meta: { title: '画师列表' } },
+      { path: 'profiles/:id', name: 'ArtistProfile', component: () => import('@/views/artists/ArtistProfile.vue'), meta: { title: '画师主页' } },
+      { path: 'works', name: 'Works', component: () => import('@/views/works/WorkList.vue'), meta: { title: '作品广场' } },
+      { path: 'projects', name: 'Projects', component: () => import('@/views/projects/ProjectList.vue'), meta: { title: '约稿大厅' } },
+      { path: 'projects/:id', name: 'ProjectDetail', component: () => import('@/views/projects/ProjectDetail.vue'), meta: { title: '企划详情' } },
+      { path: 'stalls', name: 'Stalls', component: () => import('@/views/stalls/StallList.vue'), meta: { title: '服务板' } },
+      { path: 'stalls/:id', name: 'StallDetail', component: () => import('@/views/stalls/StallDetail.vue'), meta: { title: '服务板详情' } },
+    ],
+  },
+  // ---- 企划方工作台 ----
+  {
+    path: '/dashboard',
+    component: () => import('@/components/layout/WorkbenchLayout.vue'),
+    meta: { requiresAuth: true, workbench: 'dashboard' },
+    children: [
+      { path: '', name: 'DashboardHome', component: () => import('@/views/dashboard/DashboardHome.vue'), meta: { title: '工作台首页' } },
+      { path: 'projects', name: 'DashboardProjects', component: () => import('@/views/dashboard/MyProjects.vue'), meta: { title: '我的企划' } },
+      { path: 'projects/new', name: 'ProjectNew', component: () => import('@/views/dashboard/ProjectNew.vue'), meta: { title: '发布企划' } },
+      { path: 'projects/:id/applications', name: 'ProjectApplications', component: () => import('@/views/dashboard/Applications.vue'), meta: { title: '应征管理' } },
+      { path: 'orders', name: 'DashboardOrders', component: () => import('@/views/orders/OrderList.vue'), meta: { title: '订单管理' } },
+      { path: 'messages', name: 'DashboardMessages', component: () => import('@/views/messages/MessageList.vue'), meta: { title: '消息中心' } },
+    ],
+  },
+  // ---- 画师工作台 ----
+  {
+    path: '/painter',
+    component: () => import('@/components/layout/WorkbenchLayout.vue'),
+    meta: { requiresAuth: true, workbench: 'painter' },
+    children: [
+      { path: '', name: 'PainterHome', component: () => import('@/views/painter/PainterHome.vue'), meta: { title: '画师工作台' } },
+      { path: 'profile', name: 'PainterProfile', component: () => import('@/views/painter/PainterProfile.vue'), meta: { title: '资料与认证' } },
+      { path: 'works', name: 'PainterWorks', component: () => import('@/views/painter/MyWorks.vue'), meta: { title: '作品集管理' } },
+      { path: 'stalls', name: 'PainterStalls', component: () => import('@/views/painter/MyStalls.vue'), meta: { title: '服务板管理' } },
+      { path: 'applications', name: 'PainterApplications', component: () => import('@/views/painter/MyApplications.vue'), meta: { title: '我的应征' } },
+      { path: 'invitations', name: 'PainterInvitations', component: () => import('@/views/painter/MyInvitations.vue'), meta: { title: '收到的邀请' } },
+      { path: 'orders', name: 'PainterOrders', component: () => import('@/views/orders/OrderList.vue'), meta: { title: '订单管理' } },
+      { path: 'messages', name: 'PainterMessages', component: () => import('@/views/messages/MessageList.vue'), meta: { title: '消息中心' } },
+    ],
+  },
+  // ---- 管理后台 ----
+  {
+    path: '/admin',
+    component: () => import('@/components/layout/WorkbenchLayout.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, workbench: 'admin' },
+    children: [
+      { path: '', name: 'AdminHome', component: () => import('@/views/admin/Dashboard.vue'), meta: { title: '管理后台' } },
+      { path: 'users', name: 'AdminUsers', component: () => import('@/views/admin/Users.vue'), meta: { title: '用户管理' } },
+      { path: 'projects', name: 'AdminProjects', component: () => import('@/views/admin/Projects.vue'), meta: { title: '企划审核' } },
+      { path: 'stats', name: 'AdminStats', component: () => import('@/views/admin/Stats.vue'), meta: { title: '数据统计' } },
     ],
   },
 ]
@@ -57,7 +78,7 @@ const router = createRouter({
   routes,
 })
 
-// 登录守卫
+// 登录守卫：未登录访问工作台跳登录；管理员页面校验角色
 router.beforeEach((to) => {
   document.title = to.meta.title ? `${to.meta.title} - 绘约` : '绘约'
   const userStore = useUserStore()
@@ -66,7 +87,10 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth && !token) {
     return { name: 'Login', query: { redirect: to.fullPath } }
   }
-  if (to.name === 'Login' && token) {
+  if (to.meta.requiresAdmin && !userStore.isAdmin) {
+    return { name: 'Home' }
+  }
+  if ((to.name === 'Login' || to.name === 'Register') && token) {
     return { name: 'Home' }
   }
   return true

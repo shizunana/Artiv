@@ -31,10 +31,16 @@ public class User {
     /** 角色：1 企划方、2 画师、3 管理员 */
     private Integer role;
 
+    /** 画师认证：0 未认证、1 审核中、2 已认证、3 已驳回 */
+    private Integer certStatus;
+
     /** 状态：0 正常、1 封禁 */
     private Integer status;
 
-    private String intro;
+    private String bio;
+
+    /** 风格标签，逗号分隔 */
+    private String tags;
 
     /** 逻辑删除：0 未删、1 已删 */
     @JsonIgnore
