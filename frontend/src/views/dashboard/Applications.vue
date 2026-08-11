@@ -35,6 +35,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getApplications } from '@/api/project'
+import { statusText, statusType } from '@/utils/status'
 
 const APP_STATUS = {
   0: { text: '待处理', type: 'info' },

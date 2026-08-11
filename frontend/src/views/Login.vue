@@ -55,7 +55,10 @@ async function onLogin() {
   try {
     await userStore.login(loginForm)
     ElMessage.success('登录成功')
-    router.push(route.query.redirect || { name: 'Home' })
+    // 登录后按角色进入对应工作台（除非有明确 redirect）
+    const redirect = route.query.redirect
+    const workbenchHome = userStore.user?.role === 2 ? '/painter' : userStore.user?.role === 3 ? '/admin' : '/dashboard'
+    router.push(redirect || workbenchHome)
   } finally {
     loading.value = false
   }
