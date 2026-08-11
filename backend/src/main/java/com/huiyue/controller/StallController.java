@@ -32,6 +32,12 @@ public class StallController {
         return Result.ok(stallService.listStalls(page, size, category));
     }
 
+    @GetMapping("/mine")
+    public Result<Page<Stall>> mine(@RequestParam(defaultValue = "1") long page,
+                                    @RequestParam(defaultValue = "12") long size) {
+        return Result.ok(stallService.listMine(page, size, UserContext.getUserId()));
+    }
+
     @GetMapping("/{id}")
     public Result<Stall> detail(@PathVariable Long id) {
         return Result.ok(stallService.getById(id));

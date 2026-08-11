@@ -4,6 +4,10 @@ export function getStalls(params) {
   return request.get('/stalls', { params })
 }
 
+export function getMyStalls(params) {
+  return request.get('/stalls/mine', { params })
+}
+
 export function getStall(id) {
   return request.get(`/stalls/${id}`)
 }

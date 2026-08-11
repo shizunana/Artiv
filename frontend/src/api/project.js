@@ -4,6 +4,10 @@ export function getProjects(params) {
   return request.get('/projects', { params })
 }
 
+export function getMyProjects(params) {
+  return request.get('/projects/mine', { params })
+}
+
 export function getProject(id) {
   return request.get(`/projects/${id}`)
 }
@@ -22,6 +26,10 @@ export function deleteProject(id) {
 
 export function getApplications(projectId, params) {
   return request.get(`/projects/${projectId}/applications`, { params })
+}
+
+export function getMyApplications(params) {
+  return request.get('/applications/mine', { params })
 }
 
 export function applyProject(projectId, data) {

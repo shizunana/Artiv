@@ -29,6 +29,15 @@ public class WorkServiceImpl implements WorkService {
     }
 
     @Override
+    public Page<Work> listMine(long page, long size, Long userId) {
+        LambdaQueryWrapper<Work> wrapper = new LambdaQueryWrapper<Work>()
+                .eq(Work::getDeleted, 0)
+                .eq(Work::getUserId, userId)
+                .orderByDesc(Work::getCreatedAt);
+        return workMapper.selectPage(new Page<>(page, size), wrapper);
+    }
+
+    @Override
     public Work create(Work work, Long userId) {
         work.setId(null);
         work.setUserId(userId);

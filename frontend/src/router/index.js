@@ -90,6 +90,14 @@ router.beforeEach((to) => {
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
     return { name: 'Home' }
   }
+  // 工作台路由与角色匹配：画师访问企划方工作台、企划方访问画师工作台时引导回自己的工作台
+  if (token && to.meta.workbench) {
+    const role = userStore.user?.role
+    const expected = role === 2 ? 'painter' : role === 3 ? 'admin' : 'dashboard'
+    if (to.meta.workbench !== expected) {
+      return { path: `/${expected}` }
+    }
+  }
   if ((to.name === 'Login' || to.name === 'Register') && token) {
     return { name: 'Home' }
   }

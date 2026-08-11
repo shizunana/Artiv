@@ -29,6 +29,12 @@ public class WorkController {
         return Result.ok(workService.listWorks(page, size, category));
     }
 
+    @GetMapping("/mine")
+    public Result<Page<Work>> mine(@RequestParam(defaultValue = "1") long page,
+                                   @RequestParam(defaultValue = "12") long size) {
+        return Result.ok(workService.listMine(page, size, UserContext.getUserId()));
+    }
+
     @PostMapping
     public Result<Work> create(@RequestBody Work work) {
         return Result.ok(workService.create(work, UserContext.getUserId()));

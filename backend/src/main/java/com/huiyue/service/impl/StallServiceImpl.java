@@ -30,6 +30,15 @@ public class StallServiceImpl implements StallService {
     }
 
     @Override
+    public Page<Stall> listMine(long page, long size, Long painterId) {
+        LambdaQueryWrapper<Stall> wrapper = new LambdaQueryWrapper<Stall>()
+                .eq(Stall::getDeleted, 0)
+                .eq(Stall::getPainterId, painterId)
+                .orderByDesc(Stall::getCreatedAt);
+        return stallMapper.selectPage(new Page<>(page, size), wrapper);
+    }
+
+    @Override
     public Stall getById(Long id) {
         Stall stall = stallMapper.selectById(id);
         if (stall == null || stall.getDeleted() == 1) {

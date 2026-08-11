@@ -24,4 +24,11 @@ public class ProjectController {
                                       @RequestParam(required = false) Integer status) {
         return Result.ok(projectService.listProjects(page, size, keyword, status));
     }
+
+    /** 我的企划（企划方工作台） */
+    @GetMapping("/mine")
+    public Result<Page<Project>> mine(@RequestParam(defaultValue = "1") long page,
+                                      @RequestParam(defaultValue = "10") long size) {
+        return Result.ok(projectService.listMine(page, size, com.huiyue.security.UserContext.getUserId()));
+    }
 }

@@ -25,4 +25,13 @@ public class ProjectServiceImpl implements ProjectService {
                 .orderByDesc(Project::getCreatedAt);
         return projectMapper.selectPage(new Page<>(page, size), wrapper);
     }
+
+    @Override
+    public Page<Project> listMine(long page, long size, Long employerId) {
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
+                .eq(Project::getDeleted, 0)
+                .eq(Project::getEmployerId, employerId)
+                .orderByDesc(Project::getCreatedAt);
+        return projectMapper.selectPage(new Page<>(page, size), wrapper);
+    }
 }

@@ -7,6 +7,8 @@ public interface StallService {
 
     Page<Stall> listStalls(long page, long size, String category);
 
+    Page<Stall> listMine(long page, long size, Long painterId);
+
     Stall getById(Long id);
 
     Stall create(Stall stall, Long painterId);

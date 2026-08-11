@@ -6,4 +6,6 @@ import com.huiyue.entity.Project;
 public interface ProjectService {
 
     Page<Project> listProjects(long page, long size, String keyword, Integer status);
+
+    Page<Project> listMine(long page, long size, Long employerId);
 }

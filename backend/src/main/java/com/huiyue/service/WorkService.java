@@ -7,6 +7,8 @@ public interface WorkService {
 
     Page<Work> listWorks(long page, long size, String category);
 
+    Page<Work> listMine(long page, long size, Long userId);
+
     Work create(Work work, Long userId);
 
     void delete(Long id, Long userId);
