@@ -1,0 +1,33 @@
+:root {
+  --huiyue-primary: #4f7cff;
+  --huiyue-text: #1f2329;
+  --huiyue-text-secondary: #646a73;
+  --huiyue-bg: #f5f6f8;
+  --huiyue-border: #e5e6eb;
+  --huiyue-radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  color: var(--huiyue-text);
+  background-color: var(--huiyue-bg);
+  font-family: 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+}
+
+a {
+  color: var(--huiyue-primary);
+  text-decoration: none;
+}
+
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}

@@ -40,6 +40,8 @@ backend/uploads/
 .env
 .env.production
 application-local.yml
+application-dev.yml
+backend/src/main/resources/application-local.yml
 
 # ---- 其他 ----
 *.swp
