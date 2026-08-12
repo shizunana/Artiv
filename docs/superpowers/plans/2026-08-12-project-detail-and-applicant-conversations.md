@@ -1,4 +1,6 @@
-# Project Detail and Applicant Conversations Implementation Plan
+# 企划详情与应征沟通历史实施计划（归档）
+
+> 归档说明（2026-08-13）：本计划已完成并合并至 `main`。其中分支隔离、Superpowers 子技能及复选框是历史记录，不应作为当前开发指令；当前规则与进度以 `../../沟通与消息设计.md`、`../../接口文档.md`、`../../项目进度.md` 为准。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

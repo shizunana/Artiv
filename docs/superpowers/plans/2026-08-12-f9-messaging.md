@@ -1,4 +1,6 @@
-# F9 沟通与消息模块 Implementation Plan
+# F9 沟通与消息模块历史实施计划（归档）
+
+> 归档说明（2026-08-13）：本计划对应的功能已合并至 `main`。其中分支名、Superpowers 子技能要求和任务复选框均为当时的历史上下文，不应作为当前开发指令；当前规则与进度以 `../../沟通与消息设计.md`、`../../接口文档.md`、`../../项目进度.md` 为准。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
