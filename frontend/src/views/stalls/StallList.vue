@@ -15,16 +15,6 @@
 
     <!-- 搜索 + 排序 + 题材风格 + 价格区间 + 截稿时间（参考站筛选行） -->
     <div class="filter-row">
-      <el-input
-        v-model="keyword"
-        placeholder="搜索橱窗标题"
-        clearable
-        class="search-input"
-        @keyup.enter="page = 1; load()"
-        @clear="page = 1; load()"
-      >
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
       <el-select v-model="sort" class="sort-select" @change="page = 1; load()">
         <el-option label="最新上架" value="newest" />
         <el-option label="价格从低到高" value="priceAsc" />
@@ -48,6 +38,16 @@
         <el-option label="48 小时内" value="48" />
         <el-option label="一周内" value="一周" />
       </el-select>
+      <el-input
+        v-model="keyword"
+        placeholder="搜索橱窗标题"
+        clearable
+        class="search-input"
+        @keyup.enter="page = 1; load()"
+        @clear="page = 1; load()"
+      >
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
     </div>
 
     <!-- 橱窗卡片（参考站 stall-cell） -->
@@ -182,11 +182,13 @@ onMounted(load)
   gap: 12px;
   padding: 14px 0;
   flex-wrap: nowrap;
+  justify-content: flex-start;
 }
 
 .search-input {
   width: 240px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .search-input :deep(.el-input__wrapper) {
