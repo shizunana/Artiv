@@ -1,19 +1,13 @@
 <template>
   <div class="list-page">
+    <div class="list-header page-container">
+      <h1 class="section-title">约稿大厅</h1>
+      <p class="section-subtitle">发布需求，寻找合适的画师</p>
+    </div>
+
     <div class="page-container">
-      <!-- 搜索栏 + 筛选（仿参考站 projects 列表页） -->
-      <div class="list-toolbar">
-        <el-input
-          v-model="keyword"
-          placeholder="搜索企划标题、需求关键词"
-          clearable
-          class="list-search"
-          @keyup.enter="load"
-          @clear="load"
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
-          <template #append><el-button @click="load">搜索</el-button></template>
-        </el-input>
+      <!-- 筛选栏 -->
+      <div class="filter-bar">
         <div class="filter-tabs">
           <span
             v-for="s in statusFilters"
@@ -25,6 +19,9 @@
             {{ s.label }}
           </span>
         </div>
+        <el-input v-model="keyword" placeholder="搜索企划标题" clearable class="search-input" @keyup.enter="load" @clear="load">
+          <template #append><el-button @click="load">搜索</el-button></template>
+        </el-input>
       </div>
 
       <div class="project-grid" v-loading="loading">
@@ -60,7 +57,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search } from '@element-plus/icons-vue'
 import { getProjects } from '@/api/project'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import Pagination from '@/components/common/Pagination.vue'
@@ -126,24 +122,17 @@ onMounted(load)
   padding-bottom: 48px;
 }
 
-.list-toolbar {
-  padding: 20px 0 4px;
+.list-header {
+  padding-top: 48px;
+}
+
+.filter-bar {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.list-search {
-  max-width: 520px;
-}
-
-.list-search :deep(.el-input__wrapper) {
-  border-radius: 22px;
-  padding: 4px 16px;
-}
-
-.list-search :deep(.el-input-group__append) {
-  border-radius: 0 22px 22px 0;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
 .filter-tabs {
@@ -174,11 +163,14 @@ onMounted(load)
   color: #fff;
 }
 
+.search-input {
+  width: 260px;
+}
+
 .project-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  margin-top: 18px;
 }
 
 .project-card {
