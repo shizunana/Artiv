@@ -2,19 +2,18 @@
   <div class="list-page page-container">
     <!-- 分类 Tab（参考站 stalls/list） -->
     <div class="category-bar">
-      <span
-        v-for="c in categories"
-        :key="c"
-        class="category-tab"
-        :class="{ 'is-active': activeCategory === c }"
-        @click="activeCategory = c; page = 1; load()"
-      >
-        {{ c }}
-      </span>
-    </div>
-
-    <!-- 搜索 + 排序 -->
-    <div class="filter-row">
+      <div class="category-tabs">
+        <span
+          v-for="c in categories"
+          :key="c"
+          class="category-tab"
+          :class="{ 'is-active': activeCategory === c }"
+          @click="activeCategory = c; page = 1; load()"
+        >
+          {{ c }}
+        </span>
+      </div>
+      <!-- 搜索标题（参考站布局：位于分类行右侧） -->
       <el-input
         v-model="keyword"
         placeholder="搜索橱窗标题"
@@ -25,10 +24,32 @@
       >
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
+    </div>
+
+    <!-- 排序 + 题材风格 + 价格区间 + 截稿时间（参考站筛选行） -->
+    <div class="filter-row">
       <el-select v-model="sort" class="sort-select" @change="page = 1; load()">
         <el-option label="最新上架" value="newest" />
         <el-option label="价格从低到高" value="priceAsc" />
         <el-option label="价格从高到低" value="priceDesc" />
+      </el-select>
+      <el-select v-model="subject" class="filter-select" @change="page = 1; load()">
+        <el-option label="题材风格" value="all" />
+        <el-option v-for="s in subjectOptions" :key="s" :label="s" :value="s" />
+      </el-select>
+      <el-select v-model="priceRange" class="filter-select" @change="page = 1; load()">
+        <el-option label="价格区间不限" value="all" />
+        <el-option label="100 以下" value="0-100" />
+        <el-option label="100-300" value="100-300" />
+        <el-option label="300-500" value="300-500" />
+        <el-option label="500-1000" value="500-1000" />
+        <el-option label="1000 以上" value="1000-" />
+      </el-select>
+      <el-select v-model="deliverTime" class="filter-select" @change="page = 1; load()">
+        <el-option label="截稿时间不限" value="all" />
+        <el-option label="24 小时内" value="24" />
+        <el-option label="48 小时内" value="48" />
+        <el-option label="一周内" value="一周" />
       </el-select>
     </div>
 
@@ -82,8 +103,12 @@ const total = ref(0)
 const activeCategory = ref('全部')
 const keyword = ref('')
 const sort = ref('newest')
+const subject = ref('all')
+const priceRange = ref('all')
+const deliverTime = ref('all')
 
 const categories = ['全部', '头像', 'Q版全身', '半身像', '立绘', '组合页', '服设', '壁纸', '表情包', 'Live2d', '平面设计']
+const subjectOptions = ['正比', 'Q版', '日系', '古风', '国潮', '像素', '小动物', '风景', '半厚涂']
 
 function goDetail(id) {
   router.push({ name: 'StallDetail', params: { id } })
@@ -96,6 +121,13 @@ async function load() {
     if (activeCategory.value !== '全部') params.category = activeCategory.value
     if (keyword.value) params.keyword = keyword.value
     if (sort.value !== 'newest') params.sort = sort.value
+    if (subject.value !== 'all') params.subject = subject.value
+    if (priceRange.value !== 'all') {
+      const [min, max] = priceRange.value.split('-')
+      if (min) params.priceMin = Number(min)
+      if (max) params.priceMax = Number(max)
+    }
+    if (deliverTime.value !== 'all') params.deliverTime = deliverTime.value
     const data = await getStalls(params)
     stalls.value = data.records || []
     total.value = data.total || 0
@@ -117,10 +149,18 @@ onMounted(load)
 /* ---------- 分类区 ---------- */
 .category-bar {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
   padding: 14px 0;
   border-bottom: 1px solid var(--huiyue-border);
+}
+
+.category-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
 }
 
 .category-tab {
@@ -155,7 +195,8 @@ onMounted(load)
 }
 
 .search-input {
-  max-width: 380px;
+  width: 240px;
+  flex-shrink: 0;
 }
 
 .search-input :deep(.el-input__wrapper) {
@@ -164,6 +205,11 @@ onMounted(load)
 
 .sort-select {
   width: 150px;
+  flex-shrink: 0;
+}
+
+.filter-select {
+  width: 140px;
   flex-shrink: 0;
 }
 

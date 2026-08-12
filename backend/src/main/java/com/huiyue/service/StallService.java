@@ -5,7 +5,9 @@ import com.huiyue.entity.Stall;
 
 public interface StallService {
 
-    Page<Stall> listStalls(long page, long size, String category, String keyword, String sort);
+    Page<Stall> listStalls(long page, long size, String category, String keyword, String sort,
+                           String subject, java.math.BigDecimal priceMin, java.math.BigDecimal priceMax,
+                           String deliverTime);
 
     Page<Stall> listMine(long page, long size, Long painterId);
 

@@ -23,12 +23,18 @@ public class StallServiceImpl implements StallService {
     private final UserMapper userMapper;
 
     @Override
-    public Page<Stall> listStalls(long page, long size, String category, String keyword, String sort) {
+    public Page<Stall> listStalls(long page, long size, String category, String keyword, String sort,
+                                  String subject, java.math.BigDecimal priceMin, java.math.BigDecimal priceMax,
+                                  String deliverTime) {
         LambdaQueryWrapper<Stall> wrapper = new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getDeleted, 0)
                 .eq(Stall::getStatus, 1)
                 .eq(StringUtils.hasText(category), Stall::getCategory, category)
-                .like(StringUtils.hasText(keyword), Stall::getTitle, keyword);
+                .like(StringUtils.hasText(keyword), Stall::getTitle, keyword)
+                .like(StringUtils.hasText(subject), Stall::getParams, subject)
+                .ge(priceMin != null, Stall::getPrice, priceMin)
+                .le(priceMax != null, Stall::getPrice, priceMax)
+                .like(StringUtils.hasText(deliverTime), Stall::getDeliverTime, deliverTime);
         if ("priceAsc".equals(sort)) {
             wrapper.orderByAsc(Stall::getPrice);
         } else if ("priceDesc".equals(sort)) {

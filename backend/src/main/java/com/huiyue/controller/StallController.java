@@ -33,8 +33,13 @@ public class StallController {
                                     @RequestParam(defaultValue = "12") long size,
                                     @RequestParam(required = false) String category,
                                     @RequestParam(required = false) String keyword,
-                                    @RequestParam(required = false) String sort) {
-        return Result.ok(stallService.listStalls(page, size, category, keyword, sort));
+                                    @RequestParam(required = false) String sort,
+                                    @RequestParam(required = false) String subject,
+                                    @RequestParam(required = false) java.math.BigDecimal priceMin,
+                                    @RequestParam(required = false) java.math.BigDecimal priceMax,
+                                    @RequestParam(required = false) String deliverTime) {
+        return Result.ok(stallService.listStalls(page, size, category, keyword, sort,
+                subject, priceMin, priceMax, deliverTime));
     }
 
     @GetMapping("/mine")

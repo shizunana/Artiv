@@ -123,7 +123,9 @@
             </div>
             <div class="param-line">
               <span class="param-label">题材风格</span>
-              <el-input v-model="form.params.subject" placeholder="如：正比、像素、日系" class="param-input" />
+              <el-select v-model="form.params.subject" multiple placeholder="选择题材风格（可多选）" class="param-input">
+                <el-option v-for="s in subjectOptions" :key="s" :label="s" :value="s" />
+              </el-select>
             </div>
           </div>
         </el-form-item>
@@ -151,6 +153,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
 const categories = ['国潮插画', '角色立绘', '场景原画', '头像', 'Q版', 'Live2d']
+const subjectOptions = ['正比', 'Q版', '日系', '古风', '国潮', '像素', '小动物', '风景', '半厚涂']
 const form = reactive({
   title: '',
   category: '',
@@ -164,7 +167,7 @@ const form = reactive({
     { name: '修改', percent: 30 },
     { name: '终稿', percent: 30 },
   ],
-  params: { colorMode: 'RGB', spec: '', format: [], subject: '' },
+  params: { colorMode: 'RGB', spec: '', format: [], subject: [] },
   description: '',
 })
 
@@ -232,7 +235,7 @@ async function save() {
     ElMessage.warning('请填写完整的创作阶段名称')
     return
   }
-  if (!form.params.spec || !form.params.format.length || !form.params.subject) {
+  if (!form.params.spec || !form.params.format.length || !form.params.subject.length) {
     ElMessage.warning('稿件参数（规格/格式/题材风格）为必填')
     return
   }
