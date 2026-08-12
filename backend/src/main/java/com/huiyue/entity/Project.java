@@ -1,8 +1,10 @@
 package com.huiyue.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.huiyue.dto.PublisherSummary;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -40,6 +42,9 @@ public class Project {
     private String images;
 
     private String requirements;
+
+    @TableField(exist = false)
+    private PublisherSummary employer;
 
     /** 合作方式：0 公开招募、1 定向邀请 */
     private Integer mode;

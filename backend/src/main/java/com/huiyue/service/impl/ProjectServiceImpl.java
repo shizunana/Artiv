@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
+import com.huiyue.dto.PublisherSummary;
 import com.huiyue.dto.ProjectRequest;
 import com.huiyue.entity.Project;
 import com.huiyue.entity.Invitation;
@@ -132,6 +133,20 @@ public class ProjectServiceImpl implements ProjectService {
         if (project == null || project.getDeleted() == 1) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
+        project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));
         return project;
+    }
+
+    private PublisherSummary toPublisherSummary(User user) {
+        if (user == null) {
+            return null;
+        }
+        return new PublisherSummary(
+                user.getId(),
+                user.getNickname(),
+                user.getAvatar(),
+                user.getBio(),
+                user.getTags()
+        );
     }
 }

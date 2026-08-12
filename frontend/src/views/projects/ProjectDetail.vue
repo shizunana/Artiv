@@ -268,9 +268,10 @@ async function loadProject() {
   loading.value = true
   try {
     project.value = await getProject(route.params.id)
-    if (userStore.user?.id === project.value?.employerId) {
+    employer.value = project.value?.employer || null
+    if (!employer.value && userStore.user?.id === project.value?.employerId) {
       employer.value = userStore.user
-    } else if (userStore.token && project.value?.employerId) {
+    } else if (!employer.value && userStore.token && project.value?.employerId) {
       employer.value = await getProjectEmployer(project.value.employerId)
     }
     await loadApplicants()

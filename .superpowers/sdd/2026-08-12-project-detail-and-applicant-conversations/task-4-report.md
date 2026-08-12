@@ -30,3 +30,21 @@ Completed Task 4 in the frontend only. The work preserves the existing project-d
 - Focused source review confirmed the application gate, both Element Plus validation rules, `applyProject(projectId, { intro, quote })`, and no `workLink` usage in `ProjectDetail.vue`.
 
 The build reports the repository's existing Rollup PURE-annotation and chunk-size warnings; it exits successfully.
+
+## Fix round: public publisher summary
+
+- Added a safe, nonpersistent `employer` summary to the public project detail response with only `id`, `nickname`, `avatar`, `bio`, and `tags`.
+- `ProjectServiceImpl.getById` now loads the publisher after the existing project/deleted check and maps only the safe fields; a missing publisher leaves `employer: null` and does not fail the public detail request.
+- `ProjectDetail.vue` now prefers `project.employer` for all viewers. It only falls back to the protected `/users/{id}` helper when the embedded summary is absent and the viewer has a token, preserving compatibility without making anonymous protected-user calls.
+- `/users/{id}` authorization, project list, order flow, and message flow were not changed.
+
+### Fix verification
+
+- RED verified: `mvn.cmd -Dtest=ProjectServiceTest test` failed before the service change because `employer` was absent from `getById` serialization.
+- GREEN verified: `mvn.cmd -Dtest=ProjectServiceTest test` passed after the fix: 3 tests, 0 failures.
+- Backend regression: `mvn.cmd test` passed: 27 tests, 0 failures.
+- Frontend build: `npm.cmd run build` in `frontend/` passed. Existing Rollup PURE-annotation and large-chunk warnings remain.
+
+### Remaining manual verification
+
+- In a browser with no token/session, open a public project detail route and confirm the sidebar shows the publisher nickname/avatar/bio from `GET /projects/{id}` and the Network panel does not show `GET /users/{id}`.
