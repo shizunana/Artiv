@@ -158,7 +158,8 @@ CREATE TABLE `order_info` (
   PRIMARY KEY (`id`),
   KEY `idx_employer` (`employer_id`),
   KEY `idx_painter` (`painter_id`),
-  KEY `idx_project` (`project_id`)
+  KEY `idx_project` (`project_id`),
+  UNIQUE KEY `uk_project_conversation_starter` (`project_id`, `conversation_key`, `subtype`)
 ) ENGINE = InnoDB COMMENT = '订单表';
 
 -- -----------------------------------------------------
@@ -194,6 +195,7 @@ CREATE TABLE `message` (
   `type`        TINYINT      NOT NULL DEFAULT 0 COMMENT '类型：0 系统、1 应征、2 订单、3 私信',
   `subtype`     VARCHAR(50)  DEFAULT NULL COMMENT '消息子类型，如 PRIVATE_CHAT / APPLICATION_CREATED',
   `conversation_key` VARCHAR(50) DEFAULT NULL COMMENT '双方会话键，按较小用户ID_较大用户ID归一化',
+  `starter_key` VARCHAR(100) DEFAULT NULL COMMENT '项目会话发起标记；普通消息为空',
   `content`     VARCHAR(500) NOT NULL COMMENT '消息内容',
   `read_at`     DATETIME     DEFAULT NULL COMMENT '已读时间（NULL 表示未读）',
   `deleted`     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
@@ -202,7 +204,8 @@ CREATE TABLE `message` (
   PRIMARY KEY (`id`),
   KEY `idx_to` (`to_id`, `read_at`),
   KEY `idx_conversation` (`conversation_key`, `project_id`, `created_at`),
-  KEY `idx_project` (`project_id`)
+  KEY `idx_project` (`project_id`),
+  UNIQUE KEY `uk_project_conversation_starter` (`starter_key`)
 ) ENGINE = InnoDB COMMENT = '消息表';
 
 -- -----------------------------------------------------

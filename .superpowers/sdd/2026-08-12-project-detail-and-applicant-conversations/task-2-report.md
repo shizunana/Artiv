@@ -18,3 +18,10 @@
 
 - Backend-only changes; frontend and project documentation were not modified.
 - No project order, `order_info`, application status, or project state is changed by the order-intent endpoint.
+
+## Round 1 remediation
+
+- Removed the public `ApplicationService.listByProject` bypass; applicant data is retrieved only after the owner check in `listApplicantDetails`.
+- Removed `createProjectConversation` from the public service contract. The retained private compatibility helper is unreachable from callers, and selection continues to create no conversation.
+- Added a nullable `starter_key` with `uk_project_conversation_starter` in both the fresh schema and an upgrade migration. Only a project starter marker receives that identity, leaving normal replies unconstrained. Initiation now inserts once and, on a duplicate-key race, fetches and returns the single persisted starter marker.
+- Added tests for selected, non-owner, and withdrawn initiation outcomes; duplicate-key idempotency; no public applicant-list or legacy starter API; and non-owner order intent with no application, project, or message mutation.

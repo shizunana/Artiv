@@ -34,6 +34,8 @@ public class Message {
     /** 双方会话键：较小用户ID_较大用户ID */
     private String conversationKey;
 
+    private String starterKey;
+
     private String content;
 
     /** 已读时间（NULL 表示未读） */

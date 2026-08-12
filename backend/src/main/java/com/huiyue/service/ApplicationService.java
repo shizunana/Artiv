@@ -6,8 +6,6 @@ import com.huiyue.entity.Application;
 
 public interface ApplicationService {
 
-    Page<Application> listByProject(long page, long size, Long projectId);
-
     Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId, Long employerId);
 
     Page<Application> listMine(long page, long size, Long painterId);

@@ -60,6 +60,12 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void applicationServiceDoesNotExposeUnverifiedProjectApplicantListing() {
+        assertThrows(NoSuchMethodException.class,
+                () -> ApplicationService.class.getMethod("listByProject", long.class, long.class, Long.class));
+    }
+
+    @Test
     void listApplicantDetailsEnrichesEachApplicationWithPainterAndFourWorks() {
         Project project = new Project();
         project.setId(8L);
@@ -131,6 +137,5 @@ class ApplicationServiceTest {
                 eq(2L), eq(1), eq("APPLICATION_SELECTED"), eq(8L),
                 eq("企划方已选择你的应征，可进入消息中心继续沟通。")
         );
-        verify(messageService, never()).createProjectConversation(any(), any(), any());
     }
 }

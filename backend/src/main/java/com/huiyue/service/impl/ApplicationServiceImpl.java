@@ -32,15 +32,6 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final MessageService messageService;
 
     @Override
-    public Page<Application> listByProject(long page, long size, Long projectId) {
-        LambdaQueryWrapper<Application> wrapper = new LambdaQueryWrapper<Application>()
-                .eq(Application::getDeleted, 0)
-                .eq(Application::getProjectId, projectId)
-                .orderByDesc(Application::getCreatedAt);
-        return applicationMapper.selectPage(new Page<>(page, size), wrapper);
-    }
-
-    @Override
     public Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId, Long employerId) {
         Project project = projectMapper.selectById(projectId);
         if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
@@ -49,7 +40,11 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (!employerId.equals(project.getEmployerId())) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
-        Page<Application> applications = listByProject(page, size, projectId);
+        Page<Application> applications = applicationMapper.selectPage(new Page<>(page, size),
+                new LambdaQueryWrapper<Application>()
+                        .eq(Application::getDeleted, 0)
+                        .eq(Application::getProjectId, projectId)
+                        .orderByDesc(Application::getCreatedAt));
         Page<ApplicationDetail> result = new Page<>(page, size, applications.getTotal());
         result.setRecords(applications.getRecords().stream().map(application -> {
             ApplicationDetail detail = new ApplicationDetail();

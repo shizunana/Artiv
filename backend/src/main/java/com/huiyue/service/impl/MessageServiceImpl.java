@@ -21,6 +21,7 @@ import com.huiyue.service.MessageService;
 import com.huiyue.websocket.MessageWebSocketHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -183,8 +184,7 @@ public class MessageServiceImpl implements MessageService {
         return message;
     }
 
-    @Override
-    public void createProjectConversation(Long employerId, Long painterId, Long projectId) {
+    private void createProjectConversation(Long employerId, Long painterId, Long projectId) {
         Message message = new Message();
         message.setFromId(employerId);
         message.setToId(painterId);
@@ -200,15 +200,9 @@ public class MessageServiceImpl implements MessageService {
     public Message startProjectConversation(Long employerId, Long projectId, Long painterId) {
         Project project = requireOwnedProject(employerId, projectId);
         requireActiveApplication(project.getId(), painterId);
-        if (hasStartedProjectConversation(employerId, painterId, projectId)) {
-            return messageMapper.selectOne(new LambdaQueryWrapper<Message>()
-                    .eq(Message::getDeleted, 0)
-                    .eq(Message::getType, TYPE_PRIVATE)
-                    .eq(Message::getProjectId, projectId)
-                    .eq(Message::getConversationKey, conversationKey(employerId, painterId))
-                    .eq(Message::getSubtype, "APPLICATION_CONVERSATION_STARTED")
-                    .orderByAsc(Message::getCreatedAt)
-                    .last("LIMIT 1"));
+        Message existing = findProjectConversationStarter(employerId, painterId, projectId);
+        if (existing != null) {
+            return existing;
         }
         Message message = new Message();
         message.setFromId(employerId);
@@ -217,9 +211,18 @@ public class MessageServiceImpl implements MessageService {
         message.setType(TYPE_PRIVATE);
         message.setSubtype("APPLICATION_CONVERSATION_STARTED");
         message.setConversationKey(conversationKey(employerId, painterId));
+        message.setStarterKey(projectConversationStarterKey(projectId, employerId, painterId));
         message.setContent("企划方已发起沟通，双方可在这里继续沟通需求。");
-        saveAndPush(message, "NEW_MESSAGE");
-        return message;
+        try {
+            saveAndPush(message, "NEW_MESSAGE");
+            return message;
+        } catch (DuplicateKeyException duplicateKeyException) {
+            Message starter = findProjectConversationStarter(employerId, painterId, projectId);
+            if (starter != null) {
+                return starter;
+            }
+            throw duplicateKeyException;
+        }
     }
 
     @Override
@@ -293,12 +296,17 @@ public class MessageServiceImpl implements MessageService {
     }
 
     private boolean hasStartedProjectConversation(Long employerId, Long painterId, Long projectId) {
-        return messageMapper.selectCount(new LambdaQueryWrapper<Message>()
+        return findProjectConversationStarter(employerId, painterId, projectId) != null;
+    }
+
+    private Message findProjectConversationStarter(Long employerId, Long painterId, Long projectId) {
+        return messageMapper.selectOne(new LambdaQueryWrapper<Message>()
                 .eq(Message::getDeleted, 0)
                 .eq(Message::getType, TYPE_PRIVATE)
                 .eq(Message::getProjectId, projectId)
-                .eq(Message::getConversationKey, conversationKey(employerId, painterId))
-                .eq(Message::getSubtype, "APPLICATION_CONVERSATION_STARTED")) > 0;
+                .eq(Message::getStarterKey, projectConversationStarterKey(projectId, employerId, painterId))
+                .orderByAsc(Message::getCreatedAt)
+                .last("LIMIT 1"));
     }
 
     private void validateOrderConversation(Long fromUserId, Long toUserId, Long orderId) {
@@ -320,6 +328,10 @@ public class MessageServiceImpl implements MessageService {
         long min = Math.min(firstUserId, secondUserId);
         long max = Math.max(firstUserId, secondUserId);
         return min + "_" + max;
+    }
+
+    private String projectConversationStarterKey(Long projectId, Long employerId, Long painterId) {
+        return projectId + ":" + conversationKey(employerId, painterId) + ":APPLICATION_CONVERSATION_STARTED";
     }
 
     private void push(Message message, String eventType) {

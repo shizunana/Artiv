@@ -19,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -91,6 +92,75 @@ class MessageServiceTest {
         assertEquals(2L, captor.getValue().getToId());
         assertEquals(8L, captor.getValue().getProjectId());
         assertEquals("APPLICATION_CONVERSATION_STARTED", captor.getValue().getSubtype());
+        assertEquals("8:1_2:APPLICATION_CONVERSATION_STARTED", captor.getValue().getStarterKey());
+    }
+
+    @Test
+    void employerStartsProjectConversationForSelectedApplicant() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        Application selected = pendingApplication();
+        selected.setStatus(1);
+        when(applicationMapper.selectOne(any())).thenReturn(selected);
+
+        messageService.startProjectConversation(1L, 8L, 2L);
+
+        verify(messageMapper).insert(any(Message.class));
+    }
+
+    @Test
+    void employerCannotStartProjectConversationForWithdrawnApplicant() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        Application withdrawn = pendingApplication();
+        withdrawn.setStatus(3);
+        when(applicationMapper.selectOne(any())).thenReturn(null);
+
+        assertThrows(BusinessException.class, () -> messageService.startProjectConversation(1L, 8L, 2L));
+
+        verify(messageMapper, never()).insert(any(Message.class));
+    }
+
+    @Test
+    void nonOwnerCannotStartProjectConversation() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+
+        assertThrows(BusinessException.class, () -> messageService.startProjectConversation(3L, 8L, 2L));
+
+        verify(applicationMapper, never()).selectOne(any());
+        verify(messageMapper, never()).insert(any(Message.class));
+    }
+
+    @Test
+    void messageServiceDoesNotExposeLegacyProjectConversationCreation() {
+        assertThrows(NoSuchMethodException.class,
+                () -> MessageService.class.getMethod("createProjectConversation", Long.class, Long.class, Long.class));
+    }
+
+    @Test
+    void duplicateProjectConversationInitiationReturnsTheSingleStarterRecord() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        when(applicationMapper.selectOne(any())).thenReturn(pendingApplication());
+        Message existing = new Message();
+        existing.setId(99L);
+        when(messageMapper.selectOne(any())).thenReturn(null, existing);
+        org.mockito.Mockito.doThrow(new DuplicateKeyException("duplicate starter"))
+                .when(messageMapper).insert(any(Message.class));
+
+        Message started = messageService.startProjectConversation(1L, 8L, 2L);
+
+        assertEquals(99L, started.getId());
+        verify(messageMapper).insert(any(Message.class));
+    }
+
+    @Test
+    void orderIntentRejectsNonOwnerWithoutMutation() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+
+        assertThrows(BusinessException.class, () -> messageService.createProjectOrderIntent(3L, 8L, 2L));
+
+        verify(applicationMapper, never()).selectOne(any());
+        verify(messageMapper, never()).insert(any(Message.class));
+        verify(projectMapper, never()).updateById(any(Project.class));
+        verify(applicationMapper, never()).updateById(any(Application.class));
     }
 
     @Test
@@ -98,7 +168,7 @@ class MessageServiceTest {
         when(projectMapper.selectById(8L)).thenReturn(ownedProject());
         when(userMapper.selectById(1L)).thenReturn(activeUser(1L));
         when(applicationMapper.selectCount(any())).thenReturn(1L);
-        when(messageMapper.selectCount(any())).thenReturn(0L);
+        when(messageMapper.selectOne(any())).thenReturn(null);
 
         assertThrows(BusinessException.class, () -> messageService.sendPrivateMessage(2L, request(1L, 8L, "reply")));
 
@@ -110,7 +180,9 @@ class MessageServiceTest {
         when(projectMapper.selectById(8L)).thenReturn(ownedProject());
         when(userMapper.selectById(1L)).thenReturn(activeUser(1L));
         when(applicationMapper.selectCount(any())).thenReturn(1L);
-        when(messageMapper.selectCount(any())).thenReturn(1L);
+        Message starter = new Message();
+        starter.setId(99L);
+        when(messageMapper.selectOne(any())).thenReturn(starter);
 
         messageService.sendPrivateMessage(2L, request(1L, 8L, "reply"));
 
