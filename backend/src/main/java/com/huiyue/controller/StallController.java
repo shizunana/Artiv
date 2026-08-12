@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -70,6 +71,12 @@ public class StallController {
     @PutMapping("/{id}/status")
     public Result<Stall> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         return Result.ok(stallService.changeStatus(id, status, UserContext.getUserId()));
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        stallService.delete(id, UserContext.getUserId());
+        return Result.ok();
     }
 
     /** 立即下单：生成订单（金额取橱窗价格） */

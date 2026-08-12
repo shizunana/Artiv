@@ -18,4 +18,6 @@ public interface StallService {
     Stall update(Long id, Stall stall, Long painterId);
 
     Stall changeStatus(Long id, Integer status, Long painterId);
+
+    void delete(Long id, Long painterId);
 }

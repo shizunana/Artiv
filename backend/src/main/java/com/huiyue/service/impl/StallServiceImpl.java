@@ -117,4 +117,16 @@ public class StallServiceImpl implements StallService {
         stallMapper.updateById(exist);
         return exist;
     }
+
+    @Override
+    public void delete(Long id, Long painterId) {
+        Stall exist = getById(id);
+        if (!exist.getPainterId().equals(painterId)) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        exist.setStatus(0);
+        exist.setDeleted(1);
+        exist.setUpdatedAt(LocalDateTime.now());
+        stallMapper.updateById(exist);
+    }
 }

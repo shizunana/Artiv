@@ -7,7 +7,7 @@
       </div>
 
       <el-table :data="stalls" v-loading="loading" empty-text="还没有橱窗，创建一个明码标价的服务吧">
-        <el-table-column label="封面" width="80">
+        <el-table-column label="封面" width="70">
           <template #default="{ row }">
             <el-image
               v-if="row.cover"
@@ -20,21 +20,22 @@
             <span v-else class="cover-none">无图</span>
           </template>
         </el-table-column>
-        <el-table-column prop="title" label="服务名称" min-width="160" />
-        <el-table-column prop="category" label="类型" width="110" />
-        <el-table-column label="价格" width="110">
+        <el-table-column prop="title" label="服务名称" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="category" label="类型" width="80" show-overflow-tooltip />
+        <el-table-column label="价格" width="80">
           <template #default="{ row }">¥{{ row.price }}</template>
         </el-table-column>
-        <el-table-column prop="description" label="橱窗详情" min-width="200" show-overflow-tooltip />
-        <el-table-column label="状态" width="90">
+        <el-table-column prop="description" label="橱窗详情" min-width="150" show-overflow-tooltip />
+        <el-table-column label="状态" width="76">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
               {{ row.status === 1 ? '上架中' : '已下架' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="150">
           <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="goDetail(row.id)">详情</el-button>
             <el-button link type="primary" size="small" @click="toggle(row)">
               {{ row.status === 1 ? '下架' : '上架' }}
             </el-button>
@@ -143,13 +144,15 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getMyStalls, createStall, changeStallStatus } from '@/api/stall'
+import { getMyStalls, createStall, changeStallStatus, deleteStall } from '@/api/stall'
 import { uploadFile } from '@/api/upload'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
 
 const stalls = ref([])
+const router = useRouter()
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
@@ -279,9 +282,13 @@ async function toggle(row) {
 
 async function remove(id) {
   await ElMessageBox.confirm('确定删除该橱窗吗？', '提示', { type: 'warning' })
-  await changeStallStatus(id, 0)
-  ElMessage.success('已下架')
+  await deleteStall(id)
+  ElMessage.success('橱窗已删除并下架')
   load()
+}
+
+function goDetail(id) {
+  router.push({ name: 'StallDetail', params: { id } })
 }
 
 onMounted(load)
@@ -293,6 +300,14 @@ onMounted(load)
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   padding: 24px;
+}
+
+:deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+:deep(.el-scrollbar__bar.is-horizontal) {
+  display: none;
 }
 
 .wb-card__head {
