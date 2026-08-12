@@ -35,3 +35,7 @@ export function getUnreadCount() {
 export function getNotifications(params) {
   return request.get('/messages/notifications', { params })
 }
+
+export function startProjectConversation(projectId, painterId) {
+  return request.post(`/projects/${projectId}/conversations/${painterId}`)
+}
