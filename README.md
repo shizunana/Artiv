@@ -8,9 +8,9 @@
 
 ## 技术栈
 
-- 前端：Vue 3、Vite、Vue Router、Pinia、Axios、Element Plus
-- 后端：Spring Boot、MyBatis-Plus、MySQL、JWT、WebSocket
-- 数据库：MySQL
+- 前端：Vue 3.5、Vite 5、Vue Router 4、Pinia 2、Axios、Element Plus 2.8
+- 后端：Spring Boot 3.3、MyBatis-Plus 3.5.7、MySQL 8、JWT、WebSocket
+- 数据库：MySQL 8（utf8mb4 / InnoDB）
 
 ## 项目当前状况（2026-08-12）
 
@@ -49,7 +49,7 @@
 
 ```text
 huiyue/
-├── docs/          # 文档（开发计划书、ER 图、接口文档、演示脚本）
+├── docs/          # 文档（计划书、进度、接口、订单流转、沟通设计、测试、演示脚本等）
 ├── frontend/      # 前端（Vue 3 + Vite；公开页 + 企划方/画师/管理三工作台）
 └── backend/       # 后端（Spring Boot）
 ```
@@ -83,9 +83,9 @@ npm run dev
 
 ## 环境要求
 
-- JDK 17+
-- Maven 3.8+
-- Node.js 18+
+- JDK 21+（项目基于 Java 21）
+- Maven 3.9+（开发机 3.9.16）
+- Node.js 18+（开发机 24）
 - MySQL 8.0+
 
 ## 文档
@@ -95,7 +95,7 @@ npm run dev
 - [项目进度](docs/项目进度.md)
 - [未解决问题](docs/未解决问题.md)
 - [测试记录](docs/测试.md)
-- [数据库设计（ER 图）](docs/ER图.png)
+- 数据库设计（ER 图，待生成）
 - [接口文档](docs/接口文档.md)
 - [订单流转流程](docs/订单流转流程.md)
 - [沟通与消息设计（F9）](docs/沟通与消息设计.md)
