@@ -58,9 +58,9 @@ public class StallServiceImpl implements StallService {
 
     @Override
     public Stall getById(Long id) {
-        Stall stall = stallMapper.selectById(id);
-        if (stall == null || stall.getDeleted() == 1) {
-            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        Stall stall = requireExisting(id);
+        if (!Integer.valueOf(1).equals(stall.getStatus())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND.getCode(), "请先上架后查看详情");
         }
         fillPainterNames(java.util.List.of(stall));
         return stall;
@@ -96,7 +96,7 @@ public class StallServiceImpl implements StallService {
 
     @Override
     public Stall update(Long id, Stall stall, Long painterId) {
-        Stall exist = getById(id);
+        Stall exist = requireExisting(id);
         if (!exist.getPainterId().equals(painterId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
@@ -104,12 +104,12 @@ public class StallServiceImpl implements StallService {
         stall.setPainterId(painterId);
         stall.setUpdatedAt(LocalDateTime.now());
         stallMapper.updateById(stall);
-        return getById(id);
+        return requireExisting(id);
     }
 
     @Override
     public Stall changeStatus(Long id, Integer status, Long painterId) {
-        Stall exist = getById(id);
+        Stall exist = requireExisting(id);
         if (!exist.getPainterId().equals(painterId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
@@ -120,7 +120,7 @@ public class StallServiceImpl implements StallService {
 
     @Override
     public void delete(Long id, Long painterId) {
-        Stall exist = getById(id);
+        Stall exist = requireExisting(id);
         if (!exist.getPainterId().equals(painterId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
@@ -128,5 +128,13 @@ public class StallServiceImpl implements StallService {
         exist.setDeleted(1);
         exist.setUpdatedAt(LocalDateTime.now());
         stallMapper.updateById(exist);
+    }
+
+    private Stall requireExisting(Long id) {
+        Stall stall = stallMapper.selectById(id);
+        if (stall == null || stall.getDeleted() == 1) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        return stall;
     }
 }

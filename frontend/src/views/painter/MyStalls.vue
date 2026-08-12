@@ -288,6 +288,11 @@ async function remove(id) {
 }
 
 function goDetail(id) {
+  const stall = stalls.value.find((item) => item.id === id)
+  if (stall?.status !== 1) {
+    ElMessage.warning('请先上架后查看详情')
+    return
+  }
   router.push({ name: 'StallDetail', params: { id } })
 }
 
