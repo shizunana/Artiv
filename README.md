@@ -61,6 +61,7 @@ npm run dev
 - [项目开发计划书](docs/项目开发计划书.md)
 - [项目进度](docs/项目进度.md)
 - [未解决问题](docs/未解决问题.md)
+- [测试记录](docs/测试.md)
 - [数据库设计（ER 图）](docs/ER图.png)
 - [接口文档](docs/接口文档.md)
 - [演示脚本](docs/演示脚本.md)
