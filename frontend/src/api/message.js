@@ -12,6 +12,10 @@ export function markAllRead() {
   return request.put('/messages/read-all')
 }
 
+export function markAllNotificationsRead() {
+  return request.put('/messages/notifications/read-all')
+}
+
 export function sendPrivateMessage(data) {
   return request.post('/messages/private', data)
 }

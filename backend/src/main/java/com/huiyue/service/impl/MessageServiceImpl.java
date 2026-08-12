@@ -232,7 +232,8 @@ public class MessageServiceImpl implements MessageService {
         return applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
                 .eq(Application::getDeleted, 0)
                 .eq(Application::getProjectId, projectId)
-                .eq(Application::getPainterId, painterId)) > 0;
+                .eq(Application::getPainterId, painterId)
+                .eq(Application::getStatus, 1)) > 0;
     }
 
     private void validateOrderConversation(Long fromUserId, Long toUserId, Long orderId) {

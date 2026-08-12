@@ -7,7 +7,7 @@ public interface OrderService {
 
     Page<OrderInfo> listMine(long page, long size, Long userId);
 
-    OrderInfo getById(Long id);
+    OrderInfo getById(Long id, Long userId);
 
     OrderInfo create(OrderInfo order);
 

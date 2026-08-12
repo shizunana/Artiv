@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getConversations, getNotifications, getUnreadCount, markAllRead } from '@/api/message'
+import { getConversations, getNotifications, getUnreadCount, markAllNotificationsRead } from '@/api/message'
 
 export const useMessageStore = defineStore('message', {
   state: () => ({
@@ -25,9 +25,9 @@ export const useMessageStore = defineStore('message', {
       return data
     },
     async readAll() {
-      await markAllRead()
+      await markAllNotificationsRead()
       this.notifications.forEach((item) => { item.readAt = new Date().toISOString() })
-      this.unreadCount = 0
+      await this.fetchUnreadCount()
     },
     /** WebSocket 收到新消息时调用 */
     onNewMessage(message) {

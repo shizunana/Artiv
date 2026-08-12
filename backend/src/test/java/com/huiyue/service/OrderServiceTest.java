@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -73,6 +74,18 @@ class OrderServiceTest {
         assertEquals(3, stall.getStock());
         verify(stallMapper, org.mockito.Mockito.never()).updateById(stall);
         verify(messageService).createStallPurchaseCommunication(eq(saved), eq(stall));
+    }
+
+    @Test
+    void getByIdRejectsUserOutsideTheOrderParticipants() {
+        OrderInfo order = new OrderInfo();
+        order.setId(77L);
+        order.setEmployerId(15L);
+        order.setPainterId(2L);
+        order.setDeleted(0);
+        when(orderInfoMapper.selectById(77L)).thenReturn(order);
+
+        assertThrows(com.huiyue.common.BusinessException.class, () -> orderService.getById(77L, 99L));
     }
 
     private void doAssignIdOnInsert() {

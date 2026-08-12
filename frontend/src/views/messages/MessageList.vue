@@ -158,8 +158,16 @@ async function onTabChange(name) {
 onMounted(async () => {
   await Promise.all([loadConversations(), loadNotifications(), messageStore.fetchUnreadCount()])
   await openFromQuery()
-  stopSocket = startMessageSocket(async () => {
+  stopSocket = startMessageSocket(async (event) => {
     await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
+    if (event.type === 'NEW_MESSAGE' && active.value
+      && event.data.fromId === active.value.withUserId
+      && event.data.projectId === active.value.projectId
+      && event.data.orderId === active.value.orderId) {
+      messages.value.push(event.data)
+      await markRead(event.data.id)
+      await messageStore.fetchUnreadCount()
+    }
   })
 })
 watch(() => route.fullPath, openFromQuery)

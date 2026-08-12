@@ -94,4 +94,16 @@ public class MessageController {
                 .set(Message::getReadAt, LocalDateTime.now()));
         return Result.ok();
     }
+
+    @PutMapping("/notifications/read-all")
+    public Result<Void> readAllNotifications() {
+        Long userId = UserContext.getUserId();
+        messageMapper.update(null, new LambdaUpdateWrapper<Message>()
+                .eq(Message::getToId, userId)
+                .eq(Message::getDeleted, 0)
+                .ne(Message::getType, 3)
+                .isNull(Message::getReadAt)
+                .set(Message::getReadAt, LocalDateTime.now()));
+        return Result.ok();
+    }
 }

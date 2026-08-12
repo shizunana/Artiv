@@ -37,10 +37,13 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderInfo getById(Long id) {
+    public OrderInfo getById(Long id, Long userId) {
         OrderInfo order = orderInfoMapper.selectById(id);
-        if (order == null) {
+        if (order == null || !Integer.valueOf(0).equals(order.getDeleted())) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (!userId.equals(order.getEmployerId()) && !userId.equals(order.getPainterId())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
         }
         return order;
     }

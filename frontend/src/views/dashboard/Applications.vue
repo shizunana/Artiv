@@ -21,7 +21,7 @@
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="communicate(row)">沟通</el-button>
+            <el-button v-if="row.status === 1" link type="primary" size="small" @click="communicate(row)">沟通</el-button>
             <el-button v-if="row.status === 0" link type="success" size="small" @click="select(row)">选定</el-button>
             <el-button v-if="row.status === 0" link type="danger" size="small" @click="reject(row)">拒绝</el-button>
           </template>

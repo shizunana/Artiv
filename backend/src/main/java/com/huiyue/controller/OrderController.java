@@ -29,7 +29,7 @@ public class OrderController {
 
     @GetMapping("/{id}")
     public Result<OrderInfo> detail(@PathVariable Long id) {
-        return Result.ok(orderService.getById(id));
+        return Result.ok(orderService.getById(id, UserContext.getUserId()));
     }
 
     @PostMapping

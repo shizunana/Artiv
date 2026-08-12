@@ -4,9 +4,11 @@ import com.huiyue.common.BusinessException;
 import com.huiyue.dto.PrivateMessageRequest;
 import com.huiyue.entity.Message;
 import com.huiyue.entity.OrderInfo;
+import com.huiyue.entity.Project;
 import com.huiyue.entity.Stall;
 import com.huiyue.entity.User;
 import com.huiyue.mapper.MessageMapper;
+import com.huiyue.mapper.ApplicationMapper;
 import com.huiyue.mapper.ProjectMapper;
 import com.huiyue.mapper.UserMapper;
 import com.huiyue.service.impl.MessageServiceImpl;
@@ -35,6 +37,9 @@ class MessageServiceTest {
 
     @Mock
     private ProjectMapper projectMapper;
+
+    @Mock
+    private ApplicationMapper applicationMapper;
 
     @InjectMocks
     private MessageServiceImpl messageService;
@@ -101,5 +106,27 @@ class MessageServiceTest {
         assertEquals("STALL_PURCHASE_CONVERSATION_STARTED", created.get(2).getSubtype());
         assertEquals("2_15", created.get(2).getConversationKey());
         assertEquals(77L, created.get(2).getOrderId());
+    }
+
+    @Test
+    void sendPrivateMessageRejectsProjectConversationWhenApplicationIsNotSelected() {
+        Project project = new Project();
+        project.setId(8L);
+        project.setEmployerId(1L);
+        project.setDeleted(0);
+        when(projectMapper.selectById(8L)).thenReturn(project);
+        User recipient = new User();
+        recipient.setId(2L);
+        recipient.setStatus(0);
+        recipient.setDeleted(0);
+        when(userMapper.selectById(2L)).thenReturn(recipient);
+        when(applicationMapper.selectCount(any())).thenReturn(0L);
+
+        PrivateMessageRequest request = new PrivateMessageRequest();
+        request.setToId(2L);
+        request.setProjectId(8L);
+        request.setContent("未选定前不应进入项目会话");
+
+        assertThrows(BusinessException.class, () -> messageService.sendPrivateMessage(1L, request));
     }
 }
