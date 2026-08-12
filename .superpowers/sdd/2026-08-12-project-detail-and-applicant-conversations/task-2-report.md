@@ -32,3 +32,9 @@
 - The upgrade migration adds `starter_key`, backfills every active `APPLICATION_CONVERSATION_STARTED` marker deterministically as `project_id:conversation_key:APPLICATION_CONVERSATION_STARTED`, then adds the unique key.
 - Starter lookup recognizes both backfilled keyed rows and legacy null-key starter rows, preventing duplicate initiation and retaining replies during an upgrade rollout.
 - Added authorized pending and selected order-intent tests for the exact `订单功能开发中` response and zero message/project/application mutation, plus withdrawn rejection and legacy-starter initiation/reply coverage.
+
+## Round 3 remediation
+
+- The starter-key migration now resolves pre-existing active duplicate starter markers before adding its unique index: the lowest `message.id` for each `(project_id, conversation_key)` receives the deterministic key; all later starter markers remain with `starter_key = NULL` and no rows are deleted.
+- Both dedupe and backfill statements select only private `APPLICATION_CONVERSATION_STARTED` rows, so normal `PRIVATE_CHAT` replies are not modified.
+- This backend has no database-backed migration test harness; the migration contains the executable dedupe policy and comments documenting the invariant. Focused and full Maven suites were run after the migration change.
