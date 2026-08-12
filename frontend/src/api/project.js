@@ -39,3 +39,7 @@ export function applyProject(projectId, data) {
 export function deleteApplication(id) {
   return request.delete(`/applications/${id}`)
 }
+
+export function selectApplication(id) {
+  return request.put(`/applications/${id}/select`)
+}

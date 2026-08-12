@@ -23,8 +23,16 @@ public class Message {
 
     private Long orderId;
 
+    private Long projectId;
+
     /** 类型：0 系统、1 应征、2 订单、3 私信 */
     private Integer type;
+
+    /** 子类型：PRIVATE_CHAT、APPLICATION_CREATED、SYSTEM_NOTICE 等 */
+    private String subtype;
+
+    /** 双方会话键：较小用户ID_较大用户ID */
+    private String conversationKey;
 
     private String content;
 

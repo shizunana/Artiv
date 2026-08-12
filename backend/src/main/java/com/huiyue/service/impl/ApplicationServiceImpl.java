@@ -5,7 +5,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
 import com.huiyue.entity.Application;
+import com.huiyue.entity.Project;
 import com.huiyue.mapper.ApplicationMapper;
+import com.huiyue.mapper.ProjectMapper;
+import com.huiyue.service.MessageService;
 import com.huiyue.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,8 @@ import java.time.LocalDateTime;
 public class ApplicationServiceImpl implements ApplicationService {
 
     private final ApplicationMapper applicationMapper;
+    private final ProjectMapper projectMapper;
+    private final MessageService messageService;
 
     @Override
     public Page<Application> listByProject(long page, long size, Long projectId) {
@@ -38,6 +43,10 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public Application create(Application application) {
+        Project project = projectMapper.selectById(application.getProjectId());
+        if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
         application.setId(null);
         application.setStatus(0);
         application.setDeleted(0);
@@ -45,6 +54,36 @@ public class ApplicationServiceImpl implements ApplicationService {
         application.setCreatedAt(now);
         application.setUpdatedAt(now);
         applicationMapper.insert(application);
+        messageService.createNotification(
+                project.getEmployerId(),
+                1,
+                "APPLICATION_CREATED",
+                project.getId(),
+                "画师 #" + application.getPainterId() + " 应征了你的企划「" + project.getTitle() + "」。"
+        );
+        return application;
+    }
+
+    @Override
+    public Application select(Long id, Long employerId) {
+        Application application = applicationMapper.selectById(id);
+        if (application == null || !Integer.valueOf(0).equals(application.getDeleted())
+                || !Integer.valueOf(0).equals(application.getStatus())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        Project project = projectMapper.selectById(application.getProjectId());
+        if (project == null || !Integer.valueOf(0).equals(project.getDeleted())
+                || !employerId.equals(project.getEmployerId())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        application.setStatus(1);
+        application.setUpdatedAt(LocalDateTime.now());
+        applicationMapper.updateById(application);
+        messageService.createNotification(
+                application.getPainterId(), 1, "APPLICATION_SELECTED", project.getId(),
+                "企划方已选择你的应征，可进入消息中心继续沟通。"
+        );
+        messageService.createProjectConversation(project.getEmployerId(), application.getPainterId(), project.getId());
         return application;
     }
 

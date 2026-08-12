@@ -10,4 +10,6 @@ public interface OrderService {
     OrderInfo getById(Long id);
 
     OrderInfo create(OrderInfo order);
+
+    OrderInfo createStallPurchase(Long stallId, Long employerId);
 }

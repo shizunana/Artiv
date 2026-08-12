@@ -11,5 +11,7 @@ public interface ApplicationService {
 
     Application create(Application application);
 
+    Application select(Long id, Long employerId);
+
     void withdraw(Long id, Long painterId);
 }

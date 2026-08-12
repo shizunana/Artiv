@@ -18,8 +18,9 @@
         <el-table-column label="时间" width="160">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="90" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="communicate(row)">沟通</el-button>
             <el-button v-if="row.status === 0" link type="danger" size="small" @click="withdraw(row.id)">
               撤销
             </el-button>
@@ -32,8 +33,9 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getMyApplications, deleteApplication } from '@/api/project'
+import { getMyApplications, deleteApplication, getProject } from '@/api/project'
 import { formatDateTime } from '@/utils/date'
 import { statusText, statusType } from '@/utils/status'
 
@@ -45,6 +47,7 @@ const APP_STATUS = {
 }
 
 const applications = ref([])
+const router = useRouter()
 const loading = ref(false)
 
 async function load() {
@@ -62,6 +65,11 @@ async function withdraw(id) {
   await deleteApplication(id)
   ElMessage.success('已撤销')
   load()
+}
+
+async function communicate(row) {
+  const project = await getProject(row.projectId)
+  router.push({ name: 'PainterMessages', query: { withUserId: project.employerId, projectId: row.projectId } })
 }
 
 onMounted(load)

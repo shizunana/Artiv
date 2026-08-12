@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,6 +41,11 @@ public class ApplicationController {
     public Result<Page<Application>> mine(@RequestParam(defaultValue = "1") long page,
                                           @RequestParam(defaultValue = "10") long size) {
         return Result.ok(applicationService.listMine(page, size, UserContext.getUserId()));
+    }
+
+    @PutMapping("/applications/{id}/select")
+    public Result<Application> select(@PathVariable Long id) {
+        return Result.ok(applicationService.select(id, UserContext.getUserId()));
     }
 
     @DeleteMapping("/applications/{id}")
