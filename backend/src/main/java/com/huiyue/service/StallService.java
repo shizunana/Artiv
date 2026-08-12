@@ -5,7 +5,7 @@ import com.huiyue.entity.Stall;
 
 public interface StallService {
 
-    Page<Stall> listStalls(long page, long size, String category);
+    Page<Stall> listStalls(long page, long size, String category, String keyword, String sort);
 
     Page<Stall> listMine(long page, long size, Long painterId);
 

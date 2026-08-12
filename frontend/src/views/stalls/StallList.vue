@@ -1,21 +1,40 @@
 <template>
   <div class="list-page page-container">
-    <!-- 分类区（参考站 stalls-index） -->
+    <!-- 分类 Tab（参考站 stalls/list） -->
     <div class="category-bar">
       <span
         v-for="c in categories"
         :key="c"
         class="category-tab"
         :class="{ 'is-active': activeCategory === c }"
-        @click="activeCategory = c"
+        @click="activeCategory = c; page = 1; load()"
       >
         {{ c }}
       </span>
     </div>
 
+    <!-- 搜索 + 排序 -->
+    <div class="filter-row">
+      <el-input
+        v-model="keyword"
+        placeholder="搜索橱窗标题"
+        clearable
+        class="search-input"
+        @keyup.enter="page = 1; load()"
+        @clear="page = 1; load()"
+      >
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <el-select v-model="sort" class="sort-select" @change="page = 1; load()">
+        <el-option label="最新上架" value="newest" />
+        <el-option label="价格从低到高" value="priceAsc" />
+        <el-option label="价格从高到低" value="priceDesc" />
+      </el-select>
+    </div>
+
     <!-- 橱窗卡片（参考站 stall-cell） -->
     <div class="stall-grid" v-loading="loading">
-      <div v-for="stall in filteredStalls" :key="stall.id" class="stall-cell" @click="goDetail(stall.id)">
+      <div v-for="stall in stalls" :key="stall.id" class="stall-cell" @click="goDetail(stall.id)">
         <div class="stall-cell__cover">
           <el-image
             v-if="stall.cover"
@@ -39,47 +58,53 @@
       </div>
     </div>
 
-    <EmptyState v-if="!loading && filteredStalls.length === 0" description="暂无上架橱窗" />
+    <EmptyState v-if="!loading && stalls.length === 0" description="暂无符合条件的橱窗" />
+    <div class="pager">
+      <Pagination v-model:page="page" v-model:size="size" :total="total" @change="load" />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Search } from '@element-plus/icons-vue'
 import { getStalls } from '@/api/stall'
 import EmptyState from '@/components/common/EmptyState.vue'
+import Pagination from '@/components/common/Pagination.vue'
 
 const router = useRouter()
 const stalls = ref([])
 const loading = ref(false)
+const page = ref(1)
+const size = ref(12)
+const total = ref(0)
 const activeCategory = ref('全部')
+const keyword = ref('')
+const sort = ref('newest')
 
-const categories = computed(() => {
-  const list = ['全部']
-  stalls.value.forEach((s) => {
-    if (s.category && !list.includes(s.category)) list.push(s.category)
-  })
-  return list
-})
-
-const filteredStalls = computed(() => {
-  if (activeCategory.value === '全部') return stalls.value
-  return stalls.value.filter((s) => s.category === activeCategory.value)
-})
+const categories = ['全部', '头像', 'Q版全身', '半身像', '立绘', '组合页', '服设', '壁纸', '表情包', 'Live2d', '平面设计']
 
 function goDetail(id) {
   router.push({ name: 'StallDetail', params: { id } })
 }
 
-onMounted(async () => {
+async function load() {
   loading.value = true
   try {
-    const data = await getStalls({ page: 1, size: 30 })
+    const params = { page: page.value, size: size.value }
+    if (activeCategory.value !== '全部') params.category = activeCategory.value
+    if (keyword.value) params.keyword = keyword.value
+    if (sort.value !== 'newest') params.sort = sort.value
+    const data = await getStalls(params)
     stalls.value = data.records || []
+    total.value = data.total || 0
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 </script>
 
 <style scoped>
@@ -94,8 +119,7 @@ onMounted(async () => {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 16px 0;
-  margin-bottom: 8px;
+  padding: 14px 0;
   border-bottom: 1px solid var(--huiyue-border);
 }
 
@@ -121,12 +145,32 @@ onMounted(async () => {
   color: #fff;
 }
 
+/* ---------- 搜索 + 排序 ---------- */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+}
+
+.search-input {
+  max-width: 380px;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 20px;
+}
+
+.sort-select {
+  width: 150px;
+}
+
 /* ---------- 橱窗卡片 ---------- */
 .stall-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
-  padding-top: 20px;
+  padding-top: 10px;
 }
 
 .stall-cell {
@@ -200,6 +244,12 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 15px;
   flex-shrink: 0;
+}
+
+.pager {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
 }
 
 @media (max-width: 900px) {

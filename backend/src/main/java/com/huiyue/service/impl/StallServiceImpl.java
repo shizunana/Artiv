@@ -20,12 +20,19 @@ public class StallServiceImpl implements StallService {
     private final StallMapper stallMapper;
 
     @Override
-    public Page<Stall> listStalls(long page, long size, String category) {
+    public Page<Stall> listStalls(long page, long size, String category, String keyword, String sort) {
         LambdaQueryWrapper<Stall> wrapper = new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getDeleted, 0)
                 .eq(Stall::getStatus, 1)
                 .eq(StringUtils.hasText(category), Stall::getCategory, category)
-                .orderByDesc(Stall::getCreatedAt);
+                .like(StringUtils.hasText(keyword), Stall::getTitle, keyword);
+        if ("priceAsc".equals(sort)) {
+            wrapper.orderByAsc(Stall::getPrice);
+        } else if ("priceDesc".equals(sort)) {
+            wrapper.orderByDesc(Stall::getPrice);
+        } else {
+            wrapper.orderByDesc(Stall::getCreatedAt);
+        }
         return stallMapper.selectPage(new Page<>(page, size), wrapper);
     }
 

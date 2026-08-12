@@ -31,8 +31,10 @@ public class StallController {
     @GetMapping
     public Result<Page<Stall>> list(@RequestParam(defaultValue = "1") long page,
                                     @RequestParam(defaultValue = "12") long size,
-                                    @RequestParam(required = false) String category) {
-        return Result.ok(stallService.listStalls(page, size, category));
+                                    @RequestParam(required = false) String category,
+                                    @RequestParam(required = false) String keyword,
+                                    @RequestParam(required = false) String sort) {
+        return Result.ok(stallService.listStalls(page, size, category, keyword, sort));
     }
 
     @GetMapping("/mine")
