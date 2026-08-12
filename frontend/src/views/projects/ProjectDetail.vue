@@ -145,7 +145,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { applyProject, createProjectOrderIntent, getApplications, getProject, getProjectEmployer } from '@/api/project'
+import { applyProject, createProjectOrderIntent, getApplications, getProject } from '@/api/project'
 import { startProjectConversation } from '@/api/message'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/date'
@@ -269,11 +269,6 @@ async function loadProject() {
   try {
     project.value = await getProject(route.params.id)
     employer.value = project.value?.employer || null
-    if (!employer.value && userStore.user?.id === project.value?.employerId) {
-      employer.value = userStore.user
-    } else if (!employer.value && userStore.token && project.value?.employerId) {
-      employer.value = await getProjectEmployer(project.value.employerId)
-    }
     await loadApplicants()
   } catch (error) {
     ElMessage.error(error.message || '企划加载失败')
