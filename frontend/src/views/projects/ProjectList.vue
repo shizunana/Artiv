@@ -52,8 +52,9 @@
 
       <div class="project-grid" v-loading="loading">
         <div v-for="project in projects" :key="project.id" class="project-card" @click="goDetail(project.id)">
-          <div class="project-card__thumb" :style="gradient(project.id)">
-            <span class="project-emoji">📋</span>
+          <div class="project-card__thumb" :style="thumbStyle(project)">
+            <img v-if="firstImage(project.images)" :src="firstImage(project.images)" class="project-img" alt="参考图" />
+            <span v-else class="project-emoji">📋</span>
             <el-tag class="project-status" :type="statusType(PROJECT_STATUS, project.status)" size="small">
               {{ statusText(PROJECT_STATUS, project.status) }}
             </el-tag>
@@ -116,6 +117,16 @@ const gradients = [
 
 function gradient(id) {
   return { background: gradients[id % gradients.length] }
+}
+
+function firstImage(images) {
+  if (!images) return ''
+  const arr = String(images).split(',').filter(Boolean)
+  return arr[0] || ''
+}
+
+function thumbStyle(project) {
+  return firstImage(project.images) ? {} : gradient(project.id)
 }
 
 function tagList(tags) {
@@ -255,6 +266,12 @@ onMounted(load)
 
 .project-emoji {
   font-size: 40px;
+}
+
+.project-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .project-status {

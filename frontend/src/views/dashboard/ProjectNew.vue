@@ -88,7 +88,15 @@
             />
           </el-form-item>
           <el-form-item label="参考图">
-            <el-upload list-type="picture-card" :auto-upload="false" :limit="6" accept="image/*">
+            <el-upload
+              list-type="picture-card"
+              :limit="6"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              :file-list="imageFileList"
+              :http-request="doUpload"
+              :on-remove="onImageRemove"
+              :on-exceed="onImageExceed"
+            >
               <el-icon><Plus /></el-icon>
             </el-upload>
           </el-form-item>
@@ -159,6 +167,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { createProject } from '@/api/project'
+import { uploadFile } from '@/api/upload'
 
 const router = useRouter()
 const step = ref(0)
@@ -192,7 +201,32 @@ const form = reactive({
   formats: [],
   mode: 0,
   invitePainterId: null,
+  images: [],
 })
+
+// 参考图：文件列表（UI）与 URL 列表（提交）
+const imageFileList = ref([])
+
+async function doUpload({ file, onSuccess, onError }) {
+  try {
+    const url = await uploadFile(file)
+    form.images.push(url)
+    onSuccess(url)
+  } catch (e) {
+    ElMessage.error('图片上传失败')
+    onError(e)
+  }
+}
+
+function onImageRemove(file) {
+  const url = file.response || file.url
+  const idx = form.images.indexOf(url)
+  if (idx >= 0) form.images.splice(idx, 1)
+}
+
+function onImageExceed() {
+  ElMessage.warning('最多上传 6 张参考图')
+}
 
 const typeText = computed(() => types.find((t) => t.value === form.manuscriptType)?.label || '-')
 
@@ -239,6 +273,7 @@ async function submit() {
       budget: form.budgetMax,
       deadline: form.deadline,
       tags: form.tags,
+      images: form.images.length ? form.images.join(',') : null,
       mode: form.mode,
       invitePainterId: form.mode === 1 ? form.invitePainterId : null,
     })
