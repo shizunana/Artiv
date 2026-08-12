@@ -24,6 +24,11 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
       },
+      // 开发代理：/uploads → 后端上传文件
+      '/uploads': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
 })
