@@ -6,22 +6,50 @@
     </div>
 
     <div class="page-container">
-      <!-- 筛选栏 -->
-      <div class="filter-bar">
-        <div class="filter-tabs">
-          <span
-            v-for="s in statusFilters"
-            :key="s.value"
-            class="filter-tab"
-            :class="{ 'is-active': status === s.value }"
-            @click="status = s.value; load()"
-          >
-            {{ s.label }}
-          </span>
+      <!-- 筛选区（复刻参考站 projects 列表页） -->
+      <div class="filter-panel">
+        <div class="filter-top">
+          <el-tabs v-model="activeTab" class="purpose-tabs" @tab-change="load">
+            <el-tab-pane label="全部" name="all" />
+            <el-tab-pane label="招募中" name="recruiting" />
+          </el-tabs>
+          <el-input v-model="keyword" placeholder="搜索企划标题、需求关键词" clearable class="search-input" @keyup.enter="load" @clear="load">
+            <template #append><el-button @click="load">搜索</el-button></template>
+          </el-input>
         </div>
-        <el-input v-model="keyword" placeholder="搜索企划标题" clearable class="search-input" @keyup.enter="load" @clear="load">
-          <template #append><el-button @click="load">搜索</el-button></template>
-        </el-input>
+        <div class="filter-row">
+          <el-select v-model="sort" class="filter-select" @change="load">
+            <el-option label="最新发布" value="newest" />
+            <el-option label="稿酬最高" value="budget" />
+            <el-option label="应征数少" value="applications" />
+          </el-select>
+          <el-select v-model="tag" class="filter-select" @change="load">
+            <el-option label="类型与风格" value="" />
+            <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
+          </el-select>
+          <el-select v-model="budgetRange" class="filter-select" @change="load">
+            <el-option label="稿酬区间不限" value="" />
+            <el-option label="500 以下" value="0-500" />
+            <el-option label="500-1000" value="500-1000" />
+            <el-option label="1000-3000" value="1000-3000" />
+            <el-option label="3000 以上" value="3000-" />
+          </el-select>
+          <el-select v-model="deadlineRange" class="filter-select" @change="load">
+            <el-option label="截稿日期不限" value="" />
+            <el-option label="7天以内" value="within-7" />
+            <el-option label="7天以上" value="after-7" />
+            <el-option label="14天以上" value="after-14" />
+            <el-option label="30天以上" value="after-30" />
+          </el-select>
+          <div class="filter-switches">
+            <span class="switch-label">仅看认证企业</span>
+            <el-switch v-model="certifiedOnly" size="small" disabled />
+            <span class="switch-label">仅看未选定</span>
+            <el-switch v-model="unselectedOnly" size="small" @change="load" />
+            <span class="switch-label">仅看人设卡</span>
+            <el-switch v-model="characterCardOnly" size="small" disabled />
+          </div>
+        </div>
       </div>
 
       <div class="project-grid" v-loading="loading">
@@ -69,15 +97,18 @@ const page = ref(1)
 const size = ref(12)
 const total = ref(0)
 const keyword = ref('')
-const status = ref(null)
 
-const statusFilters = [
-  { label: '全部', value: null },
-  { label: '招募中', value: 0 },
-  { label: '已选定', value: 1 },
-  { label: '进行中', value: 2 },
-  { label: '已完成', value: 3 },
-]
+// 筛选状态（参考站筛选区）
+const activeTab = ref('all')
+const sort = ref('newest')
+const tag = ref('')
+const budgetRange = ref('')
+const deadlineRange = ref('')
+const certifiedOnly = ref(false)
+const unselectedOnly = ref(false)
+const characterCardOnly = ref(false)
+
+const tagOptions = ['国潮', '插画', '立绘', '场景', '原画', '同人', 'Q版', '古风', 'Live2d']
 
 const gradients = [
   'linear-gradient(135deg, #4facfe, #00f2fe)',
@@ -100,7 +131,27 @@ async function load() {
   try {
     const params = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
-    if (status.value !== null) params.status = status.value
+    if (activeTab.value === 'recruiting' || unselectedOnly.value) {
+      params.status = 0
+    }
+    if (sort.value === 'budget') {
+      params.sort = 'budget'
+    }
+    if (tag.value) {
+      params.tag = tag.value
+    }
+    if (budgetRange.value) {
+      const [min, max] = budgetRange.value.split('-')
+      if (min) params.budgetMin = Number(min)
+      if (max) params.budgetMax = Number(max)
+    }
+    if (deadlineRange.value) {
+      if (deadlineRange.value.startsWith('within')) {
+        params.deadlineWithin = Number(deadlineRange.value.split('-')[1])
+      } else if (deadlineRange.value.startsWith('after')) {
+        params.deadlineAfter = Number(deadlineRange.value.split('-')[1])
+      }
+    }
     const data = await getProjects(params)
     projects.value = data.records || []
     total.value = data.total || 0
@@ -126,45 +177,55 @@ onMounted(load)
   padding-top: 48px;
 }
 
-.filter-bar {
+.filter-panel {
+  background: #fff;
+  border: 1px solid var(--huiyue-border);
+  border-radius: 10px;
+  padding: 6px 20px 16px;
+  margin-bottom: 24px;
+}
+
+.filter-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
-.filter-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.filter-tab {
-  padding: 8px 20px;
-  border-radius: 18px;
-  background: #fff;
-  border: 1px solid var(--huiyue-border);
-  color: var(--huiyue-text-secondary);
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.filter-tab:hover {
-  color: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
-}
-
-.filter-tab.is-active {
-  background: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
-  color: #fff;
+.purpose-tabs {
+  flex: 1;
 }
 
 .search-input {
-  width: 260px;
+  width: 300px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--huiyue-border);
+}
+
+.filter-select {
+  width: 150px;
+}
+
+.filter-switches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.switch-label {
+  font-size: 13px;
+  color: var(--huiyue-text-secondary);
+  margin-left: 8px;
 }
 
 .project-grid {
