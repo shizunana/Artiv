@@ -24,7 +24,7 @@
             <el-option label="应征数少" value="applications" />
           </el-select>
           <el-select v-model="tag" class="filter-select" @change="load">
-            <el-option label="题材风格" value="all" />
+            <el-option label="类型" value="all" />
             <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
           </el-select>
           <el-select v-model="budgetRange" class="filter-select" @change="load">
@@ -125,7 +125,8 @@ const deadlineRange = ref('all')
 const unselectedOnly = ref(false)
 const characterCardOnly = ref(false)
 
-const tagOptions = ['国潮', '插画', '立绘', '场景', '原画', '同人', 'Q版', '古风', 'Live2d']
+// 类型选项与橱窗分类同步
+const tagOptions = ['头像', 'Q版全身', '半身像', '立绘', '组合页', '服设', '壁纸', '表情包', 'Live2d', '平面设计']
 
 function firstImage(images) {
   if (!images) return ''
