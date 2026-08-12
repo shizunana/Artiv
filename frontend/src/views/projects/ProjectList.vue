@@ -52,23 +52,43 @@
 
       <div class="project-grid" v-loading="loading">
         <div v-for="project in projects" :key="project.id" class="project-card" @click="goDetail(project.id)">
-          <div class="project-card__thumb" :style="thumbStyle(project)">
-            <img v-if="firstImage(project.images)" :src="firstImage(project.images)" class="project-img" alt="参考图" />
-            <span v-else class="project-emoji">📋</span>
-            <el-tag class="project-status" :type="statusType(PROJECT_STATUS, project.status)" size="small">
-              {{ statusText(PROJECT_STATUS, project.status) }}
-            </el-tag>
+          <div class="project-card__top">
+            <div class="project-card__main">
+              <div class="project-card__header">
+                <h3 class="project-card__title">{{ project.title }}</h3>
+                <el-tag class="project-status" :type="statusType(PROJECT_STATUS, project.status)" size="small">
+                  {{ statusText(PROJECT_STATUS, project.status) }}
+                </el-tag>
+              </div>
+              <p class="project-card__summary">{{ project.description }}</p>
+              <div class="project-card__tags">
+                <span class="tag">{{ project.mode === 1 ? '定向邀请' : '公开招募' }}</span>
+                <span v-for="t in tagList(project.tags)" :key="t" class="tag">{{ t }}</span>
+              </div>
+            </div>
+            <div class="project-card__thumb" @click.stop>
+              <el-image
+                v-if="firstImage(project.images)"
+                :src="firstImage(project.images)"
+                :preview-src-list="imageList(project.images)"
+                preview-teleported
+                fit="cover"
+                class="project-img"
+                :initial-index="0"
+              />
+              <div v-else class="thumb-placeholder" :style="gradient(project.id)">
+                <span class="project-emoji">📋</span>
+              </div>
+            </div>
           </div>
-          <div class="project-card__body">
-            <h3>{{ project.title }}</h3>
-            <p>{{ project.description }}</p>
-            <div class="project-card__meta">
-              <span class="budget">¥{{ project.budget }}</span>
-              <span class="deadline">截止 {{ project.deadline || '-' }}</span>
-            </div>
-            <div class="project-card__tags">
-              <span v-for="tag in tagList(project.tags)" :key="tag" class="tag">{{ tag }}</span>
-            </div>
+
+          <div class="project-card__divider"></div>
+
+          <div class="project-card__info">
+            <span class="info-item">📅 {{ project.deadline || '-' }} 截稿</span>
+            <span class="info-item">🏷️ {{ firstTag(project.tags) }}</span>
+            <span class="info-item">👤 0 人应征</span>
+            <span class="info-item info-budget">¥{{ project.budget }}</span>
           </div>
         </div>
       </div>
@@ -125,8 +145,15 @@ function firstImage(images) {
   return arr[0] || ''
 }
 
-function thumbStyle(project) {
-  return firstImage(project.images) ? {} : gradient(project.id)
+function imageList(images) {
+  if (!images) return []
+  return String(images).split(',').filter(Boolean)
+}
+
+function firstTag(tags) {
+  if (!tags) return '-'
+  const arr = String(tags).split(',').filter(Boolean)
+  return arr[0] || '-'
 }
 
 function tagList(tags) {
@@ -237,98 +264,132 @@ onMounted(load)
 }
 
 .project-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .project-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid var(--huiyue-border);
-  overflow: hidden;
+  padding: 18px 24px;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: box-shadow 0.3s, transform 0.3s;
 }
 
 .project-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
-.project-card__thumb {
-  aspect-ratio: 16 / 7;
-  position: relative;
+.project-card__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.project-card__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.project-card__header {
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-
-.project-emoji {
-  font-size: 40px;
-}
-
-.project-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .project-status {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  flex-shrink: 0;
 }
 
-.project-card__body {
-  padding: 16px;
-}
-
-.project-card__body h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
+.project-card__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
   color: var(--huiyue-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.project-card__body p {
-  margin: 0 0 12px;
-  color: var(--huiyue-text-secondary);
+.project-card__summary {
+  margin: 0 0 10px;
   font-size: 13px;
-  line-height: 1.7;
-  min-height: 42px;
+  color: var(--huiyue-text-secondary);
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.project-card__meta {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.budget {
-  color: var(--huiyue-primary);
-  font-weight: 600;
-}
-
-.deadline {
-  color: var(--huiyue-text-secondary);
-  font-size: 12px;
-}
-
 .project-card__tags {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .tag {
   font-size: 12px;
-  color: var(--huiyue-primary);
-  background: var(--huiyue-primary-light);
-  padding: 2px 8px;
-  border-radius: 8px;
+  color: var(--huiyue-text);
+  background: #f5f6f8;
+  border: 1px solid var(--huiyue-border);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.project-card__thumb {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--huiyue-section-alt);
+}
+
+.project-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: zoom-in;
+}
+
+.thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.project-emoji {
+  font-size: 34px;
+}
+
+.project-card__divider {
+  height: 1px;
+  background: var(--huiyue-border);
+  margin: 14px 0;
+}
+
+.project-card__info {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--huiyue-text);
+}
+
+.info-budget {
+  margin-left: auto;
+  color: var(--huiyue-accent);
+  font-weight: 700;
+  font-size: 15px;
 }
 
 .pager {
@@ -338,8 +399,8 @@ onMounted(load)
 }
 
 @media (max-width: 900px) {
-  .project-grid {
-    grid-template-columns: 1fr;
+  .project-card__thumb {
+    display: none;
   }
 }
 </style>
