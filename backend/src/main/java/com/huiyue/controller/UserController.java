@@ -2,6 +2,8 @@ package com.huiyue.controller;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.huiyue.common.Result;
+import com.huiyue.common.BusinessException;
+import com.huiyue.common.ResultCode;
 import com.huiyue.entity.User;
 import com.huiyue.mapper.UserMapper;
 import com.huiyue.security.UserContext;
@@ -27,6 +29,12 @@ public class UserController {
     @PutMapping("/me/cert")
     public Result<User> applyCert() {
         Long userId = UserContext.getUserId();
+        User current = userMapper.selectById(userId);
+        // 仅未认证（0）或已驳回（3）可申请；已认证（2）或审核中（1）不允许重复/降级申请
+        if (current.getCertStatus() != null
+                && (current.getCertStatus() == 1 || current.getCertStatus() == 2)) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID);
+        }
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, userId)
                 .set(User::getCertStatus, 1)
