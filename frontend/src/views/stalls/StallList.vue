@@ -88,6 +88,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { getStalls } from '@/api/stall'
+import { SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Pagination from '@/components/common/Pagination.vue'
 
@@ -105,7 +106,7 @@ const priceRange = ref('all')
 const deliverTime = ref('all')
 
 const categories = ['全部', '头像', 'Q版全身', '半身像', '立绘', '组合页', '服设', '壁纸', '表情包', 'Live2d', '平面设计']
-const subjectOptions = ['正比', 'Q版', '日系', '古风', '国潮', '像素', '小动物', '风景', '半厚涂']
+const subjectOptions = SUBJECT_OPTIONS
 
 function goDetail(id) {
   router.push({ name: 'StallDetail', params: { id } })

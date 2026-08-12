@@ -147,13 +147,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getMyStalls, createStall, changeStallStatus } from '@/api/stall'
 import { uploadFile } from '@/api/upload'
+import { SUBJECT_OPTIONS } from '@/constants/subjects'
 
 const stalls = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
 const categories = ['国潮插画', '角色立绘', '场景原画', '头像', 'Q版', 'Live2d']
-const subjectOptions = ['正比', 'Q版', '日系', '古风', '国潮', '像素', '小动物', '风景', '半厚涂']
+const subjectOptions = SUBJECT_OPTIONS
 const form = reactive({
   title: '',
   category: '',
