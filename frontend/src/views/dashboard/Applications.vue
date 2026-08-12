@@ -19,8 +19,9 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
+            <el-button v-if="row.status === 1" link type="primary" size="small" @click="communicate(row)">沟通</el-button>
             <el-button v-if="row.status === 0" link type="success" size="small" @click="select(row)">选定</el-button>
             <el-button v-if="row.status === 0" link type="danger" size="small" @click="reject(row)">拒绝</el-button>
           </template>
@@ -32,9 +33,9 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getApplications } from '@/api/project'
+import { getApplications, selectApplication } from '@/api/project'
 import { statusText, statusType } from '@/utils/status'
 
 const APP_STATUS = {
@@ -45,6 +46,7 @@ const APP_STATUS = {
 }
 
 const route = useRoute()
+const router = useRouter()
 const applications = ref([])
 const loading = ref(false)
 
@@ -58,9 +60,20 @@ async function load() {
   }
 }
 
-function select(row) {
-  // TODO(阶段3)：创建订单
-  ElMessage.info(`选定画师 #${row.painterId}（阶段3接入下单）`)
+async function select(row) {
+  try {
+    await selectApplication(row.id)
+    ElMessage.success('已选定画师，已自动开启沟通会话')
+    await load()
+    communicate(row)
+    return
+  } catch (error) {
+    ElMessage.error(error.message || '选定失败')
+  }
+}
+
+function communicate(row) {
+  router.push({ name: 'DashboardMessages', query: { withUserId: row.painterId, projectId: route.params.id } })
 }
 
 function reject(row) {

@@ -16,7 +16,7 @@
       <div class="app-header__actions">
         <template v-if="userStore.isLoggedIn">
           <el-button type="primary" size="small" round @click="goPublish">发布需求</el-button>
-          <el-badge :value="0" :max="99" class="msg-badge">
+          <el-badge :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
             <el-button circle size="small" @click="goMessages">
               <el-icon><Bell /></el-icon>
             </el-button>
@@ -49,13 +49,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowDown, Bell } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { useMessageStore } from '@/stores/message'
 
 const router = useRouter()
 const userStore = useUserStore()
+const messageStore = useMessageStore()
+
+onMounted(() => { if (userStore.isLoggedIn) messageStore.fetchUnreadCount() })
 
 const avatarText = computed(() => {
   const n = userStore.user?.nickname || userStore.user?.username || ''

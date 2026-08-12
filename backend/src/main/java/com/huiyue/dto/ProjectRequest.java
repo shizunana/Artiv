@@ -40,6 +40,8 @@ public class ProjectRequest {
 
     private String images;
 
+    private ProjectRequirements requirements;
+
     /** 合作方式：0 公开招募、1 定向邀请 */
     private Integer mode;
 

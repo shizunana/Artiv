@@ -12,6 +12,10 @@ export function getProject(id) {
   return request.get(`/projects/${id}`)
 }
 
+export function getProjectEmployer(id) {
+  return request.get(`/users/${id}`)
+}
+
 export function createProject(data) {
   return request.post('/projects', data)
 }
@@ -28,6 +32,10 @@ export function getApplications(projectId, params) {
   return request.get(`/projects/${projectId}/applications`, { params })
 }
 
+export function createProjectOrderIntent(projectId, painterId) {
+  return request.post(`/projects/${projectId}/order-intents/${painterId}`)
+}
+
 export function getMyApplications(params) {
   return request.get('/applications/mine', { params })
 }
@@ -38,4 +46,8 @@ export function applyProject(projectId, data) {
 
 export function deleteApplication(id) {
   return request.delete(`/applications/${id}`)
+}
+
+export function selectApplication(id) {
+  return request.put(`/applications/${id}/select`)
 }

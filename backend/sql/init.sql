@@ -89,6 +89,7 @@ CREATE TABLE `project` (
   `deadline`        DATE          DEFAULT NULL COMMENT '截稿日期',
   `tags`            VARCHAR(255)  DEFAULT NULL COMMENT '标签，逗号分隔',
   `images`          TEXT          DEFAULT NULL COMMENT '参考图，逗号分隔',
+  `requirements`    TEXT          DEFAULT NULL COMMENT '结构化项目要求 JSON',
   `mode`            TINYINT       NOT NULL DEFAULT 0 COMMENT '合作方式：0 公开招募、1 定向邀请',
   `recruit_deadline` DATETIME     DEFAULT NULL COMMENT '招募截止时间（默认发布后10日）',
   `status`          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已关闭',
@@ -189,14 +190,21 @@ CREATE TABLE `message` (
   `from_id`     BIGINT       DEFAULT NULL COMMENT '发送方用户ID（系统通知为 NULL）',
   `to_id`       BIGINT       NOT NULL COMMENT '接收方用户ID',
   `order_id`    BIGINT       DEFAULT NULL COMMENT '关联订单ID（可为空）',
+  `project_id`  BIGINT       DEFAULT NULL COMMENT '关联企划ID（应征私聊可为空）',
   `type`        TINYINT      NOT NULL DEFAULT 0 COMMENT '类型：0 系统、1 应征、2 订单、3 私信',
+  `subtype`     VARCHAR(50)  DEFAULT NULL COMMENT '消息子类型，如 PRIVATE_CHAT / APPLICATION_CREATED',
+  `conversation_key` VARCHAR(50) DEFAULT NULL COMMENT '双方会话键，按较小用户ID_较大用户ID归一化',
+  `starter_key` VARCHAR(100) DEFAULT NULL COMMENT '项目会话发起标记；普通消息为空',
   `content`     VARCHAR(500) NOT NULL COMMENT '消息内容',
   `read_at`     DATETIME     DEFAULT NULL COMMENT '已读时间（NULL 表示未读）',
   `deleted`     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  KEY `idx_to` (`to_id`, `read_at`)
+  KEY `idx_to` (`to_id`, `read_at`),
+  KEY `idx_conversation` (`conversation_key`, `project_id`, `created_at`),
+  KEY `idx_project` (`project_id`),
+  UNIQUE KEY `uk_project_conversation_starter` (`starter_key`)
 ) ENGINE = InnoDB COMMENT = '消息表';
 
 -- -----------------------------------------------------

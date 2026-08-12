@@ -104,7 +104,7 @@
           <el-button type="primary" size="large" round class="buy-btn" :loading="buying" @click="buy">
             立即下单
           </el-button>
-          <p class="buy-tip">下单后进入订单流程，分阶段验收后完成结算</p>
+          <p class="buy-tip">下单后自动建立与画师的沟通会话</p>
         </aside>
       </div>
     </div>
@@ -119,9 +119,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getStall } from '@/api/stall'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const stall = ref(null)
 const loading = ref(false)
 const buying = ref(false)
@@ -168,9 +170,12 @@ async function buy() {
   buying.value = true
   try {
     const { purchaseStall } = await import('@/api/stall')
-    await purchaseStall(stall.value.id)
-    ElMessage.success('下单成功，请到订单管理查看')
-    router.push('/dashboard/orders')
+    const order = await purchaseStall(stall.value.id)
+    ElMessage.success('下单成功，已自动开启与画师的沟通会话')
+    router.push({
+      name: userStore.workbenchRole === 2 ? 'PainterMessages' : 'DashboardMessages',
+      query: { withUserId: stall.value.painterId, orderId: order.id, nickname: stall.value.painterName },
+    })
   } catch (e) {
     ElMessage.error('下单失败：' + (e.message || '请先登录'))
   } finally {

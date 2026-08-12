@@ -1,30 +1,41 @@
 import { defineStore } from 'pinia'
-import { getMessages, markAllRead } from '@/api/message'
+import { getConversations, getNotifications, getUnreadCount, markAllNotificationsRead } from '@/api/message'
 
 export const useMessageStore = defineStore('message', {
   state: () => ({
     list: [],
+    conversations: [],
+    notifications: [],
     unreadCount: 0,
     wsConnected: false,
   }),
   actions: {
-    async fetchMessages(params) {
-      const data = await getMessages(params)
-      this.list = data.records || []
-      this.unreadCount = data.unreadCount ?? 0
+    async fetchConversations(params) {
+      const data = await getConversations(params)
+      this.conversations = data.records || []
+      return data
+    },
+    async fetchUnreadCount() {
+      this.unreadCount = await getUnreadCount()
+      return this.unreadCount
+    },
+    async fetchNotifications(params) {
+      const data = await getNotifications(params)
+      this.notifications = data.records || []
       return data
     },
     async readAll() {
-      await markAllRead()
-      this.list.forEach((item) => (item.read = true))
-      this.unreadCount = 0
+      await markAllNotificationsRead()
+      this.notifications.forEach((item) => { item.readAt = new Date().toISOString() })
+      await this.fetchUnreadCount()
     },
     /** WebSocket 收到新消息时调用 */
     onNewMessage(message) {
-      this.list.unshift(message)
-      if (!message.read) {
+      if (!message.readAt) {
         this.unreadCount += 1
       }
+      this.fetchConversations({ page: 1, size: 30 })
+      this.fetchNotifications({ page: 1, size: 30 })
     },
   },
 })

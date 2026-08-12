@@ -89,6 +89,35 @@
               <el-option v-for="s in SUBJECT_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
           </el-form-item>
+          <el-form-item label="稿件参数" required>
+            <div class="param-editor">
+              <div class="param-line">
+                <span class="param-label">规格</span>
+                <el-input v-model="form.requirements.size" placeholder="如：3000×4000 px" class="param-input" />
+              </div>
+              <div class="param-line">
+                <span class="param-label">颜色模式</span>
+                <el-select v-model="form.requirements.colorMode" placeholder="选择颜色模式" class="param-input">
+                  <el-option label="RGB 模式" value="RGB" />
+                  <el-option label="CMYK 模式" value="CMYK" />
+                </el-select>
+              </div>
+              <div class="param-line">
+                <span class="param-label">稿件格式</span>
+                <el-select v-model="form.requirements.formats" multiple placeholder="选择格式" class="param-input">
+                  <el-option v-for="f in formatOptions" :key="f" :label="f" :value="f" />
+                </el-select>
+              </div>
+              <div class="param-line">
+                <span class="param-label">发布权限</span>
+                <el-radio-group v-model="form.requirements.publishPermission" class="param-input">
+                  <el-radio value="公开展示">公开展示</el-radio>
+                  <el-radio value="仅委托人展示">仅委托人展示</el-radio>
+                  <el-radio value="禁止展示">禁止展示</el-radio>
+                </el-radio-group>
+              </div>
+            </div>
+          </el-form-item>
           <el-form-item label="需求描述" required>
             <el-input
               v-model="form.description"
@@ -106,6 +135,8 @@
               accept="image/png,image/jpeg,image/gif,image/webp"
               :file-list="imageFileList"
               :http-request="doUpload"
+              :on-change="syncImageOrder"
+              :on-success="onImageUploadSuccess"
               :on-remove="onImageRemove"
               :on-exceed="onImageExceed"
             >
@@ -127,11 +158,6 @@
             <el-select v-model="form.subject" multiple placeholder="选择题材">
               <el-option v-for="s in subjectOptions" :key="s" :label="s" :value="s" />
             </el-select>
-          </el-form-item>
-          <el-form-item label="交付格式">
-            <el-checkbox-group v-model="form.formats">
-              <el-checkbox v-for="f in formatOptions" :key="f" :label="f" />
-            </el-checkbox-group>
           </el-form-item>
           <el-form-item label="合作方式">
             <el-radio-group v-model="form.mode">
@@ -155,9 +181,12 @@
           <el-descriptions-item label="截稿日期">{{ form.deadline || '-' }}</el-descriptions-item>
           <el-descriptions-item label="预算">¥{{ form.budgetMin }} — ¥{{ form.budgetMax }} / 张</el-descriptions-item>
           <el-descriptions-item label="标题">{{ form.title || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="规格">{{ form.requirements.size || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="颜色模式">{{ form.requirements.colorMode || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="格式">{{ form.requirements.formats.join(' / ') || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="发布权限">{{ form.requirements.publishPermission || '-' }}</el-descriptions-item>
           <el-descriptions-item label="需求描述">{{ form.description || '-' }}</el-descriptions-item>
           <el-descriptions-item label="题材">{{ form.subject.join(' / ') || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="格式">{{ form.formats.join(' / ') || '-' }}</el-descriptions-item>
           <el-descriptions-item label="合作方式">{{ form.mode === 1 ? '定向邀请' : '公开招募' }}</el-descriptions-item>
         </el-descriptions>
       </div>
@@ -202,7 +231,7 @@ const form = reactive({
   tags: [],
   subjects: [],
   subject: [],
-  formats: [],
+  requirements: { size: '', colorMode: 'RGB', formats: [], publishPermission: '' },
   mode: 0,
   invitePainterId: null,
   images: [],
@@ -214,7 +243,6 @@ const imageFileList = ref([])
 async function doUpload({ file, onSuccess, onError }) {
   try {
     const url = await uploadFile(file)
-    form.images.push(url)
     onSuccess(url)
   } catch (e) {
     ElMessage.error('图片上传失败')
@@ -222,10 +250,17 @@ async function doUpload({ file, onSuccess, onError }) {
   }
 }
 
-function onImageRemove(file) {
-  const url = file.response || file.url
-  const idx = form.images.indexOf(url)
-  if (idx >= 0) form.images.splice(idx, 1)
+function syncImageOrder(_file, fileList) {
+  imageFileList.value = fileList
+  form.images = fileList.map((item) => item.response).filter(Boolean)
+}
+
+function onImageUploadSuccess(_response, _file, fileList) {
+  syncImageOrder(null, fileList)
+}
+
+function onImageRemove(_file, fileList) {
+  syncImageOrder(null, fileList)
 }
 
 function onImageExceed() {
@@ -251,9 +286,15 @@ function next() {
       return
     }
   }
-  if (step.value === 1 && !form.title.trim()) {
-    ElMessage.warning('请填写企划标题')
-    return
+  if (step.value === 1) {
+    if (!form.title.trim()) {
+      ElMessage.warning('请填写企划标题')
+      return
+    }
+    if (!form.requirements.size.trim() || !form.requirements.colorMode || !form.requirements.formats.length || !form.requirements.publishPermission) {
+      ElMessage.warning('请填写完整的稿件参数（规格、颜色模式、格式、发布权限）')
+      return
+    }
   }
   step.value += 1
 }
@@ -261,10 +302,9 @@ function next() {
 async function submit() {
   submitting.value = true
   try {
-    // 高级选项（题材 / 格式）并入需求描述，避免信息丢失
+    // 高级选项（题材）并入需求描述，避免信息丢失
     const extras = []
     if (form.subject.length) extras.push('题材：' + form.subject.join(' / '))
-    if (form.formats.length) extras.push('交付格式：' + form.formats.join(' / '))
     const description = extras.length
       ? `${form.description}\n\n[高级选项] ${extras.join('；')}`
       : form.description
@@ -278,6 +318,7 @@ async function submit() {
       images: form.images.length ? form.images.join(',') : null,
       category: form.category,
       subject: form.subjects,
+      requirements: form.requirements,
       mode: form.mode,
       invitePainterId: form.mode === 1 ? form.invitePainterId : null,
     })
@@ -389,6 +430,28 @@ async function submit() {
 .range-sep {
   margin: 0 8px;
   color: var(--huiyue-text-secondary);
+}
+
+.param-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.param-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.param-label {
+  width: 72px;
+  color: var(--huiyue-text-secondary);
+}
+
+.param-input {
+  flex: 1;
 }
 
 .preview-box {

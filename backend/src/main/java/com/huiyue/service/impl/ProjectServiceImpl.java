@@ -2,8 +2,11 @@ package com.huiyue.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
+import com.huiyue.dto.PublisherSummary;
 import com.huiyue.dto.ProjectRequest;
 import com.huiyue.entity.Project;
 import com.huiyue.entity.Invitation;
@@ -23,6 +26,8 @@ import java.math.BigDecimal;
 @Service
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final ProjectMapper projectMapper;
     private final UserMapper userMapper;
@@ -86,6 +91,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setSubject(request.getSubject() == null || request.getSubject().isEmpty()
                 ? null : String.join(",", request.getSubject()));
         project.setImages(request.getImages());
+        project.setRequirements(serializeRequirements(request));
         project.setMode(request.getMode() == null ? 0 : request.getMode());
         // 招募期默认发布后 10 日
         project.setRecruitDeadline(now.plusDays(10));
@@ -110,12 +116,37 @@ public class ProjectServiceImpl implements ProjectService {
         return project;
     }
 
+    private String serializeRequirements(ProjectRequest request) {
+        if (request.getRequirements() == null) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(request.getRequirements());
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Unable to serialize project requirements", e);
+        }
+    }
+
     @Override
     public Project getById(Long id) {
         Project project = projectMapper.selectById(id);
         if (project == null || project.getDeleted() == 1) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
+        project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));
         return project;
+    }
+
+    private PublisherSummary toPublisherSummary(User user) {
+        if (user == null) {
+            return null;
+        }
+        return new PublisherSummary(
+                user.getId(),
+                user.getNickname(),
+                user.getAvatar(),
+                user.getBio(),
+                user.getTags()
+        );
     }
 }

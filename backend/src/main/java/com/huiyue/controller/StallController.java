@@ -75,12 +75,6 @@ public class StallController {
     /** 立即下单：生成订单（金额取橱窗价格） */
     @PostMapping("/{id}/purchase")
     public Result<OrderInfo> purchase(@PathVariable Long id) {
-        Stall stall = stallService.getById(id);
-        OrderInfo order = new OrderInfo();
-        order.setStallId(id);
-        order.setEmployerId(UserContext.getUserId());
-        order.setPainterId(stall.getPainterId());
-        order.setAmount(stall.getPrice());
-        return Result.ok(orderService.create(order));
+        return Result.ok(orderService.createStallPurchase(id, UserContext.getUserId()));
     }
 }
