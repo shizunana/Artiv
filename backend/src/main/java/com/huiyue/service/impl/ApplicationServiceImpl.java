@@ -4,16 +4,22 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
+import com.huiyue.dto.ApplicationDetail;
 import com.huiyue.entity.Application;
 import com.huiyue.entity.Project;
+import com.huiyue.entity.User;
+import com.huiyue.entity.Work;
 import com.huiyue.mapper.ApplicationMapper;
 import com.huiyue.mapper.ProjectMapper;
+import com.huiyue.mapper.UserMapper;
+import com.huiyue.mapper.WorkMapper;
 import com.huiyue.service.MessageService;
 import com.huiyue.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +27,8 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private final ApplicationMapper applicationMapper;
     private final ProjectMapper projectMapper;
+    private final UserMapper userMapper;
+    private final WorkMapper workMapper;
     private final MessageService messageService;
 
     @Override
@@ -30,6 +38,33 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .eq(Application::getProjectId, projectId)
                 .orderByDesc(Application::getCreatedAt);
         return applicationMapper.selectPage(new Page<>(page, size), wrapper);
+    }
+
+    @Override
+    public Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId, Long employerId) {
+        Project project = projectMapper.selectById(projectId);
+        if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (!employerId.equals(project.getEmployerId())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        Page<Application> applications = listByProject(page, size, projectId);
+        Page<ApplicationDetail> result = new Page<>(page, size, applications.getTotal());
+        result.setRecords(applications.getRecords().stream().map(application -> {
+            ApplicationDetail detail = new ApplicationDetail();
+            detail.setApplication(application);
+            User painter = userMapper.selectById(application.getPainterId());
+            detail.setPainter(painter);
+            List<Work> works = workMapper.selectList(new LambdaQueryWrapper<Work>()
+                    .eq(Work::getUserId, application.getPainterId())
+                    .eq(Work::getDeleted, 0)
+                    .orderByDesc(Work::getCreatedAt)
+                    .last("LIMIT 4"));
+            detail.setWorks(works);
+            return detail;
+        }).toList());
+        return result;
     }
 
     @Override
@@ -83,7 +118,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                 application.getPainterId(), 1, "APPLICATION_SELECTED", project.getId(),
                 "企划方已选择你的应征，可进入消息中心继续沟通。"
         );
-        messageService.createProjectConversation(project.getEmployerId(), application.getPainterId(), project.getId());
         return application;
     }
 

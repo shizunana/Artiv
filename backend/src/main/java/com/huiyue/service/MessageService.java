@@ -23,5 +23,9 @@ public interface MessageService {
 
     void createProjectConversation(Long employerId, Long painterId, Long projectId);
 
+    Message startProjectConversation(Long employerId, Long projectId, Long painterId);
+
+    String createProjectOrderIntent(Long employerId, Long projectId, Long painterId);
+
     void createStallPurchaseCommunication(OrderInfo order, Stall stall);
 }

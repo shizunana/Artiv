@@ -197,6 +197,39 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
+    public Message startProjectConversation(Long employerId, Long projectId, Long painterId) {
+        Project project = requireOwnedProject(employerId, projectId);
+        requireActiveApplication(project.getId(), painterId);
+        if (hasStartedProjectConversation(employerId, painterId, projectId)) {
+            return messageMapper.selectOne(new LambdaQueryWrapper<Message>()
+                    .eq(Message::getDeleted, 0)
+                    .eq(Message::getType, TYPE_PRIVATE)
+                    .eq(Message::getProjectId, projectId)
+                    .eq(Message::getConversationKey, conversationKey(employerId, painterId))
+                    .eq(Message::getSubtype, "APPLICATION_CONVERSATION_STARTED")
+                    .orderByAsc(Message::getCreatedAt)
+                    .last("LIMIT 1"));
+        }
+        Message message = new Message();
+        message.setFromId(employerId);
+        message.setToId(painterId);
+        message.setProjectId(projectId);
+        message.setType(TYPE_PRIVATE);
+        message.setSubtype("APPLICATION_CONVERSATION_STARTED");
+        message.setConversationKey(conversationKey(employerId, painterId));
+        message.setContent("企划方已发起沟通，双方可在这里继续沟通需求。");
+        saveAndPush(message, "NEW_MESSAGE");
+        return message;
+    }
+
+    @Override
+    public String createProjectOrderIntent(Long employerId, Long projectId, Long painterId) {
+        Project project = requireOwnedProject(employerId, projectId);
+        requireActiveApplication(project.getId(), painterId);
+        return "订单功能开发中";
+    }
+
+    @Override
     public void createStallPurchaseCommunication(OrderInfo order, Stall stall) {
         createNotification(order.getEmployerId(), TYPE_SYSTEM, "STALL_PURCHASED", null,
                 "已购买橱窗「" + stall.getTitle() + "」，订单已创建，可进入我的消息与画师沟通。");
@@ -221,9 +254,11 @@ public class MessageServiceImpl implements MessageService {
         if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
-        boolean employerAndApplicant = fromUserId.equals(project.getEmployerId()) && hasApplication(projectId, toUserId);
-        boolean applicantAndEmployer = toUserId.equals(project.getEmployerId()) && hasApplication(projectId, fromUserId);
-        if (!employerAndApplicant && !applicantAndEmployer) {
+        Long painterId = fromUserId.equals(project.getEmployerId()) ? toUserId : fromUserId;
+        boolean employerAndApplicant = fromUserId.equals(project.getEmployerId()) && hasApplication(projectId, painterId);
+        boolean applicantAndEmployer = toUserId.equals(project.getEmployerId()) && hasApplication(projectId, painterId);
+        if ((!employerAndApplicant && !applicantAndEmployer)
+                || !hasStartedProjectConversation(project.getEmployerId(), painterId, projectId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
     }
@@ -232,8 +267,38 @@ public class MessageServiceImpl implements MessageService {
         return applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
                 .eq(Application::getDeleted, 0)
                 .eq(Application::getProjectId, projectId)
+                .eq(Application::getPainterId, painterId)) > 0;
+    }
+
+    private Project requireOwnedProject(Long employerId, Long projectId) {
+        Project project = projectMapper.selectById(projectId);
+        if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (!employerId.equals(project.getEmployerId())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        return project;
+    }
+
+    private void requireActiveApplication(Long projectId, Long painterId) {
+        Application application = applicationMapper.selectOne(new LambdaQueryWrapper<Application>()
+                .eq(Application::getDeleted, 0)
+                .eq(Application::getProjectId, projectId)
                 .eq(Application::getPainterId, painterId)
-                .eq(Application::getStatus, 1)) > 0;
+                .in(Application::getStatus, 0, 1));
+        if (application == null) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+    }
+
+    private boolean hasStartedProjectConversation(Long employerId, Long painterId, Long projectId) {
+        return messageMapper.selectCount(new LambdaQueryWrapper<Message>()
+                .eq(Message::getDeleted, 0)
+                .eq(Message::getType, TYPE_PRIVATE)
+                .eq(Message::getProjectId, projectId)
+                .eq(Message::getConversationKey, conversationKey(employerId, painterId))
+                .eq(Message::getSubtype, "APPLICATION_CONVERSATION_STARTED")) > 0;
     }
 
     private void validateOrderConversation(Long fromUserId, Long toUserId, Long orderId) {
