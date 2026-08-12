@@ -35,7 +35,7 @@
           <el-option label="应征数少" value="applications" />
         </el-select>
         <el-select v-model="subject" class="filter-select" @change="page = 1; load()">
-          <el-option label="题材风格" value="all" />
+          <el-option label="不限" value="all" />
           <el-option v-for="s in subjectOptions" :key="s" :label="s" :value="s" />
         </el-select>
         <el-select v-model="budgetRange" class="filter-select" @change="load">
