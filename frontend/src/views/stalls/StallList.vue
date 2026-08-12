@@ -147,7 +147,7 @@ onMounted(load)
 .category-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
   flex-wrap: wrap;
   padding: 14px 0;
   border-bottom: 1px solid var(--huiyue-border);
