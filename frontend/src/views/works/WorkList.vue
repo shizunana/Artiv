@@ -3,6 +3,13 @@
     <div class="list-header page-container">
       <h1 class="section-title">作品广场</h1>
       <p class="section-subtitle">来自认证画师的优选作品</p>
+      <el-alert
+        title="该模块开发中：作品详情、画师主页跳转、点赞收藏等功能待完善，当前展示基础作品列表"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="dev-alert"
+      />
     </div>
 
     <div class="page-container">
@@ -87,6 +94,10 @@ onMounted(async () => {
 
 .list-header {
   padding-top: 48px;
+}
+
+.dev-alert {
+  margin: 8px 0 20px;
 }
 
 .filter-bar {
