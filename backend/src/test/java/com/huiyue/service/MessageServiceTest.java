@@ -164,6 +164,61 @@ class MessageServiceTest {
     }
 
     @Test
+    void orderIntentReturnsExactPlaceholderForPendingApplicantWithoutMutation() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        when(applicationMapper.selectOne(any())).thenReturn(pendingApplication());
+
+        String response = messageService.createProjectOrderIntent(1L, 8L, 2L);
+
+        assertEquals("订单功能开发中", response);
+        verify(messageMapper, never()).insert(any(Message.class));
+        verify(projectMapper, never()).updateById(any(Project.class));
+        verify(applicationMapper, never()).updateById(any(Application.class));
+    }
+
+    @Test
+    void orderIntentReturnsExactPlaceholderForSelectedApplicantWithoutMutation() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        Application selected = pendingApplication();
+        selected.setStatus(1);
+        when(applicationMapper.selectOne(any())).thenReturn(selected);
+
+        String response = messageService.createProjectOrderIntent(1L, 8L, 2L);
+
+        assertEquals("订单功能开发中", response);
+        verify(messageMapper, never()).insert(any(Message.class));
+        verify(projectMapper, never()).updateById(any(Project.class));
+        verify(applicationMapper, never()).updateById(any(Application.class));
+    }
+
+    @Test
+    void orderIntentRejectsWithdrawnApplicantWithoutMutation() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        when(applicationMapper.selectOne(any())).thenReturn(null);
+
+        assertThrows(BusinessException.class, () -> messageService.createProjectOrderIntent(1L, 8L, 2L));
+
+        verify(messageMapper, never()).insert(any(Message.class));
+        verify(projectMapper, never()).updateById(any(Project.class));
+        verify(applicationMapper, never()).updateById(any(Application.class));
+    }
+
+    @Test
+    void legacyStarterRowPreventsDuplicateInitiationAfterUpgrade() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        when(applicationMapper.selectOne(any())).thenReturn(pendingApplication());
+        Message legacyStarter = new Message();
+        legacyStarter.setId(88L);
+        legacyStarter.setStarterKey(null);
+        when(messageMapper.selectOne(any())).thenReturn(legacyStarter);
+
+        Message started = messageService.startProjectConversation(1L, 8L, 2L);
+
+        assertEquals(88L, started.getId());
+        verify(messageMapper, never()).insert(any(Message.class));
+    }
+
+    @Test
     void applicantCannotSendProjectMessageBeforeEmployerStartsConversation() {
         when(projectMapper.selectById(8L)).thenReturn(ownedProject());
         when(userMapper.selectById(1L)).thenReturn(activeUser(1L));
@@ -183,6 +238,21 @@ class MessageServiceTest {
         Message starter = new Message();
         starter.setId(99L);
         when(messageMapper.selectOne(any())).thenReturn(starter);
+
+        messageService.sendPrivateMessage(2L, request(1L, 8L, "reply"));
+
+        verify(messageMapper).insert(any(Message.class));
+    }
+
+    @Test
+    void applicantCanReplyAfterUpgradeFromLegacyStarterRow() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        when(userMapper.selectById(1L)).thenReturn(activeUser(1L));
+        when(applicationMapper.selectCount(any())).thenReturn(1L);
+        Message legacyStarter = new Message();
+        legacyStarter.setId(88L);
+        legacyStarter.setStarterKey(null);
+        when(messageMapper.selectOne(any())).thenReturn(legacyStarter);
 
         messageService.sendPrivateMessage(2L, request(1L, 8L, "reply"));
 

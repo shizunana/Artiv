@@ -158,8 +158,7 @@ CREATE TABLE `order_info` (
   PRIMARY KEY (`id`),
   KEY `idx_employer` (`employer_id`),
   KEY `idx_painter` (`painter_id`),
-  KEY `idx_project` (`project_id`),
-  UNIQUE KEY `uk_project_conversation_starter` (`project_id`, `conversation_key`, `subtype`)
+  KEY `idx_project` (`project_id`)
 ) ENGINE = InnoDB COMMENT = '订单表';
 
 -- -----------------------------------------------------

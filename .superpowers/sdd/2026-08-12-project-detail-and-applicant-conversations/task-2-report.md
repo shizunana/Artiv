@@ -25,3 +25,10 @@
 - Removed `createProjectConversation` from the public service contract. The retained private compatibility helper is unreachable from callers, and selection continues to create no conversation.
 - Added a nullable `starter_key` with `uk_project_conversation_starter` in both the fresh schema and an upgrade migration. Only a project starter marker receives that identity, leaving normal replies unconstrained. Initiation now inserts once and, on a duplicate-key race, fetches and returns the single persisted starter marker.
 - Added tests for selected, non-owner, and withdrawn initiation outcomes; duplicate-key idempotency; no public applicant-list or legacy starter API; and non-owner order intent with no application, project, or message mutation.
+
+## Round 2 remediation
+
+- Corrected the fresh schema: `starter_key` and `uk_project_conversation_starter` now belong exclusively to `message`; the accidental order table index was removed.
+- The upgrade migration adds `starter_key`, backfills every active `APPLICATION_CONVERSATION_STARTED` marker deterministically as `project_id:conversation_key:APPLICATION_CONVERSATION_STARTED`, then adds the unique key.
+- Starter lookup recognizes both backfilled keyed rows and legacy null-key starter rows, preventing duplicate initiation and retaining replies during an upgrade rollout.
+- Added authorized pending and selected order-intent tests for the exact `订单功能开发中` response and zero message/project/application mutation, plus withdrawn rejection and legacy-starter initiation/reply coverage.

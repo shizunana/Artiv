@@ -304,7 +304,10 @@ public class MessageServiceImpl implements MessageService {
                 .eq(Message::getDeleted, 0)
                 .eq(Message::getType, TYPE_PRIVATE)
                 .eq(Message::getProjectId, projectId)
-                .eq(Message::getStarterKey, projectConversationStarterKey(projectId, employerId, painterId))
+                .and(wrapper -> wrapper.eq(Message::getStarterKey, projectConversationStarterKey(projectId, employerId, painterId))
+                        .or(legacy -> legacy.eq(Message::getConversationKey, conversationKey(employerId, painterId))
+                                .eq(Message::getSubtype, "APPLICATION_CONVERSATION_STARTED")
+                                .isNull(Message::getStarterKey)))
                 .orderByAsc(Message::getCreatedAt)
                 .last("LIMIT 1"));
     }
