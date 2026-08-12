@@ -14,6 +14,19 @@
         </el-tabs>
       </div>
 
+      <!-- 分类 Tab：类型（注释1 同款，位于状态 Tab 下方、筛选行上方） -->
+      <div class="category-bar type-bar">
+        <span
+          v-for="c in categoryTabs"
+          :key="c"
+          class="category-tab"
+          :class="{ 'is-active': activeCategory === c }"
+          @click="activeCategory = c; page = 1; load()"
+        >
+          {{ c }}
+        </span>
+      </div>
+
       <!-- 筛选行：下拉靠左 + 搜索框靠右 -->
       <div class="filter-row">
         <el-select v-model="sort" class="filter-select" @change="load">
@@ -21,9 +34,9 @@
           <el-option label="稿酬最高" value="budget" />
           <el-option label="应征数少" value="applications" />
         </el-select>
-        <el-select v-model="tag" class="filter-select" @change="load">
-          <el-option label="类型" value="all" />
-          <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
+        <el-select v-model="subject" class="filter-select" @change="page = 1; load()">
+          <el-option label="题材风格" value="all" />
+          <el-option v-for="s in subjectOptions" :key="s" :label="s" :value="s" />
         </el-select>
         <el-select v-model="budgetRange" class="filter-select" @change="load">
           <el-option label="稿酬区间不限" value="all" />
@@ -104,6 +117,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { getProjects } from '@/api/project'
+import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import Pagination from '@/components/common/Pagination.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -118,15 +132,17 @@ const keyword = ref('')
 
 // 筛选状态（参考站筛选区）
 const activeTab = ref('all')
+const activeCategory = ref('全部')
 const sort = ref('newest')
-const tag = ref('all')
+const subject = ref('all')
 const budgetRange = ref('all')
 const deadlineRange = ref('all')
 const unselectedOnly = ref(false)
 const characterCardOnly = ref(false)
 
 // 类型选项与橱窗分类同步
-const tagOptions = ['头像', 'Q版全身', '半身像', '立绘', '组合页', '服设', '壁纸', '表情包', 'Live2d', '平面设计']
+const subjectOptions = SUBJECT_OPTIONS
+const categoryTabs = ['全部', ...CATEGORY_OPTIONS]
 
 function firstImage(images) {
   if (!images) return ''
@@ -155,14 +171,17 @@ async function load() {
   try {
     const params = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
+    if (activeCategory.value !== '全部') {
+      params.category = activeCategory.value
+    }
     if (activeTab.value === 'recruiting' || unselectedOnly.value) {
       params.status = 0
     }
     if (sort.value === 'budget') {
       params.sort = 'budget'
     }
-    if (tag.value && tag.value !== 'all') {
-      params.tag = tag.value
+    if (subject.value && subject.value !== 'all') {
+      params.subject = subject.value
     }
     if (budgetRange.value && budgetRange.value !== 'all') {
       const [min, max] = budgetRange.value.split('-')
@@ -210,6 +229,35 @@ onMounted(load)
 
 .purpose-tabs {
   width: 100%;
+}
+
+.type-bar {
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.category-tab {
+  padding: 7px 16px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid var(--huiyue-border);
+  color: var(--huiyue-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.category-tab:hover {
+  color: var(--huiyue-primary);
+  border-color: var(--huiyue-primary);
+}
+
+.category-tab.is-active {
+  background: var(--huiyue-primary);
+  border-color: var(--huiyue-primary);
+  color: #fff;
 }
 
 .filter-row {

@@ -39,3 +39,20 @@ export const SUBJECT_OPTIONS = [
   '桌宠',
   '字体设计',
 ]
+
+/**
+ * 类型（分类）选项：橱窗与企划共用
+ * 对应 stall.category / project.category
+ */
+export const CATEGORY_OPTIONS = [
+  '头像',
+  'Q版全身',
+  '半身像',
+  '立绘',
+  '组合页',
+  '服设',
+  '壁纸',
+  '表情包',
+  'Live2d',
+  '平面设计',
+]

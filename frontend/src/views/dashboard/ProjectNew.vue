@@ -13,18 +13,17 @@
 
       <!-- 第 1 步：稿件用途 -->
       <div v-if="step === 0" class="wizard-body">
-        <h4>我准备把稿件用作…</h4>
-        <div class="choice-grid">
-          <div
-            v-for="t in types"
-            :key="t.value"
-            class="choice-card"
-            :class="{ 'is-active': form.manuscriptType === t.value }"
-            @click="form.manuscriptType = t.value"
+        <h4>类型</h4>
+        <div class="type-tabs">
+          <span
+            v-for="c in CATEGORY_OPTIONS"
+            :key="c"
+            class="category-tab"
+            :class="{ 'is-active': form.category === c }"
+            @click="form.category = c"
           >
-            <span class="choice-emoji">{{ t.icon }}</span>
-            <strong>{{ t.label }}</strong>
-          </div>
+            {{ c }}
+          </span>
         </div>
 
         <h4>稿件用途</h4>
@@ -75,7 +74,20 @@
       <div v-else-if="step === 1" class="wizard-body">
         <el-form label-position="top">
           <el-form-item label="企划标题" required>
-          <el-input v-model="form.title" maxlength="20" show-word-limit placeholder="一句话描述您的需求（最多 20 字）" />
+            <el-input v-model="form.title" maxlength="20" show-word-limit placeholder="一句话描述您的需求（最多 20 字）" />
+          </el-form-item>
+          <el-form-item label="题材风格">
+            <el-select
+              v-model="form.subjects"
+              multiple
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择或输入题材风格（可多选）"
+              class="subject-select"
+            >
+              <el-option v-for="s in SUBJECT_OPTIONS" :key="s" :label="s" :value="s" />
+            </el-select>
           </el-form-item>
           <el-form-item label="需求描述" required>
             <el-input
@@ -138,7 +150,7 @@
       <!-- 第 4 步：预览 -->
       <div v-else class="wizard-body">
         <el-descriptions :column="1" border class="preview-box">
-          <el-descriptions-item label="稿件类型">{{ typeText }}</el-descriptions-item>
+          <el-descriptions-item label="类型">{{ form.category }}</el-descriptions-item>
           <el-descriptions-item label="用途">{{ form.usage === 'personal' ? '个人用途' : '商业用途' }}</el-descriptions-item>
           <el-descriptions-item label="截稿日期">{{ form.deadline || '-' }}</el-descriptions-item>
           <el-descriptions-item label="预算">¥{{ form.budgetMin }} — ¥{{ form.budgetMax }} / 张</el-descriptions-item>
@@ -168,27 +180,18 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { createProject } from '@/api/project'
 import { uploadFile } from '@/api/upload'
+import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 
 const router = useRouter()
 const step = ref(0)
 const submitting = ref(false)
-
-const types = [
-  { value: 'oc', label: '自设/OC', icon: '🧑‍🎨' },
-  { value: 'avatar', label: '头像', icon: '🪞' },
-  { value: 'illustration', label: '插图', icon: '🖼️' },
-  { value: 'live2d', label: 'Live2d', icon: '💃' },
-  { value: 'character', label: '立绘', icon: '🧍' },
-  { value: 'design', label: '平面设计', icon: '🎨' },
-  { value: 'other', label: '其他', icon: '✨' },
-]
 
 const tagOptions = ['国潮', '插画', '立绘', '场景', '原画', '同人', 'Q版', '古风']
 const subjectOptions = ['Q版', '女性', '男性', '古风', '现代', '科幻', '奇幻', '兽人']
 const formatOptions = ['JPG', 'PNG', 'PSD', 'GIF', 'WEBP']
 
 const form = reactive({
-  manuscriptType: 'illustration',
+  category: '头像',
   usage: 'personal',
   deadline: '',
   budgetMin: 300,
@@ -197,6 +200,7 @@ const form = reactive({
   title: '',
   description: '',
   tags: [],
+  subjects: [],
   subject: [],
   formats: [],
   mode: 0,
@@ -227,8 +231,6 @@ function onImageRemove(file) {
 function onImageExceed() {
   ElMessage.warning('最多上传 6 张参考图')
 }
-
-const typeText = computed(() => types.find((t) => t.value === form.manuscriptType)?.label || '-')
 
 /** 截稿日期至少为发布后 7 天 */
 function disabledDate(date) {
@@ -274,6 +276,8 @@ async function submit() {
       deadline: form.deadline,
       tags: form.tags,
       images: form.images.length ? form.images.join(',') : null,
+      category: form.category,
+      subject: form.subjects,
       mode: form.mode,
       invitePainterId: form.mode === 1 ? form.invitePainterId : null,
     })
@@ -309,40 +313,32 @@ async function submit() {
   color: var(--huiyue-text);
 }
 
-.choice-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-}
-
-.choice-card {
-  border: 1px solid var(--huiyue-border);
-  border-radius: 8px;
-  padding: 16px 6px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
+.type-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.choice-card:hover {
+.category-tab {
+  padding: 8px 20px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid var(--huiyue-border);
+  color: var(--huiyue-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.category-tab:hover {
+  color: var(--huiyue-primary);
   border-color: var(--huiyue-primary);
 }
 
-.choice-card.is-active {
+.category-tab.is-active {
+  background: var(--huiyue-primary);
   border-color: var(--huiyue-primary);
-  background: var(--huiyue-primary-light);
-}
-
-.choice-emoji {
-  font-size: 26px;
-}
-
-.choice-card strong {
-  font-size: 13px;
-  color: var(--huiyue-text);
+  color: #fff;
 }
 
 .usage-group {

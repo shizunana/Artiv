@@ -31,6 +31,12 @@ public class Project {
 
     private String tags;
 
+    /** 类型（同橱窗分类） */
+    private String category;
+
+    /** 题材风格，逗号分隔 */
+    private String subject;
+
     private String images;
 
     /** 合作方式：0 公开招募、1 定向邀请 */

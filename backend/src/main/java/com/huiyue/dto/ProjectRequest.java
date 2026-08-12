@@ -32,6 +32,12 @@ public class ProjectRequest {
 
     private List<String> tags;
 
+    /** 类型（同橱窗分类） */
+    private String category;
+
+    /** 题材风格列表 */
+    private List<String> subject;
+
     private String images;
 
     /** 合作方式：0 公开招募、1 定向邀请 */
