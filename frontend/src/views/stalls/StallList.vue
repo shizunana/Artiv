@@ -2,18 +2,19 @@
   <div class="list-page page-container">
     <!-- 分类 Tab（参考站 stalls/list） -->
     <div class="category-bar">
-      <div class="category-tabs">
-        <span
-          v-for="c in categories"
-          :key="c"
-          class="category-tab"
-          :class="{ 'is-active': activeCategory === c }"
-          @click="activeCategory = c; page = 1; load()"
-        >
-          {{ c }}
-        </span>
-      </div>
-      <!-- 搜索标题（参考站布局：位于分类行右侧） -->
+      <span
+        v-for="c in categories"
+        :key="c"
+        class="category-tab"
+        :class="{ 'is-active': activeCategory === c }"
+        @click="activeCategory = c; page = 1; load()"
+      >
+        {{ c }}
+      </span>
+    </div>
+
+    <!-- 搜索 + 排序 + 题材风格 + 价格区间 + 截稿时间（参考站筛选行） -->
+    <div class="filter-row">
       <el-input
         v-model="keyword"
         placeholder="搜索橱窗标题"
@@ -24,10 +25,6 @@
       >
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
-    </div>
-
-    <!-- 排序 + 题材风格 + 价格区间 + 截稿时间（参考站筛选行） -->
-    <div class="filter-row">
       <el-select v-model="sort" class="sort-select" @change="page = 1; load()">
         <el-option label="最新上架" value="newest" />
         <el-option label="价格从低到高" value="priceAsc" />
@@ -149,18 +146,11 @@ onMounted(load)
 /* ---------- 分类区 ---------- */
 .category-bar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--huiyue-border);
-}
-
-.category-tabs {
-  display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  flex: 1;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--huiyue-border);
 }
 
 .category-tab {
