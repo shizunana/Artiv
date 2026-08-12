@@ -27,6 +27,7 @@
           <!-- 橱窗详情 -->
           <section id="detail" class="detail-section">
             <h2 class="detail-title"><span class="title-icon">🖼️</span>橱窗详情</h2>
+            <p class="detail-desc">{{ stall.description || '暂无详细说明' }}</p>
             <!-- 示例图（参考站 stall-detail__example-images） -->
             <div class="example-images">
               <el-image
@@ -34,12 +35,12 @@
                 :key="i"
                 :src="img"
                 :preview-src-list="detailImages"
+                :initial-index="i"
                 preview-teleported
                 fit="contain"
                 class="example-image"
               />
             </div>
-            <p class="detail-desc">{{ stall.description || '暂无详细说明' }}</p>
           </section>
 
           <!-- 创作阶段 -->
