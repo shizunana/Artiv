@@ -62,17 +62,19 @@ public class MessageServiceImpl implements MessageService {
         if (recipient == null || !Integer.valueOf(0).equals(recipient.getDeleted()) || !Integer.valueOf(0).equals(recipient.getStatus())) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
-        validateProjectConversation(fromUserId, request.getToId(), request.getProjectId());
-        validateOrderConversation(fromUserId, request.getToId(), request.getOrderId());
         if (request.getProjectId() != null && request.getOrderId() != null) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
+        // 保留旧入口携带企划/订单上下文时的权限校验；消息中心合并会话后发送普通私信。
+        validateProjectConversation(fromUserId, request.getToId(), request.getProjectId());
+        validateOrderConversation(fromUserId, request.getToId(), request.getOrderId());
 
         Message message = new Message();
         message.setFromId(fromUserId);
         message.setToId(request.getToId());
-        message.setProjectId(request.getProjectId());
-        message.setOrderId(request.getOrderId());
+        // 一对用户只维护一个沟通会话；企划或橱窗来源由系统消息本身保留关联 ID。
+        message.setProjectId(null);
+        message.setOrderId(null);
         message.setType(TYPE_PRIVATE);
         message.setSubtype(SUBTYPE_PRIVATE_CHAT);
         message.setConversationKey(conversationKey(fromUserId, request.getToId()));
@@ -91,8 +93,6 @@ public class MessageServiceImpl implements MessageService {
         if (userId == null || withUserId == null || userId.equals(withUserId)) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
-        validateProjectConversation(userId, withUserId, projectId);
-        validateOrderConversation(userId, withUserId, orderId);
         if (projectId != null && orderId != null) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
@@ -100,10 +100,6 @@ public class MessageServiceImpl implements MessageService {
                 .eq(Message::getDeleted, 0)
                 .eq(Message::getType, TYPE_PRIVATE)
                 .eq(Message::getConversationKey, conversationKey(userId, withUserId))
-                .eq(projectId != null, Message::getProjectId, projectId)
-                .isNull(projectId == null, Message::getProjectId)
-                .eq(orderId != null, Message::getOrderId, orderId)
-                .isNull(orderId == null, Message::getOrderId)
                 .orderByAsc(Message::getCreatedAt);
         return messageMapper.selectPage(new Page<>(page, size), wrapper);
     }
@@ -117,9 +113,7 @@ public class MessageServiceImpl implements MessageService {
                 .orderByDesc(Message::getCreatedAt));
         Map<String, ConversationSummary> grouped = new LinkedHashMap<>();
         for (Message message : messages) {
-            String key = message.getConversationKey() + ":project:"
-                    + (message.getProjectId() == null ? "none" : message.getProjectId())
-                    + ":order:" + (message.getOrderId() == null ? "none" : message.getOrderId());
+            String key = message.getConversationKey();
             ConversationSummary summary = grouped.get(key);
             if (summary == null) {
                 summary = new ConversationSummary();
@@ -127,7 +121,7 @@ public class MessageServiceImpl implements MessageService {
                 summary.setWithUserId(withUserId);
                 summary.setProjectId(message.getProjectId());
                 summary.setOrderId(message.getOrderId());
-                summary.setConversationType(message.getOrderId() == null ? "PRIVATE" : "TRADE");
+                summary.setConversationType("DIRECT");
                 summary.setLastContent(message.getContent());
                 summary.setLastCreatedAt(message.getCreatedAt());
                 User other = userMapper.selectById(withUserId);
