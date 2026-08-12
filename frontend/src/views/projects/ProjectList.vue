@@ -6,48 +6,48 @@
     </div>
 
     <div class="page-container">
-      <!-- 筛选区（复刻参考站 projects 列表页） -->
-      <div class="filter-panel">
-        <div class="filter-top">
-          <el-tabs v-model="activeTab" class="purpose-tabs" @tab-change="load">
-            <el-tab-pane label="全部" name="all" />
-            <el-tab-pane label="招募中" name="recruiting" />
-          </el-tabs>
-      <el-input v-model="keyword" placeholder="搜索企划标题、需求关键词" clearable class="search-input" @keyup.enter="load" @clear="load">
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
+      <!-- 状态 Tab（参考站橱窗列表同款布局） -->
+      <div class="category-bar">
+        <el-tabs v-model="activeTab" class="purpose-tabs" @tab-change="load">
+          <el-tab-pane label="全部" name="all" />
+          <el-tab-pane label="招募中" name="recruiting" />
+        </el-tabs>
+      </div>
+
+      <!-- 筛选行：下拉靠左 + 搜索框靠右 -->
+      <div class="filter-row">
+        <el-select v-model="sort" class="filter-select" @change="load">
+          <el-option label="最新发布" value="newest" />
+          <el-option label="稿酬最高" value="budget" />
+          <el-option label="应征数少" value="applications" />
+        </el-select>
+        <el-select v-model="tag" class="filter-select" @change="load">
+          <el-option label="类型" value="all" />
+          <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
+        </el-select>
+        <el-select v-model="budgetRange" class="filter-select" @change="load">
+          <el-option label="稿酬区间不限" value="all" />
+          <el-option label="500 以下" value="0-500" />
+          <el-option label="500-1000" value="500-1000" />
+          <el-option label="1000-3000" value="1000-3000" />
+          <el-option label="3000 以上" value="3000-" />
+        </el-select>
+        <el-select v-model="deadlineRange" class="filter-select" @change="load">
+          <el-option label="截稿日期不限" value="all" />
+          <el-option label="7天以内" value="within-7" />
+          <el-option label="7天以上" value="after-7" />
+          <el-option label="14天以上" value="after-14" />
+          <el-option label="30天以上" value="after-30" />
+        </el-select>
+        <div class="filter-switches">
+          <span class="switch-label">仅看未选定</span>
+          <el-switch v-model="unselectedOnly" size="small" @change="load" />
+          <span class="switch-label">仅看人设卡</span>
+          <el-switch v-model="characterCardOnly" size="small" disabled />
         </div>
-        <div class="filter-row">
-          <el-select v-model="sort" class="filter-select" @change="load">
-            <el-option label="最新发布" value="newest" />
-            <el-option label="稿酬最高" value="budget" />
-            <el-option label="应征数少" value="applications" />
-          </el-select>
-          <el-select v-model="tag" class="filter-select" @change="load">
-            <el-option label="类型" value="all" />
-            <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
-          </el-select>
-          <el-select v-model="budgetRange" class="filter-select" @change="load">
-            <el-option label="稿酬区间不限" value="all" />
-            <el-option label="500 以下" value="0-500" />
-            <el-option label="500-1000" value="500-1000" />
-            <el-option label="1000-3000" value="1000-3000" />
-            <el-option label="3000 以上" value="3000-" />
-          </el-select>
-          <el-select v-model="deadlineRange" class="filter-select" @change="load">
-            <el-option label="截稿日期不限" value="all" />
-            <el-option label="7天以内" value="within-7" />
-            <el-option label="7天以上" value="after-7" />
-            <el-option label="14天以上" value="after-14" />
-            <el-option label="30天以上" value="after-30" />
-          </el-select>
-          <div class="filter-switches">
-            <span class="switch-label">仅看未选定</span>
-            <el-switch v-model="unselectedOnly" size="small" @change="load" />
-            <span class="switch-label">仅看人设卡</span>
-            <el-switch v-model="characterCardOnly" size="small" disabled />
-          </div>
-        </div>
+        <el-input v-model="keyword" placeholder="搜索企划标题、需求关键词" clearable class="search-input" @keyup.enter="load" @clear="load">
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
       </div>
 
       <div class="project-grid" v-loading="loading">
@@ -201,60 +201,52 @@ onMounted(load)
   padding-top: 48px;
 }
 
-.filter-panel {
-  background: #fff;
-  border: 1px solid var(--huiyue-border);
-  border-radius: 10px;
-  padding: 6px 20px 16px;
-  margin-bottom: 24px;
-}
-
-.filter-top {
+.category-bar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  padding: 10px 0 0;
+  border-bottom: 1px solid var(--huiyue-border);
 }
 
 .purpose-tabs {
-  flex: 1;
-}
-
-.search-input {
-  width: 300px;
-  margin-left: auto;
-}
-
-.search-input :deep(.el-input__wrapper) {
-  border-radius: 20px;
+  width: 100%;
 }
 
 .filter-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
-  padding-top: 10px;
-  border-top: 1px solid var(--huiyue-border);
+  padding: 14px 0;
+  flex-wrap: nowrap;
 }
 
 .filter-select {
-  width: 150px;
+  width: 140px;
+  flex-shrink: 0;
 }
 
 .filter-switches {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .switch-label {
   font-size: 13px;
   color: var(--huiyue-text-secondary);
   margin-left: 8px;
+  white-space: nowrap;
+}
+
+.search-input {
+  width: 240px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 20px;
 }
 
 .project-grid {
