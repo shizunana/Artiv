@@ -18,7 +18,6 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -29,28 +28,13 @@ public class ProjectServiceImpl implements ProjectService {
     private final InvitationMapper invitationMapper;
 
     @Override
-    public Page<Project> listProjects(long page, long size, String keyword, Integer status,
-                                      String sort, BigDecimal budgetMin, BigDecimal budgetMax,
-                                      Integer deadlineWithin, Integer deadlineAfter, String tag) {
+    public Page<Project> listProjects(long page, long size, String keyword, Integer status) {
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
                 .eq(Project::getDeleted, 0)
                 .eq(Project::getMode, 0)
                 .eq(status != null, Project::getStatus, status)
                 .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
-                .like(StringUtils.hasText(tag), Project::getTags, tag)
-                .ge(budgetMin != null, Project::getBudget, budgetMin)
-                .le(budgetMax != null, Project::getBudget, budgetMax);
-        if (deadlineWithin != null) {
-            wrapper.le(Project::getDeadline, LocalDate.now().plusDays(deadlineWithin));
-        }
-        if (deadlineAfter != null) {
-            wrapper.ge(Project::getDeadline, LocalDate.now().plusDays(deadlineAfter));
-        }
-        if ("budget".equals(sort)) {
-            wrapper.orderByDesc(Project::getBudget);
-        } else {
-            wrapper.orderByDesc(Project::getCreatedAt);
-        }
+                .orderByDesc(Project::getCreatedAt);
         return projectMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
