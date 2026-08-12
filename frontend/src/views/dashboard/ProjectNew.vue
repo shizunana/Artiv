@@ -473,10 +473,7 @@ async function submit() {
 
 .collaboration-section {
   margin-top: 8px;
-  padding: 18px;
-  border: 1px solid #e7edf4;
-  border-radius: 6px;
-  background: #fafcff;
+  padding-top: 8px;
 }
 
 .collaboration-section h4 {

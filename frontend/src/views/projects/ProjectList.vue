@@ -76,7 +76,7 @@
               <p class="project-card__summary">{{ project.description }}</p>
               <div class="project-card__tags">
                 <span class="tag">{{ project.mode === 1 ? '定向邀请' : '公开招募' }}</span>
-                <span v-for="t in tagList(project.tags)" :key="t" class="tag">{{ t }}</span>
+                <span v-for="item in subjectList(project.subject)" :key="item" class="tag tag-subject">{{ item }}</span>
               </div>
             </div>
             <div class="project-card__thumb" @click.stop>
@@ -97,7 +97,7 @@
 
           <div class="project-card__info">
             <span class="info-item">📅 {{ project.deadline || '-' }} 截稿</span>
-            <span class="info-item">🏷️ {{ firstTag(project.tags) }}</span>
+            <span class="info-item">🏷️ {{ project.category || '-' }}</span>
             <span class="info-item">👤 0 人应征</span>
             <span class="info-item info-budget">¥{{ project.budget }}</span>
           </div>
@@ -155,15 +155,9 @@ function imageList(images) {
   return String(images).split(',').filter(Boolean)
 }
 
-function firstTag(tags) {
-  if (!tags) return '-'
-  const arr = String(tags).split(',').filter(Boolean)
-  return arr[0] || '-'
-}
-
-function tagList(tags) {
-  if (!tags) return []
-  return String(tags).split(',').filter(Boolean).slice(0, 3)
+function subjectList(subjects) {
+  if (!subjects) return []
+  return String(subjects).split(',').filter(Boolean).slice(0, 3)
 }
 
 async function load() {
@@ -373,6 +367,12 @@ onMounted(load)
   border: 1px solid var(--huiyue-border);
   border-radius: 4px;
   padding: 2px 7px;
+}
+
+.tag-subject {
+  color: var(--huiyue-primary);
+  border-color: color-mix(in srgb, var(--huiyue-primary) 25%, #fff);
+  background: var(--huiyue-primary-light);
 }
 
 .project-card__thumb {
