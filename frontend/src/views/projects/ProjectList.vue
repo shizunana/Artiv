@@ -13,9 +13,9 @@
             <el-tab-pane label="全部" name="all" />
             <el-tab-pane label="招募中" name="recruiting" />
           </el-tabs>
-          <el-input v-model="keyword" placeholder="搜索企划标题、需求关键词" clearable class="search-input" @keyup.enter="load" @clear="load">
-            <template #append><el-button @click="load">搜索</el-button></template>
-          </el-input>
+      <el-input v-model="keyword" placeholder="搜索企划标题、需求关键词" clearable class="search-input" @keyup.enter="load" @clear="load">
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
         </div>
         <div class="filter-row">
           <el-select v-model="sort" class="filter-select" @change="load">
@@ -24,7 +24,7 @@
             <el-option label="应征数少" value="applications" />
           </el-select>
           <el-select v-model="tag" class="filter-select" @change="load">
-            <el-option label="全部类型" value="all" />
+            <el-option label="题材风格" value="all" />
             <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
           </el-select>
           <el-select v-model="budgetRange" class="filter-select" @change="load">
@@ -102,6 +102,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Search } from '@element-plus/icons-vue'
 import { getProjects } from '@/api/project'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import Pagination from '@/components/common/Pagination.vue'
@@ -221,6 +222,11 @@ onMounted(load)
 
 .search-input {
   width: 300px;
+  margin-left: auto;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 20px;
 }
 
 .filter-row {
