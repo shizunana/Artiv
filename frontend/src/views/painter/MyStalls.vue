@@ -25,7 +25,7 @@
         <el-table-column label="价格" width="110">
           <template #default="{ row }">¥{{ row.price }}</template>
         </el-table-column>
-        <el-table-column prop="description" label="交付说明" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="description" label="橱窗详情" min-width="200" show-overflow-tooltip />
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
@@ -127,8 +127,8 @@
             </div>
           </div>
         </el-form-item>
-        <el-form-item label="交付说明">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="交付内容、修改次数、周期等" />
+        <el-form-item label="橱窗详情（文字描述）" required>
+          <el-input v-model="form.description" type="textarea" :rows="5" placeholder="详细介绍成稿内容、偏好类型、不接类型、修改次数、交付周期等" maxlength="500" show-word-limit />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -234,6 +234,10 @@ async function save() {
   }
   if (!form.params.spec || !form.params.format.length || !form.params.subject) {
     ElMessage.warning('稿件参数（规格/格式/题材风格）为必填')
+    return
+  }
+  if (!form.description.trim()) {
+    ElMessage.warning('请填写橱窗详情文字描述')
     return
   }
   submitting.value = true

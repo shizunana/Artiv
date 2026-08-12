@@ -36,5 +36,6 @@ public class StallRequest {
     @NotBlank(message = "稿件参数不能为空")
     private String params;
 
+    @NotBlank(message = "橱窗详情文字描述不能为空")
     private String description;
 }
