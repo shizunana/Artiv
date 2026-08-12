@@ -24,7 +24,7 @@
             <el-option label="应征数少" value="applications" />
           </el-select>
           <el-select v-model="tag" class="filter-select" @change="load">
-            <el-option label="类型与风格" value="all" />
+            <el-option label="全部类型" value="all" />
             <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
           </el-select>
           <el-select v-model="budgetRange" class="filter-select" @change="load">
