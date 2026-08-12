@@ -10,8 +10,7 @@ public interface ProjectService {
 
     Page<Project> listProjects(long page, long size, String keyword, Integer status,
                                String sort, BigDecimal budgetMin, BigDecimal budgetMax,
-                               Integer deadlineWithin, Integer deadlineAfter, String tag,
-                               String manuscriptType, String subject);
+                               Integer deadlineWithin, Integer deadlineAfter, String tag);
 
     Page<Project> listMine(long page, long size, Long employerId);
 

@@ -33,12 +33,6 @@ public class Project {
 
     private String images;
 
-    /** 稿件类型（自设/OC、头像、插图等） */
-    private String manuscriptType;
-
-    /** 题材风格，逗号分隔 */
-    private String subject;
-
     /** 合作方式：0 公开招募、1 定向邀请 */
     private Integer mode;
 

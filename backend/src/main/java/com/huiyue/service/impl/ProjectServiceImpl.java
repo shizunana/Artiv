@@ -31,16 +31,13 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public Page<Project> listProjects(long page, long size, String keyword, Integer status,
                                       String sort, BigDecimal budgetMin, BigDecimal budgetMax,
-                                      Integer deadlineWithin, Integer deadlineAfter, String tag,
-                                      String manuscriptType, String subject) {
+                                      Integer deadlineWithin, Integer deadlineAfter, String tag) {
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
                 .eq(Project::getDeleted, 0)
                 .eq(Project::getMode, 0)
                 .eq(status != null, Project::getStatus, status)
                 .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
                 .like(StringUtils.hasText(tag), Project::getTags, tag)
-                .eq(StringUtils.hasText(manuscriptType), Project::getManuscriptType, manuscriptType)
-                .like(StringUtils.hasText(subject), Project::getSubject, subject)
                 .ge(budgetMin != null, Project::getBudget, budgetMin)
                 .le(budgetMax != null, Project::getBudget, budgetMax);
         if (deadlineWithin != null) {
@@ -83,9 +80,6 @@ public class ProjectServiceImpl implements ProjectService {
         project.setTags(request.getTags() == null || request.getTags().isEmpty()
                 ? null : String.join(",", request.getTags()));
         project.setImages(request.getImages());
-        project.setManuscriptType(request.getManuscriptType());
-        project.setSubject(request.getSubject() == null || request.getSubject().isEmpty()
-                ? null : String.join(",", request.getSubject()));
         project.setMode(request.getMode() == null ? 0 : request.getMode());
         // 招募期默认发布后 10 日
         project.setRecruitDeadline(now.plusDays(10));
