@@ -35,9 +35,11 @@ public class ProjectController {
                                       @RequestParam(required = false) BigDecimal budgetMax,
                                       @RequestParam(required = false) Integer deadlineWithin,
                                       @RequestParam(required = false) Integer deadlineAfter,
-                                      @RequestParam(required = false) String tag) {
+                                      @RequestParam(required = false) String tag,
+                                      @RequestParam(required = false) String manuscriptType,
+                                      @RequestParam(required = false) String subject) {
         return Result.ok(projectService.listProjects(page, size, keyword, status, sort,
-                budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag));
+                budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag, manuscriptType, subject));
     }
 
     /** 我的企划（企划方工作台） */

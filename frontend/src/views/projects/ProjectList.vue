@@ -6,12 +6,17 @@
     </div>
 
     <div class="page-container">
-      <!-- 状态 Tab（参考站橱窗列表同款布局） -->
+      <!-- 分类 Tab：稿件类型（同橱窗分类样式） -->
       <div class="category-bar">
-        <el-tabs v-model="activeTab" class="purpose-tabs" @tab-change="load">
-          <el-tab-pane label="全部" name="all" />
-          <el-tab-pane label="招募中" name="recruiting" />
-        </el-tabs>
+        <span
+          v-for="t in typeTabs"
+          :key="t.value"
+          class="category-tab"
+          :class="{ 'is-active': activeType === t.value }"
+          @click="activeType = t.value; page = 1; load()"
+        >
+          {{ t.label }}
+        </span>
       </div>
 
       <!-- 筛选行：下拉靠左 + 搜索框靠右 -->
@@ -21,9 +26,9 @@
           <el-option label="稿酬最高" value="budget" />
           <el-option label="应征数少" value="applications" />
         </el-select>
-        <el-select v-model="tag" class="filter-select" @change="load">
-          <el-option label="类型" value="all" />
-          <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
+        <el-select v-model="subject" class="filter-select" @change="page = 1; load()">
+          <el-option label="题材类型" value="all" />
+          <el-option v-for="s in subjectOptions" :key="s" :label="s" :value="s" />
         </el-select>
         <el-select v-model="budgetRange" class="filter-select" @change="load">
           <el-option label="稿酬区间不限" value="all" />
@@ -104,6 +109,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { getProjects } from '@/api/project'
+import { SUBJECT_OPTIONS } from '@/constants/subjects'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import Pagination from '@/components/common/Pagination.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -117,16 +123,28 @@ const total = ref(0)
 const keyword = ref('')
 
 // 筛选状态（参考站筛选区）
-const activeTab = ref('all')
+const activeType = ref('all')
 const sort = ref('newest')
-const tag = ref('all')
+const subject = ref('all')
 const budgetRange = ref('all')
 const deadlineRange = ref('all')
 const unselectedOnly = ref(false)
 const characterCardOnly = ref(false)
 
 // 类型选项与橱窗分类同步
-const tagOptions = ['头像', 'Q版全身', '半身像', '立绘', '组合页', '服设', '壁纸', '表情包', 'Live2d', '平面设计']
+const subjectOptions = SUBJECT_OPTIONS
+
+// 分类 Tab：稿件类型（与发布企划第 1 步一致）
+const typeTabs = [
+  { label: '全部', value: 'all' },
+  { label: '自设/OC', value: '自设/OC' },
+  { label: '头像', value: '头像' },
+  { label: '插图', value: '插图' },
+  { label: 'Live2d', value: 'Live2d' },
+  { label: '立绘', value: '立绘' },
+  { label: '平面设计', value: '平面设计' },
+  { label: '其他', value: '其他' },
+]
 
 function firstImage(images) {
   if (!images) return ''
@@ -155,14 +173,17 @@ async function load() {
   try {
     const params = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
-    if (activeTab.value === 'recruiting' || unselectedOnly.value) {
+    if (activeType.value !== 'all') {
+      params.manuscriptType = activeType.value
+    }
+    if (unselectedOnly.value) {
       params.status = 0
     }
     if (sort.value === 'budget') {
       params.sort = 'budget'
     }
-    if (tag.value && tag.value !== 'all') {
-      params.tag = tag.value
+    if (subject.value && subject.value !== 'all') {
+      params.subject = subject.value
     }
     if (budgetRange.value && budgetRange.value !== 'all') {
       const [min, max] = budgetRange.value.split('-')
@@ -204,12 +225,34 @@ onMounted(load)
 .category-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
   padding: 10px 0 0;
   border-bottom: 1px solid var(--huiyue-border);
 }
 
-.purpose-tabs {
-  width: 100%;
+.category-tab {
+  padding: 7px 16px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid var(--huiyue-border);
+  color: var(--huiyue-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.category-tab:hover {
+  color: var(--huiyue-primary);
+  border-color: var(--huiyue-primary);
+}
+
+.category-tab.is-active {
+  background: var(--huiyue-primary);
+  border-color: var(--huiyue-primary);
+  color: #fff;
 }
 
 .filter-row {

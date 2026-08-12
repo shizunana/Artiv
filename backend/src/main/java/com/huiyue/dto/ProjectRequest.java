@@ -34,6 +34,12 @@ public class ProjectRequest {
 
     private String images;
 
+    /** 稿件类型 */
+    private String manuscriptType;
+
+    /** 题材风格列表 */
+    private List<String> subject;
+
     /** 合作方式：0 公开招募、1 定向邀请 */
     private Integer mode;
 

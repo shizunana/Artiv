@@ -75,7 +75,20 @@
       <div v-else-if="step === 1" class="wizard-body">
         <el-form label-position="top">
           <el-form-item label="企划标题" required>
-          <el-input v-model="form.title" maxlength="20" show-word-limit placeholder="一句话描述您的需求（最多 20 字）" />
+            <el-input v-model="form.title" maxlength="20" show-word-limit placeholder="一句话描述您的需求（最多 20 字）" />
+          </el-form-item>
+          <el-form-item label="题材风格">
+            <el-select
+              v-model="form.subjects"
+              multiple
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择或输入题材风格（可多选）"
+              class="subject-select"
+            >
+              <el-option v-for="s in SUBJECT_OPTIONS" :key="s" :label="s" :value="s" />
+            </el-select>
           </el-form-item>
           <el-form-item label="需求描述" required>
             <el-input
@@ -168,6 +181,7 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { createProject } from '@/api/project'
 import { uploadFile } from '@/api/upload'
+import { SUBJECT_OPTIONS } from '@/constants/subjects'
 
 const router = useRouter()
 const step = ref(0)
@@ -197,6 +211,7 @@ const form = reactive({
   title: '',
   description: '',
   tags: [],
+  subjects: [],
   subject: [],
   formats: [],
   mode: 0,
@@ -274,6 +289,8 @@ async function submit() {
       deadline: form.deadline,
       tags: form.tags,
       images: form.images.length ? form.images.join(',') : null,
+      manuscriptType: form.manuscriptType,
+      subject: form.subjects,
       mode: form.mode,
       invitePainterId: form.mode === 1 ? form.invitePainterId : null,
     })
