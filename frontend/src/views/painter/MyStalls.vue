@@ -66,9 +66,52 @@
               <span>上传封面</span>
             </div>
           </el-upload>
+          <span v-if="!form.cover" class="form-tip">* 必填，请上传封面图</span>
         </el-form-item>
         <el-form-item label="价格（元）" required>
           <el-input-number v-model="form.price" :min="0" :precision="2" />
+        </el-form-item>
+        <el-form-item label="库存（件）" required>
+          <el-input-number v-model="form.stock" :min="0" :max="9999" />
+        </el-form-item>
+        <el-form-item label="截稿时间" required>
+          <el-input v-model="form.deliverTime" placeholder="如：画师接单后 24 小时" />
+        </el-form-item>
+        <el-form-item label="创作阶段" required>
+          <div class="phase-editor">
+            <div v-for="(p, i) in form.phases" :key="i" class="phase-row">
+              <el-input v-model="p.name" placeholder="阶段名称" class="phase-name" />
+              <el-input-number v-model="p.percent" :min="0" :max="100" class="phase-percent" />
+              <span class="phase-unit">%</span>
+              <el-button link type="danger" @click="removePhase(i)">删除</el-button>
+            </div>
+            <el-button size="small" @click="addPhase">+ 添加阶段</el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="稿件参数" required>
+          <div class="param-editor">
+            <div class="param-line">
+              <span class="param-label">颜色模式</span>
+              <el-select v-model="form.params.colorMode" placeholder="选择颜色模式" class="param-input">
+                <el-option label="RGB模式" value="RGB" />
+                <el-option label="CMYK模式" value="CMYK" />
+              </el-select>
+            </div>
+            <div class="param-line">
+              <span class="param-label">规格</span>
+              <el-input v-model="form.params.spec" placeholder="如：800*800 px" class="param-input" />
+            </div>
+            <div class="param-line">
+              <span class="param-label">稿件格式</span>
+              <el-select v-model="form.params.format" multiple placeholder="选择格式" class="param-input">
+                <el-option v-for="f in ['JPG','PNG','PSD','GIF','WEBP']" :key="f" :label="f" :value="f" />
+              </el-select>
+            </div>
+            <div class="param-line">
+              <span class="param-label">题材风格</span>
+              <el-input v-model="form.params.subject" placeholder="如：正比、像素、日系" class="param-input" />
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="交付说明">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="交付内容、修改次数、周期等" />
@@ -94,7 +137,21 @@ const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
 const categories = ['国潮插画', '角色立绘', '场景原画', '头像', 'Q版', 'Live2d']
-const form = reactive({ title: '', category: '', price: 100, description: '', cover: '' })
+const form = reactive({
+  title: '',
+  category: '',
+  price: 100,
+  stock: 3,
+  deliverTime: '',
+  cover: '',
+  phases: [
+    { name: '初稿', percent: 40 },
+    { name: '修改', percent: 30 },
+    { name: '终稿', percent: 30 },
+  ],
+  params: { colorMode: 'RGB', spec: '', format: [], subject: '' },
+  description: '',
+})
 
 async function uploadCover({ file }) {
   try {
@@ -120,9 +177,29 @@ async function save() {
     ElMessage.warning('请填写服务名称与类型')
     return
   }
+  if (!form.cover) {
+    ElMessage.warning('必须上传封面图')
+    return
+  }
+  if (!form.deliverTime) {
+    ElMessage.warning('请填写截稿时间')
+    return
+  }
+  if (form.phases.some((p) => !p.name)) {
+    ElMessage.warning('请填写完整的创作阶段名称')
+    return
+  }
+  if (!form.params.spec || !form.params.format.length || !form.params.subject) {
+    ElMessage.warning('稿件参数（规格/格式/题材风格）为必填')
+    return
+  }
   submitting.value = true
   try {
-    await createStall({ ...form })
+    await createStall({
+      ...form,
+      phases: JSON.stringify(form.phases),
+      params: JSON.stringify(form.params),
+    })
     ElMessage.success('创建成功')
     dialogVisible.value = false
     form.cover = ''
@@ -130,6 +207,14 @@ async function save() {
   } finally {
     submitting.value = false
   }
+}
+
+function addPhase() {
+  form.phases.push({ name: '', percent: 0 })
+}
+
+function removePhase(i) {
+  form.phases.splice(i, 1)
 }
 
 async function toggle(row) {
@@ -210,5 +295,61 @@ onMounted(load)
 
 .upload-icon {
   font-size: 24px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: var(--huiyue-accent);
+  margin-left: 12px;
+}
+
+.phase-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.phase-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phase-name {
+  width: 200px;
+}
+
+.phase-percent {
+  width: 120px;
+}
+
+.phase-unit {
+  color: var(--huiyue-text-secondary);
+  font-size: 13px;
+}
+
+.param-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.param-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.param-label {
+  width: 70px;
+  font-size: 13px;
+  color: var(--huiyue-text-secondary);
+  flex-shrink: 0;
+}
+
+.param-input {
+  flex: 1;
 }
 </style>

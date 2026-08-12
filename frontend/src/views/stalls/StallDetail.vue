@@ -1,82 +1,86 @@
 <template>
   <div class="detail-page page-container" v-loading="loading">
     <div v-if="stall" class="stall-detail">
-      <!-- 头部：封面 + 基本信息 -->
-      <div class="detail-header">
-        <div class="detail-cover">
-          <el-image
-            v-if="stall.cover"
-            :src="stall.cover"
-            :preview-src-list="[stall.cover]"
-            preview-teleported
-            fit="cover"
-          />
-          <div v-else class="cover-placeholder">🛍️</div>
-        </div>
-        <div class="detail-info">
-          <div class="detail-category">{{ stall.category }}</div>
-          <h1 class="detail-name">{{ stall.title }}</h1>
-          <div class="detail-price-row">
-            <span class="detail-price">￥{{ stall.price }}</span>
-            <el-tag size="small" :type="stall.status === 1 ? 'success' : 'info'">
-              {{ stall.status === 1 ? '上架中' : '已下架' }}
-            </el-tag>
+      <!-- 页内导航（参考站 stall-detail__nav） -->
+      <nav class="detail-nav">
+        <a href="#detail" class="nav-item is-active">橱窗详情</a>
+        <a href="#phases" class="nav-item">创作阶段</a>
+        <a href="#params" class="nav-item">稿件参数</a>
+      </nav>
+
+      <div class="detail-body">
+        <!-- 左侧内容 -->
+        <main class="detail-main">
+          <!-- 橱窗详情 -->
+          <section id="detail" class="detail-section">
+            <h2 class="detail-title"><span class="title-icon">🖼️</span>橱窗详情</h2>
+            <div class="cover-gallery">
+              <el-image
+                v-if="stall.cover"
+                :src="stall.cover"
+                :preview-src-list="[stall.cover]"
+                preview-teleported
+                fit="cover"
+                class="cover-big"
+              />
+              <div v-else class="cover-placeholder">🛍️</div>
+            </div>
+            <p class="detail-desc">{{ stall.description || '暂无详细说明' }}</p>
+          </section>
+
+          <!-- 创作阶段 -->
+          <section id="phases" class="detail-section">
+            <h2 class="detail-title"><span class="title-icon">🎨</span>创作阶段</h2>
+            <p class="section-tip">画师按以下阶段提供阶段性稿件供企划方审核确认</p>
+            <ul class="phase-list">
+              <li v-for="(p, i) in phaseList" :key="i" class="phase-item">
+                <span class="phase-badge">{{ p.percent }}%</span>
+                <span class="phase-name">{{ p.name }}</span>
+              </li>
+            </ul>
+          </section>
+
+          <!-- 稿件参数 -->
+          <section id="params" class="detail-section">
+            <h2 class="detail-title"><span class="title-icon">📋</span>稿件参数</h2>
+            <div class="param-grid">
+              <div class="param-item"><span class="param-label">橱窗类型</span><span>{{ stall.category }}</span></div>
+              <div class="param-item"><span class="param-label">颜色模式</span><span>{{ params.colorMode }}</span></div>
+              <div class="param-item"><span class="param-label">规格</span><span>{{ params.spec }}</span></div>
+              <div class="param-item"><span class="param-label">稿件格式</span><span>{{ formatText }}</span></div>
+              <div class="param-item"><span class="param-label">题材风格</span><span>{{ params.subject }}</span></div>
+              <div class="param-item"><span class="param-label">交付方式</span><span>在线交付（分阶段验收）</span></div>
+            </div>
+          </section>
+        </main>
+
+        <!-- 右侧：画师信息 + 橱窗信息（参考站 aside） -->
+        <aside class="detail-aside">
+          <div class="painter-card">
+            <el-avatar :size="56" class="painter-avatar">绘</el-avatar>
+            <div class="painter-info">
+              <span class="painter-name">画师 #{{ stall.painterId }}</span>
+              <span class="painter-role">认证画师</span>
+            </div>
           </div>
-          <div class="detail-stats">
-            <div class="stat"><strong>{{ stall.painterId ? '画师' : '-' }}</strong><span>创作者</span></div>
-            <div class="stat"><strong>0</strong><span>已售</span></div>
-            <div class="stat"><strong>100%</strong><span>需求完成率</span></div>
+
+          <div class="stall-info-card">
+            <h4>橱窗信息</h4>
+            <div class="info-row price-row">
+              <span>橱窗价格</span>
+              <strong class="price">￥{{ stall.price }}</strong>
+            </div>
+            <div class="info-row"><span>已售</span><span>0 件</span></div>
+            <div class="info-row"><span>库存</span><span>{{ stall.stock }} 件</span></div>
+            <div class="info-row"><span>截稿时间</span><span>{{ stall.deliverTime || '-' }}</span></div>
           </div>
-          <el-button
-            type="primary"
-            size="large"
-            round
-            class="buy-btn"
-            :loading="buying"
-            @click="buy"
-          >
+
+          <el-button type="primary" size="large" round class="buy-btn" :loading="buying" @click="buy">
             立即下单
           </el-button>
           <p class="buy-tip">下单后进入订单流程，分阶段验收后完成结算</p>
-        </div>
+        </aside>
       </div>
-
-      <!-- 橱窗详情 -->
-      <section class="detail-section">
-        <h2 class="detail-title">橱窗详情</h2>
-        <p class="detail-desc">{{ stall.description || '暂无详细说明' }}</p>
-      </section>
-
-      <!-- 创作阶段 -->
-      <section class="detail-section">
-        <h2 class="detail-title">创作阶段</h2>
-        <div class="phase-row">
-          <div class="phase-item">
-            <span class="phase-percent">40%</span>
-            <span class="phase-name">初稿</span>
-          </div>
-          <div class="phase-item">
-            <span class="phase-percent">30%</span>
-            <span class="phase-name">修改</span>
-          </div>
-          <div class="phase-item">
-            <span class="phase-percent">30%</span>
-            <span class="phase-name">终稿交付</span>
-          </div>
-        </div>
-        <p class="phase-tip">画师按阶段提交稿件，企划方确认后再进入下一阶段</p>
-      </section>
-
-      <!-- 稿件参数 -->
-      <section class="detail-section">
-        <h2 class="detail-title">稿件参数</h2>
-        <div class="params">
-          <div class="param-item"><span class="param-label">橱窗类型</span><span>{{ stall.category }}</span></div>
-          <div class="param-item"><span class="param-label">交付方式</span><span>在线交付（分阶段验收）</span></div>
-          <div class="param-item"><span class="param-label">价格</span><span>￥{{ stall.price }}</span></div>
-          <div class="param-item"><span class="param-label">接单状态</span><span>{{ stall.status === 1 ? '接单中' : '暂停接单' }}</span></div>
-        </div>
-      </section>
     </div>
 
     <EmptyState v-else-if="!loading" description="橱窗不存在或已下架" />
@@ -84,7 +88,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getStall } from '@/api/stall'
@@ -95,6 +99,28 @@ const router = useRouter()
 const stall = ref(null)
 const loading = ref(false)
 const buying = ref(false)
+
+const phaseList = computed(() => {
+  try {
+    const list = JSON.parse(stall.value?.phases || '[]')
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+})
+
+const params = computed(() => {
+  try {
+    return JSON.parse(stall.value?.params || '{}')
+  } catch {
+    return {}
+  }
+})
+
+const formatText = computed(() => {
+  const f = params.value.format
+  return Array.isArray(f) ? f.join('、') : f || '-'
+})
 
 async function load() {
   loading.value = true
@@ -125,105 +151,47 @@ onMounted(load)
 <style scoped>
 .detail-page {
   min-height: 60vh;
-  padding: 24px 16px 56px;
-  max-width: 1000px;
+  padding: 20px 16px 56px;
+  max-width: 1100px;
 }
 
-.detail-header {
+/* 页内导航 */
+.detail-nav {
   display: flex;
-  gap: 32px;
+  gap: 28px;
   background: #fff;
   border: 1px solid var(--huiyue-border);
-  border-radius: 14px;
-  padding: 28px;
-  margin-bottom: 20px;
+  border-radius: 10px;
+  padding: 0 24px;
+  margin-bottom: 16px;
 }
 
-.detail-cover {
-  width: 320px;
-  height: 320px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--huiyue-section-alt);
-  flex-shrink: 0;
-}
-
-.detail-cover .el-image {
-  width: 100%;
-  height: 100%;
-}
-
-.cover-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 64px;
+.nav-item {
+  padding: 14px 4px;
+  font-size: 15px;
   color: var(--huiyue-text-secondary);
+  border-bottom: 2px solid transparent;
 }
 
-.detail-info {
+.nav-item:hover,
+.nav-item.is-active {
+  color: var(--huiyue-primary);
+  border-bottom-color: var(--huiyue-primary);
+}
+
+/* 主体两栏 */
+.detail-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.detail-main {
   flex: 1;
   min-width: 0;
-}
-
-.detail-category {
-  color: var(--huiyue-primary);
-  font-size: 13px;
-  margin-bottom: 8px;
-}
-
-.detail-name {
-  margin: 0 0 12px;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.detail-price-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.detail-price {
-  color: var(--huiyue-accent);
-  font-size: 26px;
-  font-weight: 700;
-}
-
-.detail-stats {
-  display: flex;
-  gap: 36px;
-  margin-bottom: 24px;
-}
-
-.stat {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.stat strong {
-  font-size: 18px;
-  color: var(--huiyue-text);
-}
-
-.stat span {
-  font-size: 12px;
-  color: var(--huiyue-text-secondary);
-}
-
-.buy-btn {
-  min-width: 180px;
-  font-size: 16px;
-}
-
-.buy-tip {
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: var(--huiyue-text-secondary);
+  gap: 16px;
 }
 
 .detail-section {
@@ -231,15 +199,42 @@ onMounted(load)
   border: 1px solid var(--huiyue-border);
   border-radius: 12px;
   padding: 24px 28px;
-  margin-bottom: 16px;
+  scroll-margin-top: 80px;
 }
 
 .detail-title {
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   font-size: 17px;
   font-weight: 600;
-  padding-left: 10px;
-  border-left: 3px solid var(--huiyue-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-icon {
+  font-size: 18px;
+}
+
+.cover-gallery {
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--huiyue-section-alt);
+  margin-bottom: 16px;
+}
+
+.cover-big {
+  width: 100%;
+  max-height: 420px;
+  display: block;
+}
+
+.cover-placeholder {
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  color: var(--huiyue-text-secondary);
 }
 
 .detail-desc {
@@ -249,48 +244,64 @@ onMounted(load)
   white-space: pre-wrap;
 }
 
-.phase-row {
-  display: flex;
-  gap: 16px;
-}
-
-.phase-item {
-  flex: 1;
-  background: var(--huiyue-section-alt);
-  border-radius: 10px;
-  padding: 18px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.phase-percent {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--huiyue-primary);
-}
-
-.phase-name {
-  font-size: 14px;
-  color: var(--huiyue-text);
-}
-
-.phase-tip {
-  margin: 14px 0 0;
-  font-size: 12px;
+.section-tip {
+  margin: 0 0 16px;
+  font-size: 13px;
   color: var(--huiyue-text-secondary);
 }
 
-.params {
+.phase-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.phase-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.phase-item::after {
+  content: '';
+  position: absolute;
+  left: 26px;
+  top: calc(100% + 2px);
+  width: 1px;
+  height: 10px;
+  background: var(--huiyue-primary);
+}
+
+.phase-item:last-child::after {
+  display: none;
+}
+
+.phase-badge {
+  color: var(--huiyue-primary);
+  border: 1px solid var(--huiyue-primary);
+  border-radius: 12px;
+  font-size: 12px;
+  padding: 3px 10px;
+  flex-shrink: 0;
+}
+
+.phase-name {
+  font-size: 15px;
+  color: var(--huiyue-text);
+}
+
+.param-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .param-item {
   display: flex;
   justify-content: space-between;
+  gap: 16px;
   background: var(--huiyue-section-alt);
   border-radius: 8px;
   padding: 12px 16px;
@@ -299,15 +310,113 @@ onMounted(load)
 
 .param-label {
   color: var(--huiyue-text-secondary);
+  flex-shrink: 0;
 }
 
-@media (max-width: 760px) {
-  .detail-header {
+/* 右侧 aside */
+.detail-aside {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: sticky;
+  top: 80px;
+}
+
+.painter-card,
+.stall-info-card {
+  background: #fff;
+  border: 1px solid var(--huiyue-border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.painter-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.painter-avatar {
+  background: var(--huiyue-primary);
+  color: #fff;
+  font-size: 22px;
+}
+
+.painter-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.painter-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--huiyue-text);
+}
+
+.painter-role {
+  font-size: 12px;
+  color: var(--huiyue-primary);
+  background: var(--huiyue-primary-light);
+  padding: 1px 8px;
+  border-radius: 8px;
+  align-self: flex-start;
+}
+
+.stall-info-card h4 {
+  margin: 0 0 14px;
+  font-size: 15px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 0;
+  font-size: 14px;
+  color: var(--huiyue-text);
+  border-bottom: 1px solid var(--huiyue-border);
+}
+
+.info-row:last-of-type {
+  border-bottom: none;
+}
+
+.info-row > span:first-child {
+  color: var(--huiyue-text-secondary);
+}
+
+.price-row {
+  align-items: baseline;
+}
+
+.price {
+  color: var(--huiyue-accent);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.buy-btn {
+  width: 100%;
+  font-size: 16px;
+}
+
+.buy-tip {
+  text-align: center;
+  margin: 0;
+  font-size: 12px;
+  color: var(--huiyue-text-secondary);
+}
+
+@media (max-width: 900px) {
+  .detail-body {
     flex-direction: column;
   }
 
-  .detail-cover {
+  .detail-aside {
     width: 100%;
+    position: static;
   }
 }
 </style>

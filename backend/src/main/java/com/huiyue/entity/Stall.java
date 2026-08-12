@@ -29,6 +29,18 @@ public class Stall {
 
     private BigDecimal price;
 
+    /** 库存 */
+    private Integer stock;
+
+    /** 截稿时间 / 交付周期 */
+    private String deliverTime;
+
+    /** 创作阶段 JSON：[{"name":"初稿","percent":40},...] */
+    private String phases;
+
+    /** 稿件参数 JSON */
+    private String params;
+
     private String description;
 
     /** 状态：0 已下架、1 上架中 */
