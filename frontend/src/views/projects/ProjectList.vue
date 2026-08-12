@@ -42,8 +42,6 @@
             <el-option label="30天以上" value="after-30" />
           </el-select>
           <div class="filter-switches">
-            <span class="switch-label">仅看认证企业</span>
-            <el-switch v-model="certifiedOnly" size="small" disabled />
             <span class="switch-label">仅看未选定</span>
             <el-switch v-model="unselectedOnly" size="small" @change="load" />
             <span class="switch-label">仅看人设卡</span>
@@ -104,7 +102,6 @@ const sort = ref('newest')
 const tag = ref('all')
 const budgetRange = ref('all')
 const deadlineRange = ref('all')
-const certifiedOnly = ref(false)
 const unselectedOnly = ref(false)
 const characterCardOnly = ref(false)
 
