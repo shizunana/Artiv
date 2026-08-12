@@ -85,7 +85,7 @@
           <div class="painter-card">
             <el-avatar :size="56" class="painter-avatar">绘</el-avatar>
             <div class="painter-info">
-              <span class="painter-name">画师 #{{ stall.painterId }}</span>
+              <span class="painter-name">{{ stall.painterName || '画师 #' + stall.painterId }}</span>
               <span class="painter-role">认证画师</span>
             </div>
           </div>

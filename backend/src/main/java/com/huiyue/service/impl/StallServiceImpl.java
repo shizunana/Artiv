@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
 import com.huiyue.entity.Stall;
+import com.huiyue.entity.User;
+import com.huiyue.mapper.UserMapper;
 import com.huiyue.mapper.StallMapper;
 import com.huiyue.service.StallService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 public class StallServiceImpl implements StallService {
 
     private final StallMapper stallMapper;
+    private final UserMapper userMapper;
 
     @Override
     public Page<Stall> listStalls(long page, long size, String category, String keyword, String sort) {
@@ -33,7 +36,9 @@ public class StallServiceImpl implements StallService {
         } else {
             wrapper.orderByDesc(Stall::getCreatedAt);
         }
-        return stallMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<Stall> result = stallMapper.selectPage(new Page<>(page, size), wrapper);
+        fillPainterNames(result.getRecords());
+        return result;
     }
 
     @Override
@@ -51,7 +56,23 @@ public class StallServiceImpl implements StallService {
         if (stall == null || stall.getDeleted() == 1) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
+        fillPainterNames(java.util.List.of(stall));
         return stall;
+    }
+
+    /** 填充画师昵称 */
+    private void fillPainterNames(java.util.List<Stall> stalls) {
+        if (stalls == null || stalls.isEmpty()) {
+            return;
+        }
+        for (Stall stall : stalls) {
+            if (stall.getPainterId() != null) {
+                User painter = userMapper.selectById(stall.getPainterId());
+                if (painter != null) {
+                    stall.setPainterName(painter.getNickname());
+                }
+            }
+        }
     }
 
     @Override

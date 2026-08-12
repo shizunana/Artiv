@@ -1,6 +1,7 @@
 package com.huiyue.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -54,4 +55,8 @@ public class Stall {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    /** 画师昵称（非表字段，列表/详情联查填充） */
+    @TableField(exist = false)
+    private String painterName;
 }

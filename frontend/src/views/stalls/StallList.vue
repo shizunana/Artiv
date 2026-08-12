@@ -47,12 +47,12 @@
           <div v-else class="cover-placeholder">
             <span>🛍️</span>
           </div>
-          <div class="cover-mask">
-            <span>{{ stall.category }}</span>
-          </div>
+          <!-- 标题下沉到封面底部渐变黑（默认单行省略，hover 显示完整） -->
+          <div class="stall-cell__title" :title="stall.title">{{ stall.title }}</div>
         </div>
         <div class="stall-cell__infos">
-          <span class="stall-cell__name">{{ stall.title }}</span>
+          <span class="painter-name" :title="stall.painterName">👤 {{ stall.painterName || '画师 #' + stall.painterId }}</span>
+          <span class="sales">已售 0</span>
           <span class="stall-cell__price">￥{{ stall.price }}</span>
         </div>
       </div>
@@ -77,7 +77,7 @@ const router = useRouter()
 const stalls = ref([])
 const loading = ref(false)
 const page = ref(1)
-const size = ref(12)
+const size = ref(20)
 const total = ref(0)
 const activeCategory = ref('全部')
 const keyword = ref('')
@@ -151,6 +151,7 @@ onMounted(load)
   align-items: center;
   gap: 12px;
   padding: 14px 0;
+  flex-wrap: nowrap;
 }
 
 .search-input {
@@ -163,12 +164,13 @@ onMounted(load)
 
 .sort-select {
   width: 150px;
+  flex-shrink: 0;
 }
 
 /* ---------- 橱窗卡片 ---------- */
 .stall-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 20px;
   padding-top: 10px;
 }
@@ -206,21 +208,24 @@ onMounted(load)
   color: var(--huiyue-text-secondary);
 }
 
-.cover-mask {
+.stall-cell__title {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 6px 10px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.45));
+  padding: 22px 10px 8px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
   color: #fff;
-  font-size: 12px;
-  opacity: 0;
-  transition: opacity 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.2s;
 }
 
-.stall-cell:hover .cover-mask {
-  opacity: 1;
+.stall-cell:hover .stall-cell__title {
+  background: rgba(0, 0, 0, 0.82);
 }
 
 .stall-cell__infos {
@@ -229,14 +234,22 @@ onMounted(load)
   align-items: center;
   padding: 10px 2px 0;
   gap: 8px;
+  font-size: 13px;
 }
 
-.stall-cell__name {
-  font-size: 14px;
-  color: var(--huiyue-text);
+.painter-name {
+  color: var(--huiyue-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.sales {
+  color: var(--huiyue-text-secondary);
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .stall-cell__price {
@@ -249,12 +262,23 @@ onMounted(load)
 .pager {
   display: flex;
   justify-content: center;
-  margin-top: 28px;
+  margin-top: 32px;
+  padding-bottom: 8px;
+}
+
+@media (max-width: 1100px) {
+  .stall-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 @media (max-width: 900px) {
   .stall-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filter-row {
+    flex-wrap: wrap;
   }
 }
 </style>
