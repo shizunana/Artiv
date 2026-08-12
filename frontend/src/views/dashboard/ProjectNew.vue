@@ -3,7 +3,6 @@
     <div class="wb-card">
       <h3 class="page-title">发布企划</h3>
 
-      <!-- 步骤条（参考站 4 步向导） -->
       <el-steps :active="step" finish-status="success" align-center class="wizard-steps">
         <el-step title="稿件用途" />
         <el-step title="需求详情" />
@@ -11,43 +10,43 @@
         <el-step title="预览企划" />
       </el-steps>
 
-      <!-- 第 1 步：稿件用途 -->
       <div v-if="step === 0" class="wizard-body">
         <h4>类型</h4>
         <div class="type-tabs">
-          <span
-            v-for="c in CATEGORY_OPTIONS"
-            :key="c"
+          <button
+            v-for="category in CATEGORY_OPTIONS"
+            :key="category"
+            type="button"
             class="category-tab"
-            :class="{ 'is-active': form.category === c }"
-            @click="form.category = c"
+            :class="{ 'is-active': form.category === category }"
+            @click="form.category = category"
           >
-            {{ c }}
-          </span>
+            {{ category }}
+          </button>
         </div>
 
         <h4>稿件用途</h4>
-        <div class="usage-grid">
-          <div class="usage-group">
-            <div
-              class="usage-card"
-              :class="{ 'is-active': form.usage === 'personal' }"
-              @click="form.usage = 'personal'"
-            >
-              <strong>个人用途</strong>
-              <p>稿件仅供个人使用、展示和娱乐，不涉及印刷传播、大规模贩售等盈利用途。</p>
-              <el-tag size="small" type="success">个人收藏 / 社交展示 / 壁纸头像</el-tag>
-            </div>
-            <div
-              class="usage-card"
-              :class="{ 'is-active': form.usage === 'commercial' }"
-              @click="form.usage = 'commercial'"
-            >
-              <strong>商业用途</strong>
-              <p>稿件用于商业目的，如游戏宣传、周边贩卖、虚拟主播运营等营利性活动。</p>
-              <el-tag size="small" type="warning">游戏用图 / 商业宣传 / 周边贩售</el-tag>
-            </div>
-          </div>
+        <div class="usage-group">
+          <button
+            type="button"
+            class="usage-card"
+            :class="{ 'is-active': form.usage === 'personal' }"
+            @click="form.usage = 'personal'"
+          >
+            <strong>个人用途</strong>
+            <p>稿件仅供个人使用、展示和娱乐，不涉及印刷传播、大规模销售等盈利用途。</p>
+            <el-tag size="small" type="success">个人收藏 / 社交展示 / 壁纸头像</el-tag>
+          </button>
+          <button
+            type="button"
+            class="usage-card"
+            :class="{ 'is-active': form.usage === 'commercial' }"
+            @click="form.usage = 'commercial'"
+          >
+            <strong>商业用途</strong>
+            <p>稿件用于商业目的，如游戏宣传、周边贩售、虚拟主播运营等营利性活动。</p>
+            <el-tag size="small" type="warning">游戏用图 / 商业宣传 / 周边贩售</el-tag>
+          </button>
         </div>
 
         <div class="form-row">
@@ -66,57 +65,12 @@
             <el-input-number v-model="form.budgetMax" :min="0" :max="100000" placeholder="最高" />
           </el-form-item>
         </div>
-
-        <el-checkbox v-model="form.directed">可选择一位画师发布定向企划（内容仅被选画师可见）</el-checkbox>
       </div>
 
-      <!-- 第 2 步：需求详情 -->
       <div v-else-if="step === 1" class="wizard-body">
         <el-form label-position="top">
           <el-form-item label="企划标题" required>
             <el-input v-model="form.title" maxlength="20" show-word-limit placeholder="一句话描述您的需求（最多 20 字）" />
-          </el-form-item>
-          <el-form-item label="题材风格">
-            <el-select
-              v-model="form.subjects"
-              multiple
-              filterable
-              allow-create
-              default-first-option
-              placeholder="选择或输入题材风格（可多选）"
-              class="subject-select"
-            >
-              <el-option v-for="s in SUBJECT_OPTIONS" :key="s" :label="s" :value="s" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="稿件参数" required>
-            <div class="param-editor">
-              <div class="param-line">
-                <span class="param-label">规格</span>
-                <el-input v-model="form.requirements.size" placeholder="如：3000×4000 px" class="param-input" />
-              </div>
-              <div class="param-line">
-                <span class="param-label">颜色模式</span>
-                <el-select v-model="form.requirements.colorMode" placeholder="选择颜色模式" class="param-input">
-                  <el-option label="RGB 模式" value="RGB" />
-                  <el-option label="CMYK 模式" value="CMYK" />
-                </el-select>
-              </div>
-              <div class="param-line">
-                <span class="param-label">稿件格式</span>
-                <el-select v-model="form.requirements.formats" multiple placeholder="选择格式" class="param-input">
-                  <el-option v-for="f in formatOptions" :key="f" :label="f" :value="f" />
-                </el-select>
-              </div>
-              <div class="param-line">
-                <span class="param-label">发布权限</span>
-                <el-radio-group v-model="form.requirements.publishPermission" class="param-input">
-                  <el-radio value="公开展示">公开展示</el-radio>
-                  <el-radio value="仅委托人展示">仅委托人展示</el-radio>
-                  <el-radio value="禁止展示">禁止展示</el-radio>
-                </el-radio-group>
-              </div>
-            </div>
           </el-form-item>
           <el-form-item label="需求描述" required>
             <el-input
@@ -142,38 +96,79 @@
             >
               <el-icon><Plus /></el-icon>
             </el-upload>
+            <p class="field-tip">可上传多张参考图，第一张会作为企划大厅的封面。</p>
           </el-form-item>
-          <el-form-item label="标签">
-            <el-select v-model="form.tags" multiple filterable allow-create default-first-option placeholder="选择或输入标签">
-              <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </div>
 
-      <!-- 第 3 步：高级选项 -->
-      <div v-else-if="step === 2" class="wizard-body">
-        <el-form label-position="top">
-          <el-form-item label="题材">
-            <el-select v-model="form.subject" multiple placeholder="选择题材">
-              <el-option v-for="s in subjectOptions" :key="s" :label="s" :value="s" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="合作方式">
-            <el-radio-group v-model="form.mode">
+          <section class="collaboration-section">
+            <h4>合作方式</h4>
+            <el-radio-group v-model="form.mode" @change="handleModeChange">
               <el-radio :value="0">公开招募（全员可见）</el-radio>
               <el-radio :value="1">定向邀请（仅被邀画师可见）</el-radio>
             </el-radio-group>
-          </el-form-item>
-          <el-form-item v-if="form.mode === 1" label="定向邀请画师">
-            <el-select v-model="form.invitePainterId" placeholder="选择被邀请的画师">
+            <el-select
+              v-if="form.mode === 1"
+              v-model="form.invitePainterId"
+              class="invite-select"
+              placeholder="选择被邀请的画师"
+            >
               <el-option label="画师阿绘（已认证）" :value="2" />
             </el-select>
-          </el-form-item>
+          </section>
         </el-form>
       </div>
 
-      <!-- 第 4 步：预览 -->
+      <div v-else-if="step === 2" class="wizard-body advanced-body">
+        <div class="advanced-tip">在大多数情况下，使用默认设置即可满足您的需求。</div>
+
+        <section class="option-section">
+          <h4>您需要哪些种题材风格</h4>
+          <div class="option-grid subject-grid">
+            <button
+              v-for="subject in subjectCards"
+              :key="subject"
+              type="button"
+              class="option-card"
+              :class="{ 'is-active': isSubjectActive(subject) }"
+              @click="toggleSubject(subject)"
+            >
+              {{ subject }}
+            </button>
+          </div>
+        </section>
+
+        <section class="option-section">
+          <h4>您需要哪几种稿件格式</h4>
+          <div class="option-grid">
+            <button
+              v-for="format in formatOptions"
+              :key="format"
+              type="button"
+              class="option-card"
+              :class="{ 'is-active': form.requirements.formats.includes(format) }"
+              @click="toggleFormat(format)"
+            >
+              {{ format }}
+            </button>
+          </div>
+        </section>
+
+        <section class="option-section">
+          <h4>选择画师公开稿件的权限</h4>
+          <div class="permission-grid">
+            <button
+              v-for="permission in permissionOptions"
+              :key="permission"
+              type="button"
+              class="option-card"
+              :class="{ 'is-active': form.requirements.publishPermission === permission }"
+              @click="form.requirements.publishPermission = permission"
+            >
+              {{ permission }}
+            </button>
+          </div>
+        </section>
+      </div>
+
       <div v-else class="wizard-body">
         <el-descriptions :column="1" border class="preview-box">
           <el-descriptions-item label="类型">{{ form.category }}</el-descriptions-item>
@@ -181,22 +176,20 @@
           <el-descriptions-item label="截稿日期">{{ form.deadline || '-' }}</el-descriptions-item>
           <el-descriptions-item label="预算">¥{{ form.budgetMin }} — ¥{{ form.budgetMax }} / 张</el-descriptions-item>
           <el-descriptions-item label="标题">{{ form.title || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="规格">{{ form.requirements.size || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="颜色模式">{{ form.requirements.colorMode || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="格式">{{ form.requirements.formats.join(' / ') || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="发布权限">{{ form.requirements.publishPermission || '-' }}</el-descriptions-item>
           <el-descriptions-item label="需求描述">{{ form.description || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="题材">{{ form.subject.join(' / ') || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="参考图">{{ form.images.length ? `已上传 ${form.images.length} 张` : '未上传' }}</el-descriptions-item>
           <el-descriptions-item label="合作方式">{{ form.mode === 1 ? '定向邀请' : '公开招募' }}</el-descriptions-item>
+          <el-descriptions-item v-if="form.mode === 1" label="受邀画师">画师阿绘（已认证）</el-descriptions-item>
+          <el-descriptions-item label="题材风格">{{ subjectSummary }}</el-descriptions-item>
+          <el-descriptions-item label="稿件格式">{{ formatSummary }}</el-descriptions-item>
+          <el-descriptions-item label="公开权限">{{ form.requirements.publishPermission }}</el-descriptions-item>
         </el-descriptions>
       </div>
 
       <div class="wizard-actions">
         <el-button v-if="step > 0" round @click="step -= 1">上一步</el-button>
         <el-button v-if="step < 3" type="primary" round @click="next">下一步</el-button>
-        <el-button v-else type="primary" round :loading="submitting" @click="submit">
-          发布企划
-        </el-button>
+        <el-button v-else type="primary" round :loading="submitting" @click="submit">发布企划</el-button>
       </div>
     </div>
   </div>
@@ -215,9 +208,9 @@ const router = useRouter()
 const step = ref(0)
 const submitting = ref(false)
 
-const tagOptions = ['国潮', '插画', '立绘', '场景', '原画', '同人', 'Q版', '古风']
-const subjectOptions = ['Q版', '女性', '男性', '古风', '现代', '科幻', '奇幻', '兽人']
-const formatOptions = ['JPG', 'PNG', 'PSD', 'GIF', 'WEBP']
+const subjectCards = ['不限', ...SUBJECT_OPTIONS]
+const formatOptions = ['JPG', 'PNG', 'PSD', 'GIF', 'AI', 'SVG', 'TIF', '其他']
+const permissionOptions = ['可以自由发布', '需经委托方同意发布', '不可以公开发布']
 
 const form = reactive({
   category: '头像',
@@ -225,28 +218,32 @@ const form = reactive({
   deadline: '',
   budgetMin: 300,
   budgetMax: 500,
-  directed: false,
   title: '',
   description: '',
   tags: [],
   subjects: [],
-  subject: [],
-  requirements: { size: '', colorMode: 'RGB', formats: [], publishPermission: '' },
+  requirements: {
+    size: '与画师商议',
+    colorMode: 'RGB',
+    formats: ['JPG', 'PNG'],
+    publishPermission: '需经委托方同意发布',
+  },
   mode: 0,
   invitePainterId: null,
   images: [],
 })
 
-// 参考图：文件列表（UI）与 URL 列表（提交）
 const imageFileList = ref([])
+const subjectSummary = computed(() => form.subjects.length ? form.subjects.join(' / ') : '不限')
+const formatSummary = computed(() => form.requirements.formats.length ? form.requirements.formats.join(' / ') : '-')
 
 async function doUpload({ file, onSuccess, onError }) {
   try {
     const url = await uploadFile(file)
     onSuccess(url)
-  } catch (e) {
+  } catch (error) {
     ElMessage.error('图片上传失败')
-    onError(e)
+    onError(error)
   }
 }
 
@@ -267,7 +264,30 @@ function onImageExceed() {
   ElMessage.warning('最多上传 6 张参考图')
 }
 
-/** 截稿日期至少为发布后 7 天 */
+function handleModeChange(mode) {
+  if (mode === 0) form.invitePainterId = null
+}
+
+function isSubjectActive(subject) {
+  return subject === '不限' ? form.subjects.length === 0 : form.subjects.includes(subject)
+}
+
+function toggleSubject(subject) {
+  if (subject === '不限') {
+    form.subjects = []
+    return
+  }
+  const index = form.subjects.indexOf(subject)
+  if (index === -1) form.subjects.push(subject)
+  else form.subjects.splice(index, 1)
+}
+
+function toggleFormat(format) {
+  const index = form.requirements.formats.indexOf(format)
+  if (index === -1) form.requirements.formats.push(format)
+  else form.requirements.formats.splice(index, 1)
+}
+
 function disabledDate(date) {
   const min = new Date()
   min.setDate(min.getDate() + 7)
@@ -281,8 +301,8 @@ function next() {
       ElMessage.warning('请选择截稿日期')
       return
     }
-    if (!form.budgetMax || form.budgetMax <= 0) {
-      ElMessage.warning('请设置预算区间')
+    if (!form.budgetMax || form.budgetMax <= 0 || form.budgetMin > form.budgetMax) {
+      ElMessage.warning('请设置正确的预算区间')
       return
     }
   }
@@ -291,10 +311,18 @@ function next() {
       ElMessage.warning('请填写企划标题')
       return
     }
-    if (!form.requirements.size.trim() || !form.requirements.colorMode || !form.requirements.formats.length || !form.requirements.publishPermission) {
-      ElMessage.warning('请填写完整的稿件参数（规格、颜色模式、格式、发布权限）')
+    if (!form.description.trim()) {
+      ElMessage.warning('请填写需求描述')
       return
     }
+    if (form.mode === 1 && !form.invitePainterId) {
+      ElMessage.warning('请选择被邀请的画师')
+      return
+    }
+  }
+  if (step.value === 2 && (!form.requirements.formats.length || !form.requirements.publishPermission)) {
+    ElMessage.warning('请至少选择一种稿件格式和公开权限')
+    return
   }
   step.value += 1
 }
@@ -302,16 +330,9 @@ function next() {
 async function submit() {
   submitting.value = true
   try {
-    // 高级选项（题材）并入需求描述，避免信息丢失
-    const extras = []
-    if (form.subject.length) extras.push('题材：' + form.subject.join(' / '))
-    const description = extras.length
-      ? `${form.description}\n\n[高级选项] ${extras.join('；')}`
-      : form.description
-
     await createProject({
       title: form.title,
-      description,
+      description: form.description,
       budget: form.budgetMax,
       deadline: form.deadline,
       tags: form.tags,
@@ -322,7 +343,7 @@ async function submit() {
       mode: form.mode,
       invitePainterId: form.mode === 1 ? form.invitePainterId : null,
     })
-    ElMessage.success('企划发布成功！等待画师应征')
+    ElMessage.success('企划发布成功！等待画师应征。')
     router.push({ name: 'DashboardProjects' })
   } finally {
     submitting.value = false
@@ -348,6 +369,11 @@ async function submit() {
   margin-bottom: 32px;
 }
 
+.wizard-body {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
 .wizard-body h4 {
   margin: 24px 0 14px;
   font-size: 15px;
@@ -358,6 +384,12 @@ async function submit() {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.category-tab,
+.usage-card,
+.option-card {
+  font: inherit;
 }
 
 .category-tab {
@@ -371,15 +403,11 @@ async function submit() {
   transition: all 0.2s;
 }
 
-.category-tab:hover {
-  color: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
-}
-
+.category-tab:hover,
 .category-tab.is-active {
-  background: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
   color: #fff;
+  border-color: var(--huiyue-primary);
+  background: var(--huiyue-primary);
 }
 
 .usage-group {
@@ -389,19 +417,22 @@ async function submit() {
 }
 
 .usage-card {
+  text-align: left;
   border: 1px solid var(--huiyue-border);
   border-radius: 8px;
   padding: 18px;
+  background: #fff;
+  color: var(--huiyue-text);
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.usage-card:hover {
+.usage-card:hover,
+.usage-card.is-active {
   border-color: var(--huiyue-primary);
 }
 
 .usage-card.is-active {
-  border-color: var(--huiyue-primary);
   background: var(--huiyue-primary-light);
 }
 
@@ -432,26 +463,83 @@ async function submit() {
   color: var(--huiyue-text-secondary);
 }
 
-.param-editor {
+.field-tip {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.param-line {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.param-label {
-  width: 72px;
+  margin: 8px 0 0;
   color: var(--huiyue-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
-.param-input {
-  flex: 1;
+.collaboration-section {
+  margin-top: 8px;
+  padding: 18px;
+  border: 1px solid #e7edf4;
+  border-radius: 6px;
+  background: #fafcff;
+}
+
+.collaboration-section h4 {
+  margin: 0 0 14px;
+}
+
+.invite-select {
+  display: block;
+  width: 320px;
+  max-width: 100%;
+  margin-top: 14px;
+}
+
+.advanced-body {
+  max-width: 664px;
+}
+
+.advanced-tip {
+  margin: 6px 0 28px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: #f5f8fc;
+  color: var(--huiyue-text-secondary);
+  font-size: 13px;
+}
+
+.option-section + .option-section {
+  margin-top: 30px;
+}
+
+.option-section h4 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.option-grid,
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.permission-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.option-card {
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #d9e0e8;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--huiyue-text);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.18s;
+}
+
+.option-card:hover,
+.option-card.is-active {
+  border-color: var(--huiyue-primary);
+  background: #eff9ff;
+  color: var(--huiyue-primary);
 }
 
 .preview-box {
@@ -467,14 +555,21 @@ async function submit() {
 }
 
 @media (max-width: 900px) {
-  .choice-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
   .usage-group,
   .form-row {
     grid-template-columns: 1fr;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .wb-card {
+    padding: 20px 16px;
+  }
+
+  .option-grid,
+  .permission-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
