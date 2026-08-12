@@ -24,18 +24,18 @@
             <el-option label="应征数少" value="applications" />
           </el-select>
           <el-select v-model="tag" class="filter-select" @change="load">
-            <el-option label="类型与风格" value="" />
+            <el-option label="类型与风格" value="all" />
             <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
           </el-select>
           <el-select v-model="budgetRange" class="filter-select" @change="load">
-            <el-option label="稿酬区间不限" value="" />
+            <el-option label="稿酬区间不限" value="all" />
             <el-option label="500 以下" value="0-500" />
             <el-option label="500-1000" value="500-1000" />
             <el-option label="1000-3000" value="1000-3000" />
             <el-option label="3000 以上" value="3000-" />
           </el-select>
           <el-select v-model="deadlineRange" class="filter-select" @change="load">
-            <el-option label="截稿日期不限" value="" />
+            <el-option label="截稿日期不限" value="all" />
             <el-option label="7天以内" value="within-7" />
             <el-option label="7天以上" value="after-7" />
             <el-option label="14天以上" value="after-14" />
@@ -101,9 +101,9 @@ const keyword = ref('')
 // 筛选状态（参考站筛选区）
 const activeTab = ref('all')
 const sort = ref('newest')
-const tag = ref('')
-const budgetRange = ref('')
-const deadlineRange = ref('')
+const tag = ref('all')
+const budgetRange = ref('all')
+const deadlineRange = ref('all')
 const certifiedOnly = ref(false)
 const unselectedOnly = ref(false)
 const characterCardOnly = ref(false)
@@ -137,15 +137,15 @@ async function load() {
     if (sort.value === 'budget') {
       params.sort = 'budget'
     }
-    if (tag.value) {
+    if (tag.value && tag.value !== 'all') {
       params.tag = tag.value
     }
-    if (budgetRange.value) {
+    if (budgetRange.value && budgetRange.value !== 'all') {
       const [min, max] = budgetRange.value.split('-')
       if (min) params.budgetMin = Number(min)
       if (max) params.budgetMax = Number(max)
     }
-    if (deadlineRange.value) {
+    if (deadlineRange.value && deadlineRange.value !== 'all') {
       if (deadlineRange.value.startsWith('within')) {
         params.deadlineWithin = Number(deadlineRange.value.split('-')[1])
       } else if (deadlineRange.value.startsWith('after')) {
