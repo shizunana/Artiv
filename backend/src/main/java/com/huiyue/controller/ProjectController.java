@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
+
 @RestController
 @RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
@@ -27,8 +29,15 @@ public class ProjectController {
     public Result<Page<Project>> list(@RequestParam(defaultValue = "1") long page,
                                       @RequestParam(defaultValue = "10") long size,
                                       @RequestParam(required = false) String keyword,
-                                      @RequestParam(required = false) Integer status) {
-        return Result.ok(projectService.listProjects(page, size, keyword, status));
+                                      @RequestParam(required = false) Integer status,
+                                      @RequestParam(required = false) String sort,
+                                      @RequestParam(required = false) BigDecimal budgetMin,
+                                      @RequestParam(required = false) BigDecimal budgetMax,
+                                      @RequestParam(required = false) Integer deadlineWithin,
+                                      @RequestParam(required = false) Integer deadlineAfter,
+                                      @RequestParam(required = false) String tag) {
+        return Result.ok(projectService.listProjects(page, size, keyword, status, sort,
+                budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag));
     }
 
     /** 我的企划（企划方工作台） */
