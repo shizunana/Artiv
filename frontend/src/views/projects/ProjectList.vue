@@ -76,9 +76,7 @@
                 class="project-img"
                 :initial-index="0"
               />
-              <div v-else class="thumb-placeholder" :style="gradient(project.id)">
-                <span class="project-emoji">📋</span>
-              </div>
+              <div v-else class="thumb-placeholder"></div>
             </div>
           </div>
 
@@ -127,17 +125,6 @@ const unselectedOnly = ref(false)
 const characterCardOnly = ref(false)
 
 const tagOptions = ['国潮', '插画', '立绘', '场景', '原画', '同人', 'Q版', '古风', 'Live2d']
-
-const gradients = [
-  'linear-gradient(135deg, #4facfe, #00f2fe)',
-  'linear-gradient(135deg, #f093fb, #f5576c)',
-  'linear-gradient(135deg, #43e97b, #38f9d7)',
-  'linear-gradient(135deg, #fa709a, #fee140)',
-]
-
-function gradient(id) {
-  return { background: gradients[id % gradients.length] }
-}
 
 function firstImage(images) {
   if (!images) return ''
@@ -264,8 +251,8 @@ onMounted(load)
 }
 
 .project-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
 }
 
@@ -347,7 +334,7 @@ onMounted(load)
   border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(--huiyue-section-alt);
+  background: transparent;
 }
 
 .project-img {
@@ -360,14 +347,6 @@ onMounted(load)
 .thumb-placeholder {
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-}
-
-.project-emoji {
-  font-size: 34px;
 }
 
 .project-card__divider {
@@ -399,6 +378,10 @@ onMounted(load)
 }
 
 @media (max-width: 900px) {
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+
   .project-card__thumb {
     display: none;
   }
