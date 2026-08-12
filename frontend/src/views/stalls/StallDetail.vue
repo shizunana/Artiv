@@ -14,16 +14,16 @@
           <!-- 橱窗详情 -->
           <section id="detail" class="detail-section">
             <h2 class="detail-title"><span class="title-icon">🖼️</span>橱窗详情</h2>
-            <div class="cover-gallery">
+            <!-- 示例图（参考站 stall-detail__example-images） -->
+            <div class="example-images">
               <el-image
                 v-if="stall.cover"
                 :src="stall.cover"
                 :preview-src-list="[stall.cover]"
                 preview-teleported
                 fit="cover"
-                class="cover-big"
+                class="example-image"
               />
-              <div v-else class="cover-placeholder">🛍️</div>
             </div>
             <p class="detail-desc">{{ stall.description || '暂无详细说明' }}</p>
           </section>
@@ -31,7 +31,10 @@
           <!-- 创作阶段 -->
           <section id="phases" class="detail-section">
             <h2 class="detail-title"><span class="title-icon">🎨</span>创作阶段</h2>
-            <p class="section-tip">画师按以下阶段提供阶段性稿件供企划方审核确认</p>
+            <p class="section-tip">
+              画师承诺按以下阶段提供阶段性稿件供企划方审核确认。<br />
+              同时约定，如因企划方的原因导致合作中断，企划方需按照已确认的阶段支付对应比例的稿酬给画师。
+            </p>
             <ul class="phase-list">
               <li v-for="(p, i) in phaseList" :key="i" class="phase-item">
                 <span class="phase-badge">{{ p.percent }}%</span>
@@ -49,6 +52,7 @@
               <div class="param-item"><span class="param-label">规格</span><span>{{ params.spec }}</span></div>
               <div class="param-item"><span class="param-label">稿件格式</span><span>{{ formatText }}</span></div>
               <div class="param-item"><span class="param-label">题材风格</span><span>{{ params.subject }}</span></div>
+              <div class="param-item"><span class="param-label">发布权限</span><span>画师可公开发布带水印稿件</span></div>
               <div class="param-item"><span class="param-label">交付方式</span><span>在线交付（分阶段验收）</span></div>
             </div>
           </section>
@@ -56,6 +60,13 @@
 
         <!-- 右侧：画师信息 + 橱窗信息（参考站 aside） -->
         <aside class="detail-aside">
+          <!-- 橱窗名 + 分类（参考站 stall-info__name） -->
+          <div class="stall-name">
+            <h2 class="stall-name__text">{{ stall.title }}</h2>
+            <el-tag type="primary" size="small" effect="light">{{ stall.category }}</el-tag>
+          </div>
+
+          <!-- 画师信息（参考站 stall-info__owner，评分等按需求隐藏） -->
           <div class="painter-card">
             <el-avatar :size="56" class="painter-avatar">绘</el-avatar>
             <div class="painter-info">
@@ -126,6 +137,7 @@ async function load() {
   loading.value = true
   try {
     stall.value = await getStall(route.params.id)
+    document.title = `${stall.value.title} - 绘约`
   } finally {
     loading.value = false
   }
@@ -215,26 +227,21 @@ onMounted(load)
   font-size: 18px;
 }
 
-.cover-gallery {
+.example-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
   border-radius: 10px;
-  overflow: hidden;
   background: var(--huiyue-section-alt);
   margin-bottom: 16px;
+  padding: 10px;
 }
 
-.cover-big {
+.example-image {
   width: 100%;
-  max-height: 420px;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
   display: block;
-}
-
-.cover-placeholder {
-  height: 240px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 56px;
-  color: var(--huiyue-text-secondary);
 }
 
 .detail-desc {
@@ -330,6 +337,26 @@ onMounted(load)
   border: 1px solid var(--huiyue-border);
   border-radius: 12px;
   padding: 20px;
+}
+
+.stall-name {
+  background: #fff;
+  border: 1px solid var(--huiyue-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stall-name__text {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--huiyue-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .painter-card {
