@@ -14,6 +14,8 @@ public class StallRequest {
 
     private String category;
 
+    private String cover;
+
     @DecimalMin(value = "0.01", message = "价格必须大于 0")
     private BigDecimal price;
 

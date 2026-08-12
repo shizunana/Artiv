@@ -1,46 +1,45 @@
 <template>
-  <div class="list-page">
-    <div class="list-header page-container">
-      <h1 class="section-title">服务板 · 橱窗</h1>
-      <p class="section-subtitle">画师明码标价的内容服务</p>
+  <div class="list-page page-container">
+    <!-- 分类区（参考站 stalls-index） -->
+    <div class="category-bar">
+      <span
+        v-for="c in categories"
+        :key="c"
+        class="category-tab"
+        :class="{ 'is-active': activeCategory === c }"
+        @click="activeCategory = c"
+      >
+        {{ c }}
+      </span>
     </div>
 
-    <div class="page-container">
-      <div class="filter-bar">
-        <div class="filter-tabs">
-          <span
-            v-for="c in categories"
-            :key="c"
-            class="filter-tab"
-            :class="{ 'is-active': activeCategory === c }"
-            @click="activeCategory = c"
-          >
-            {{ c }}
-          </span>
-        </div>
-      </div>
-
-      <div class="stall-grid" v-loading="loading">
-        <div v-for="stall in stalls" :key="stall.id" class="stall-card" @click="goDetail(stall.id)">
-          <div class="stall-card__thumb" :style="gradient(stall.id)">
-            <span class="stall-emoji">🛍️</span>
+    <!-- 橱窗卡片（参考站 stall-cell） -->
+    <div class="stall-grid" v-loading="loading">
+      <div v-for="stall in filteredStalls" :key="stall.id" class="stall-cell" @click="goDetail(stall.id)">
+        <div class="stall-cell__cover">
+          <el-image
+            v-if="stall.cover"
+            :src="stall.cover"
+            :preview-src-list="[stall.cover]"
+            preview-teleported
+            fit="cover"
+            class="cover-image"
+          />
+          <div v-else class="cover-placeholder">
+            <span>🛍️</span>
           </div>
-          <div class="stall-card__body">
-            <h3>{{ stall.title }}</h3>
-            <p>{{ stall.description }}</p>
-            <div class="stall-card__meta">
-              <span class="price">¥{{ stall.price }}</span>
-              <span class="category">{{ stall.category }}</span>
-            </div>
-            <el-button type="primary" size="small" round class="buy-btn" @click.stop="goDetail(stall.id)">
-              立即下单
-            </el-button>
+          <div class="cover-mask">
+            <span>{{ stall.category }}</span>
           </div>
         </div>
+        <div class="stall-cell__infos">
+          <span class="stall-cell__name">{{ stall.title }}</span>
+          <span class="stall-cell__price">￥{{ stall.price }}</span>
+        </div>
       </div>
-
-      <EmptyState v-if="!loading && stalls.length === 0" description="暂无上架服务" />
     </div>
+
+    <EmptyState v-if="!loading && filteredStalls.length === 0" description="暂无上架橱窗" />
   </div>
 </template>
 
@@ -54,23 +53,19 @@ const router = useRouter()
 const stalls = ref([])
 const loading = ref(false)
 const activeCategory = ref('全部')
-const categories = ['全部', '国潮插画', '角色立绘', '场景原画', '头像', 'Q版']
+
+const categories = computed(() => {
+  const list = ['全部']
+  stalls.value.forEach((s) => {
+    if (s.category && !list.includes(s.category)) list.push(s.category)
+  })
+  return list
+})
 
 const filteredStalls = computed(() => {
   if (activeCategory.value === '全部') return stalls.value
   return stalls.value.filter((s) => s.category === activeCategory.value)
 })
-
-const gradients = [
-  'linear-gradient(135deg, #30cfd0, #330867)',
-  'linear-gradient(135deg, #f093fb, #f5576c)',
-  'linear-gradient(135deg, #43e97b, #38f9d7)',
-  'linear-gradient(135deg, #fa709a, #fee140)',
-]
-
-function gradient(id) {
-  return { background: gradients[id % gradients.length] }
-}
 
 function goDetail(id) {
   router.push({ name: 'StallDetail', params: { id } })
@@ -90,113 +85,121 @@ onMounted(async () => {
 <style scoped>
 .list-page {
   min-height: 60vh;
-  padding-bottom: 48px;
+  padding: 16px 16px 48px;
+  max-width: 1100px;
 }
 
-.list-header {
-  padding-top: 48px;
-}
-
-.filter-bar {
-  margin-bottom: 24px;
-}
-
-.filter-tabs {
+/* ---------- 分类区 ---------- */
+.category-bar {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
+  padding: 16px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--huiyue-border);
 }
 
-.filter-tab {
-  padding: 8px 20px;
+.category-tab {
+  padding: 7px 18px;
   border-radius: 18px;
   background: #fff;
   border: 1px solid var(--huiyue-border);
   color: var(--huiyue-text-secondary);
   cursor: pointer;
   font-size: 14px;
+  transition: all 0.2s;
 }
 
-.filter-tab.is-active {
+.category-tab:hover {
+  color: var(--huiyue-primary);
+  border-color: var(--huiyue-primary);
+}
+
+.category-tab.is-active {
   background: var(--huiyue-primary);
   border-color: var(--huiyue-primary);
   color: #fff;
 }
 
+/* ---------- 橱窗卡片 ---------- */
 .stall-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
+  padding-top: 20px;
 }
 
-.stall-card {
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--huiyue-border);
-  overflow: hidden;
+.stall-cell {
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s;
 }
 
-.stall-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+.stall-cell:hover {
+  transform: translateY(-3px);
 }
 
-.stall-card__thumb {
-  aspect-ratio: 4 / 3;
+.stall-cell__cover {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--huiyue-section-alt);
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cover-placeholder {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.stall-emoji {
-  font-size: 48px;
-}
-
-.stall-card__body {
-  padding: 16px;
-}
-
-.stall-card__body h3 {
-  margin: 0 0 8px;
-  font-size: 15px;
-}
-
-.stall-card__body p {
-  margin: 0 0 12px;
+  font-size: 44px;
   color: var(--huiyue-text-secondary);
-  font-size: 13px;
-  min-height: 40px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
-.stall-card__meta {
+.cover-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6px 10px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.45));
+  color: #fff;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.stall-cell:hover .cover-mask {
+  opacity: 1;
+}
+
+.stall-cell__infos {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  padding: 10px 2px 0;
+  gap: 8px;
 }
 
-.price {
+.stall-cell__name {
+  font-size: 14px;
+  color: var(--huiyue-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stall-cell__price {
   color: var(--huiyue-accent);
   font-weight: 700;
-  font-size: 16px;
-}
-
-.category {
-  font-size: 12px;
-  color: var(--huiyue-primary);
-  background: var(--huiyue-primary-light);
-  padding: 2px 8px;
-  border-radius: 8px;
-}
-
-.buy-btn {
-  width: 100%;
+  font-size: 15px;
+  flex-shrink: 0;
 }
 
 @media (max-width: 900px) {

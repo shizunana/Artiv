@@ -60,6 +60,7 @@ CREATE TABLE `stall` (
   `painter_id`  BIGINT        NOT NULL COMMENT '画师用户ID',
   `title`       VARCHAR(100)  NOT NULL COMMENT '服务名称',
   `category`    VARCHAR(50)   DEFAULT NULL COMMENT '服务类型',
+  `cover`       VARCHAR(255)  DEFAULT NULL COMMENT '封面图',
   `price`       DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '价格（元）',
   `description` VARCHAR(500)  DEFAULT NULL COMMENT '交付说明',
   `status`      TINYINT       NOT NULL DEFAULT 1 COMMENT '状态：0 已下架、1 上架中',

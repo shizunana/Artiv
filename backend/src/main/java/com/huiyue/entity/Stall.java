@@ -24,6 +24,9 @@ public class Stall {
 
     private String category;
 
+    /** 封面图 */
+    private String cover;
+
     private BigDecimal price;
 
     private String description;

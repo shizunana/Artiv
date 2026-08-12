@@ -7,6 +7,19 @@
       </div>
 
       <el-table :data="stalls" v-loading="loading" empty-text="还没有橱窗，创建一个明码标价的服务吧">
+        <el-table-column label="封面" width="80">
+          <template #default="{ row }">
+            <el-image
+              v-if="row.cover"
+              :src="row.cover"
+              fit="cover"
+              class="cover-thumb"
+              :preview-src-list="[row.cover]"
+              preview-teleported
+            />
+            <span v-else class="cover-none">无图</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="title" label="服务名称" min-width="160" />
         <el-table-column prop="category" label="类型" width="110" />
         <el-table-column label="价格" width="110">
@@ -41,6 +54,19 @@
             <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
           </el-select>
         </el-form-item>
+        <el-form-item label="封面图">
+          <el-upload
+            :show-file-list="false"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            :http-request="uploadCover"
+          >
+            <el-image v-if="form.cover" :src="form.cover" fit="cover" class="cover-upload" />
+            <div v-else class="cover-upload-placeholder">
+              <el-icon class="upload-icon"><Plus /></el-icon>
+              <span>上传封面</span>
+            </div>
+          </el-upload>
+        </el-form-item>
         <el-form-item label="价格（元）" required>
           <el-input-number v-model="form.price" :min="0" :precision="2" />
         </el-form-item>
@@ -59,14 +85,25 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import { getMyStalls, createStall, changeStallStatus } from '@/api/stall'
+import { uploadFile } from '@/api/upload'
 
 const stalls = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
 const categories = ['国潮插画', '角色立绘', '场景原画', '头像', 'Q版', 'Live2d']
-const form = reactive({ title: '', category: '', price: 100, description: '' })
+const form = reactive({ title: '', category: '', price: 100, description: '', cover: '' })
+
+async function uploadCover({ file }) {
+  try {
+    form.cover = await uploadFile(file)
+    ElMessage.success('封面上传成功')
+  } catch {
+    ElMessage.error('封面上传失败')
+  }
+}
 
 async function load() {
   loading.value = true
@@ -88,6 +125,7 @@ async function save() {
     await createStall({ ...form })
     ElMessage.success('创建成功')
     dialogVisible.value = false
+    form.cover = ''
     load()
   } finally {
     submitting.value = false
@@ -128,5 +166,49 @@ onMounted(load)
 .wb-card__head h3 {
   margin: 0;
   font-size: 17px;
+}
+
+.cover-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  display: block;
+}
+
+.cover-none {
+  font-size: 12px;
+  color: var(--huiyue-text-secondary);
+}
+
+.cover-upload {
+  width: 110px;
+  height: 110px;
+  border-radius: 8px;
+  display: block;
+}
+
+.cover-upload-placeholder {
+  width: 110px;
+  height: 110px;
+  border: 1px dashed var(--huiyue-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--huiyue-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.cover-upload-placeholder:hover {
+  border-color: var(--huiyue-primary);
+  color: var(--huiyue-primary);
+}
+
+.upload-icon {
+  font-size: 24px;
 }
 </style>

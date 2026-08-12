@@ -3,8 +3,10 @@ package com.huiyue.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.Result;
 import com.huiyue.dto.StallRequest;
+import com.huiyue.entity.OrderInfo;
 import com.huiyue.entity.Stall;
 import com.huiyue.security.UserContext;
+import com.huiyue.service.OrderService;
 import com.huiyue.service.StallService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StallController {
 
     private final StallService stallService;
+    private final OrderService orderService;
 
     @GetMapping
     public Result<Page<Stall>> list(@RequestParam(defaultValue = "1") long page,
@@ -60,5 +63,17 @@ public class StallController {
     @PutMapping("/{id}/status")
     public Result<Stall> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         return Result.ok(stallService.changeStatus(id, status, UserContext.getUserId()));
+    }
+
+    /** 立即下单：生成订单（金额取橱窗价格） */
+    @PostMapping("/{id}/purchase")
+    public Result<OrderInfo> purchase(@PathVariable Long id) {
+        Stall stall = stallService.getById(id);
+        OrderInfo order = new OrderInfo();
+        order.setStallId(id);
+        order.setEmployerId(UserContext.getUserId());
+        order.setPainterId(stall.getPainterId());
+        order.setAmount(stall.getPrice());
+        return Result.ok(orderService.create(order));
     }
 }
