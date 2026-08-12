@@ -28,3 +28,23 @@ Only Task 1 backend storage/test/schema files and this report are included. No f
 ## Concern
 
 Maven emits existing JDK warnings about dynamic Java-agent loading and annotation processing; neither caused test failures.
+
+## Review fix 1/5: requirements JSON contract
+
+### Changes
+
+- Renamed `ProjectRequirements.deliverables` to `formats`.
+- Renamed `ProjectRequirements.notes` to `publishPermission`.
+- Updated `ProjectServiceTest` to require the persisted JSON keys, in order: `size`, `colorMode`, `formats`, and `publishPermission`.
+
+### TDD evidence
+
+1. Updated the focused assertion before production code.
+2. RED command: `mvn.cmd -Dtest=ProjectServiceTest test`
+   - Failed as expected: the test expected `formats` and `publishPermission`, but serialization produced `deliverables` and `notes`.
+3. Renamed the DTO fields, allowing Jackson to emit the required keys.
+
+### Commands and results
+
+- `mvn.cmd -Dtest=ProjectServiceTest test` — passed: 1 test, 0 failures, 0 errors.
+- `mvn.cmd test` — passed: 9 tests, 0 failures, 0 errors, 0 skipped.

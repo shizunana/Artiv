@@ -50,7 +50,7 @@ class ProjectServiceTest {
         ArgumentCaptor<Project> projectCaptor = ArgumentCaptor.forClass(Project.class);
         verify(projectMapper).insert(projectCaptor.capture());
         assertEquals(
-                "{\"size\":\"3000×4000 px\",\"colorMode\":\"RGB\",\"deliverables\":[\"PNG\",\"PSD\"],\"notes\":\"可自由发挥\"}",
+                "{\"size\":\"3000×4000 px\",\"colorMode\":\"RGB\",\"formats\":[\"PNG\",\"PSD\"],\"publishPermission\":\"可自由发挥\"}",
                 projectCaptor.getValue().getRequirements()
         );
     }

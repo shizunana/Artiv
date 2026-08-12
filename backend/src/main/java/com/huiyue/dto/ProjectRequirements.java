@@ -15,7 +15,7 @@ public class ProjectRequirements {
 
     private String colorMode;
 
-    private List<String> deliverables;
+    private List<String> formats;
 
-    private String notes;
+    private String publishPermission;
 }
