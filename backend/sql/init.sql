@@ -89,6 +89,7 @@ CREATE TABLE `project` (
   `deadline`        DATE          DEFAULT NULL COMMENT '截稿日期',
   `tags`            VARCHAR(255)  DEFAULT NULL COMMENT '标签，逗号分隔',
   `images`          TEXT          DEFAULT NULL COMMENT '参考图，逗号分隔',
+  `requirements`    TEXT          DEFAULT NULL COMMENT '结构化项目要求 JSON',
   `mode`            TINYINT       NOT NULL DEFAULT 0 COMMENT '合作方式：0 公开招募、1 定向邀请',
   `recruit_deadline` DATETIME     DEFAULT NULL COMMENT '招募截止时间（默认发布后10日）',
   `status`          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已关闭',

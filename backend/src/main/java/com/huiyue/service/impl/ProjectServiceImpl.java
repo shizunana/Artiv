@@ -2,6 +2,8 @@ package com.huiyue.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
 import com.huiyue.dto.ProjectRequest;
@@ -23,6 +25,8 @@ import java.math.BigDecimal;
 @Service
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final ProjectMapper projectMapper;
     private final UserMapper userMapper;
@@ -86,6 +90,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setSubject(request.getSubject() == null || request.getSubject().isEmpty()
                 ? null : String.join(",", request.getSubject()));
         project.setImages(request.getImages());
+        project.setRequirements(serializeRequirements(request));
         project.setMode(request.getMode() == null ? 0 : request.getMode());
         // 招募期默认发布后 10 日
         project.setRecruitDeadline(now.plusDays(10));
@@ -108,6 +113,17 @@ public class ProjectServiceImpl implements ProjectService {
             invitationMapper.insert(invitation);
         }
         return project;
+    }
+
+    private String serializeRequirements(ProjectRequest request) {
+        if (request.getRequirements() == null) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(request.getRequirements());
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Unable to serialize project requirements", e);
+        }
     }
 
     @Override
