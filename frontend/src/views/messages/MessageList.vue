@@ -5,21 +5,23 @@
         <div class="message-layout">
           <aside class="conversation-list" v-loading="loadingConversations">
             <div class="panel-title"><h3>会话</h3><el-button link @click="loadConversations">刷新</el-button></div>
-            <el-empty v-if="!conversations.length" description="暂无沟通会话" :image-size="72" />
-            <button
-              v-for="item in conversations"
-              :key="conversationId(item)"
-              class="conversation-item"
-              :class="{ active: sameConversation(active, item) }"
-              @click="openConversation(item)"
-            >
-              <el-avatar :size="38" :src="item.withUserAvatar">{{ item.withUserNickname?.slice(0, 1) }}</el-avatar>
-              <span class="conversation-copy">
-                <b>{{ item.withUserNickname || `用户 #${item.withUserId}` }}</b>
-                <small>{{ item.lastContent }}</small>
-              </span>
-              <el-badge v-if="item.unreadCount" :value="item.unreadCount" :max="99" />
-            </button>
+            <div class="conversation-scroll">
+              <el-empty v-if="!conversations.length" description="暂无沟通会话" :image-size="72" />
+              <button
+                v-for="item in conversations"
+                :key="conversationId(item)"
+                class="conversation-item"
+                :class="{ active: sameConversation(active, item) }"
+                @click="openConversation(item)"
+              >
+                <el-avatar :size="38" :src="item.withUserAvatar">{{ item.withUserNickname?.slice(0, 1) }}</el-avatar>
+                <span class="conversation-copy">
+                  <b>{{ item.withUserNickname || `用户 #${item.withUserId}` }}</b>
+                  <small>{{ item.lastContent }}</small>
+                </span>
+                <el-badge v-if="item.unreadCount" :value="item.unreadCount" :max="99" />
+              </button>
+            </div>
           </aside>
 
           <section class="chat-panel">
@@ -150,11 +152,8 @@ function isBusinessSystemMessage(message) {
 }
 
 function viewMessageDetail(message) {
-  if (message.orderId) {
-    router.push({ name: userStore.workbenchRole === 2 ? 'PainterOrders' : 'DashboardOrders' })
-    return
-  }
-  if (message.projectId) router.push({ name: 'ProjectDetail', params: { id: message.projectId } })
+  // TODO: 后续订单、企划详情页确定后，按 message.orderId / message.projectId 接入跳转。
+  void message
 }
 
 async function readAll() {
@@ -215,11 +214,16 @@ onUnmounted(() => stopSocket?.())
 </script>
 
 <style scoped>
-.message-center { min-height: 590px; padding: 0; overflow: hidden; }
-.message-tabs :deep(.el-tabs__header) { margin: 0; padding: 0 22px; border-bottom: 1px solid var(--huiyue-border); }
-.message-tabs :deep(.el-tabs__content) { padding: 0; }
-.message-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 535px; }
-.conversation-list { border-right: 1px solid var(--huiyue-border); padding: 16px; }
+.message-center { height: calc(100vh - 112px); min-height: 520px; padding: 0; overflow: hidden; }
+.message-tabs { display: flex; height: 100%; flex-direction: column; }
+.message-tabs :deep(.el-tabs__header) { flex: 0 0 auto; margin: 0; padding: 0 22px; border-bottom: 1px solid var(--huiyue-border); }
+.message-tabs :deep(.el-tabs__content) { flex: 1; min-height: 0; padding: 0; }
+.message-tabs :deep(.el-tab-pane) { height: 100%; }
+.message-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100%; min-height: 0; }
+.conversation-list { display: flex; min-height: 0; flex-direction: column; border-right: 1px solid var(--huiyue-border); padding: 16px; }
+.conversation-scroll, .chat-history { scrollbar-width: none; -ms-overflow-style: none; }
+.conversation-scroll::-webkit-scrollbar, .chat-history::-webkit-scrollbar { width: 0; height: 0; }
+.conversation-scroll { min-height: 0; flex: 1; overflow-y: auto; }
 .panel-title, .chat-panel header, .chat-panel footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .panel-title h3 { margin: 0; font-size: 17px; }
 .conversation-item { display: flex; width: 100%; gap: 10px; align-items: center; border: 0; background: transparent; padding: 13px 8px; text-align: left; cursor: pointer; border-radius: 6px; }
@@ -227,10 +231,10 @@ onUnmounted(() => stopSocket?.())
 .conversation-copy { min-width: 0; flex: 1; display: grid; gap: 4px; }
 .conversation-copy b, .conversation-copy small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .conversation-copy small { color: var(--huiyue-text-secondary); }
-.chat-panel { min-width: 0; display: grid; grid-template-rows: auto 1fr auto; }
+.chat-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .chat-panel header { padding: 18px 24px; border-bottom: 1px solid var(--huiyue-border); }
 .chat-panel header small { color: var(--huiyue-text-secondary); }
-.chat-history { padding: 22px 24px; overflow-y: auto; }
+.chat-history { min-height: 0; padding: 22px 24px; overflow-y: auto; }
 .bubble-row { display: flex; margin: 10px 0; }
 .bubble-row.mine { justify-content: flex-end; }
 .bubble { max-width: 68%; padding: 10px 13px; border-radius: 8px; background: #f2f4f7; line-height: 1.6; white-space: pre-wrap; }
@@ -253,5 +257,5 @@ onUnmounted(() => stopSocket?.())
 .notice-copy b { color: var(--huiyue-text); }
 .notice-copy p { margin: 8px 0; color: var(--huiyue-text-secondary); line-height: 1.6; }
 .notice-copy small { color: var(--huiyue-text-secondary); }
-@media (max-width: 760px) { .message-layout { grid-template-columns: 1fr; }.conversation-list { border-right: 0; border-bottom: 1px solid var(--huiyue-border); max-height: 220px; overflow-y: auto; }.chat-panel { min-height: 440px; }.notification-panel { padding: 16px; }.business-system-message { width: auto; max-width: 100%; } }
+@media (max-width: 760px) { .message-center { height: auto; min-height: 0; }.message-tabs { min-height: 0; }.message-layout { grid-template-columns: 1fr; height: auto; }.conversation-list { border-right: 0; border-bottom: 1px solid var(--huiyue-border); max-height: 220px; }.conversation-scroll { max-height: 172px; }.chat-panel { min-height: 440px; }.notification-panel { padding: 16px; }.business-system-message { width: auto; max-width: 100%; } }
 </style>
