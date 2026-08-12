@@ -48,6 +48,17 @@ a {
   --el-color-primary-dark-2: #0092cc;
 }
 
+/* 图片查看器（el-image-viewer）修正：半透明遮罩 + 图片自适应限制 */
+.el-image-viewer__mask {
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+
+.el-image-viewer__img {
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  object-fit: contain;
+}
+
 .page-container {
   max-width: 1200px;
   margin: 0 auto;

@@ -18,7 +18,7 @@
               :src="stall.cover"
               :preview-src-list="[stall.cover]"
               preview-teleported
-              fit="cover"
+              fit="contain"
               class="cover-image"
             />
             <div v-else class="cover-placeholder">🛍️</div>
@@ -35,7 +35,7 @@
                 :src="img"
                 :preview-src-list="detailImages"
                 preview-teleported
-                fit="cover"
+                fit="contain"
                 class="example-image"
               />
             </div>
@@ -235,8 +235,15 @@ onMounted(load)
 
 .cover-image {
   width: 100%;
-  max-height: 380px;
   border-radius: 8px;
+  cursor: zoom-in;
+}
+
+.cover-image :deep(.el-image__inner) {
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+  object-fit: contain;
   display: block;
 }
 
@@ -272,7 +279,7 @@ onMounted(load)
 
 .example-images {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 10px;
   border-radius: 10px;
   background: var(--huiyue-section-alt);
@@ -282,8 +289,14 @@ onMounted(load)
 
 .example-image {
   width: 100%;
-  aspect-ratio: 1 / 1;
   border-radius: 8px;
+  cursor: zoom-in;
+}
+
+.example-image :deep(.el-image__inner) {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
   display: block;
 }
 
