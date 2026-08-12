@@ -44,5 +44,6 @@ application-dev.yml
 backend/src/main/resources/application-local.yml
 
 # ---- 其他 ----
+.worktrees/
 *.swp
 *~
