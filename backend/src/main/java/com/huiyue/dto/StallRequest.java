@@ -18,6 +18,9 @@ public class StallRequest {
     @NotBlank(message = "必须上传封面图")
     private String cover;
 
+    @NotBlank(message = "必须上传至少一张橱窗详情图")
+    private String images;
+
     @DecimalMin(value = "0.01", message = "价格必须大于 0")
     private BigDecimal price;
 

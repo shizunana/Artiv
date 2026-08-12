@@ -44,7 +44,7 @@
       </el-table>
     </div>
 
-    <el-dialog v-model="dialogVisible" title="创建橱窗" width="480px">
+    <el-dialog v-model="dialogVisible" title="创建橱窗" width="640px" append-to-body>
       <el-form label-position="top">
         <el-form-item label="服务名称" required>
           <el-input v-model="form.title" placeholder="如：国潮插画约稿（单张）" />
@@ -67,6 +67,20 @@
             </div>
           </el-upload>
           <span v-if="!form.cover" class="form-tip">* 必填，请上传封面图</span>
+        </el-form-item>
+        <el-form-item label="橱窗详情图">
+          <el-upload
+            list-type="picture-card"
+            :limit="9"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            :file-list="detailFileList"
+            :http-request="uploadDetailImage"
+            :on-remove="onDetailImageRemove"
+            :on-exceed="onDetailImageExceed"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+          <span v-if="form.images.length === 0" class="form-tip">* 必填，至少上传 1 张橱窗详情图</span>
         </el-form-item>
         <el-form-item label="价格（元）" required>
           <el-input-number v-model="form.price" :min="0" :precision="2" />
@@ -144,6 +158,7 @@ const form = reactive({
   stock: 3,
   deliverTime: '',
   cover: '',
+  images: [],
   phases: [
     { name: '初稿', percent: 40 },
     { name: '修改', percent: 30 },
@@ -152,6 +167,30 @@ const form = reactive({
   params: { colorMode: 'RGB', spec: '', format: [], subject: '' },
   description: '',
 })
+
+// 橱窗详情图：文件列表（UI）与 URL 列表（提交）
+const detailFileList = ref([])
+
+async function uploadDetailImage({ file, onSuccess, onError }) {
+  try {
+    const url = await uploadFile(file)
+    form.images.push(url)
+    onSuccess(url)
+  } catch {
+    ElMessage.error('详情图上传失败')
+    onError()
+  }
+}
+
+function onDetailImageRemove(file) {
+  const url = file.response || file.url
+  const idx = form.images.indexOf(url)
+  if (idx >= 0) form.images.splice(idx, 1)
+}
+
+function onDetailImageExceed() {
+  ElMessage.warning('最多上传 9 张详情图')
+}
 
 async function uploadCover({ file }) {
   try {
@@ -181,6 +220,10 @@ async function save() {
     ElMessage.warning('必须上传封面图')
     return
   }
+  if (!form.images.length) {
+    ElMessage.warning('必须上传至少一张橱窗详情图')
+    return
+  }
   if (!form.deliverTime) {
     ElMessage.warning('请填写截稿时间')
     return
@@ -197,12 +240,15 @@ async function save() {
   try {
     await createStall({
       ...form,
+      images: form.images.join(','),
       phases: JSON.stringify(form.phases),
       params: JSON.stringify(form.params),
     })
     ElMessage.success('创建成功')
     dialogVisible.value = false
     form.cover = ''
+    form.images = []
+    detailFileList.value = []
     load()
   } finally {
     submitting.value = false

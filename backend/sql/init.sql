@@ -61,6 +61,7 @@ CREATE TABLE `stall` (
   `title`       VARCHAR(100)  NOT NULL COMMENT '服务名称',
   `category`    VARCHAR(50)   DEFAULT NULL COMMENT '服务类型',
   `cover`       VARCHAR(255)  DEFAULT NULL COMMENT '封面图',
+  `images`      TEXT          DEFAULT NULL COMMENT '橱窗详情图，逗号分隔',
   `price`       DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '价格（元）',
   `stock`       INT           NOT NULL DEFAULT 0 COMMENT '库存',
   `deliver_time` VARCHAR(50)  DEFAULT NULL COMMENT '截稿时间/交付周期',

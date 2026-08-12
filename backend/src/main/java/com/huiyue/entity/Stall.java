@@ -27,6 +27,9 @@ public class Stall {
     /** 封面图 */
     private String cover;
 
+    /** 橱窗详情图，逗号分隔 */
+    private String images;
+
     private BigDecimal price;
 
     /** 库存 */

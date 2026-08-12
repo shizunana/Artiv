@@ -11,15 +11,29 @@
       <div class="detail-body">
         <!-- 左侧内容 -->
         <main class="detail-main">
+          <!-- 封面图（参考站 stall-detail__header） -->
+          <div class="stall-cover">
+            <el-image
+              v-if="stall.cover"
+              :src="stall.cover"
+              :preview-src-list="[stall.cover]"
+              preview-teleported
+              fit="cover"
+              class="cover-image"
+            />
+            <div v-else class="cover-placeholder">🛍️</div>
+          </div>
+
           <!-- 橱窗详情 -->
           <section id="detail" class="detail-section">
             <h2 class="detail-title"><span class="title-icon">🖼️</span>橱窗详情</h2>
             <!-- 示例图（参考站 stall-detail__example-images） -->
             <div class="example-images">
               <el-image
-                v-if="stall.cover"
-                :src="stall.cover"
-                :preview-src-list="[stall.cover]"
+                v-for="(img, i) in detailImages"
+                :key="i"
+                :src="img"
+                :preview-src-list="detailImages"
                 preview-teleported
                 fit="cover"
                 class="example-image"
@@ -128,6 +142,12 @@ const params = computed(() => {
   }
 })
 
+const detailImages = computed(() => {
+  const imgs = stall.value?.images
+  if (!imgs) return []
+  return String(imgs).split(',').filter(Boolean)
+})
+
 const formatText = computed(() => {
   const f = params.value.format
   return Array.isArray(f) ? f.join('、') : f || '-'
@@ -204,6 +224,29 @@ onMounted(load)
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.stall-cover {
+  background: #fff;
+  border: 1px solid var(--huiyue-border);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.cover-image {
+  width: 100%;
+  max-height: 380px;
+  border-radius: 8px;
+  display: block;
+}
+
+.cover-placeholder {
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  color: var(--huiyue-text-secondary);
 }
 
 .detail-section {
