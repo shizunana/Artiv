@@ -105,6 +105,15 @@
         </div>
       </el-tab-pane>
     </el-tabs>
+    <el-dialog v-model="orderPickerVisible" title="选择要发送的订单" width="620px">
+      <p class="order-picker__hint">当前会话双方共有 {{ relatedOrders.length }} 笔订单，请选择其中一笔发送状态卡片。</p>
+      <div class="order-picker">
+        <button v-for="order in relatedOrders" :key="order.id" type="button" class="order-picker__item" @click="sendSelectedOrder(order)">
+          <span><b>{{ order.stallTitle || `订单 #${order.id}` }}</b><small>订单 #{{ order.id }} · {{ formatDateTime(order.createdAt) }}</small></span>
+          <span><el-tag size="small">{{ orderStatusText(order.status) }}</el-tag><strong>¥{{ Number(order.amount || 0).toFixed(2) }}</strong></span>
+        </button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -128,6 +137,8 @@ const conversations = ref([])
 const notifications = ref([])
 const messages = ref([])
 const active = ref(null)
+const orderPickerVisible = ref(false)
+const relatedOrders = ref([])
 const draft = ref('')
 const loadingConversations = ref(false)
 const loadingNotifications = ref(false)
@@ -284,17 +295,26 @@ async function sendOrderCard() {
   if (!active.value) return
   try {
     const { getOrders } = await import('@/api/order')
-    const data = await getOrders({ page: 1, size: 30, source: 'stall' })
-    const related = (data.records || []).filter(order => [order.employerId, order.painterId].includes(active.value.withUserId))
-    if (!related.length) { ElMessage.info('与该用户暂无可发送的橱窗订单'); return }
-    const order = related[0]
-    const statusMap = ['待画师接单','进行中','待确认','已完成','已取消','退款/售后']
+    const data = await getOrders({ page: 1, size: 50 })
+    relatedOrders.value = (data.records || []).filter(order => [order.employerId, order.painterId].includes(active.value.withUserId))
+    if (!relatedOrders.value.length) { ElMessage.info('与该用户暂无可发送的订单'); return }
+    orderPickerVisible.value = true
+  } catch (error) { ElMessage.error(error.message || '订单列表加载失败') }
+}
+
+function orderStatusText(status) {
+  return ['待画师接单','进行中','待确认','已完成','已取消','退款/售后'][status] || '状态更新'
+}
+
+async function sendSelectedOrder(order) {
+  try {
     const message = await sendPrivateMessage({
       toId: active.value.withUserId,
       orderId: order.id,
-      content: `订单 #${order.id}｜${order.stallTitle || '橱窗订单'}｜${statusMap[order.status] || '状态更新'}｜¥${Number(order.amount || 0).toFixed(2)}`,
+      content: `订单 #${order.id}｜${order.stallTitle || '订单'}｜${orderStatusText(order.status)}｜¥${Number(order.amount || 0).toFixed(2)}`,
     })
     messages.value.push(message)
+    orderPickerVisible.value = false
     await scrollHistoryToBottom()
   } catch (error) { ElMessage.error(error.message || '订单状态发送失败') }
 }
@@ -416,6 +436,7 @@ onUnmounted(() => {
 .notification-card { display: flex; align-items: flex-start; gap: 14px; padding: 18px; margin-top: 12px; border: 1px solid var(--huiyue-border); border-radius: 10px; cursor: pointer; }
 .notification-card:hover { border-color: var(--huiyue-primary); }
 .notification-card.unread { background: #f5fbff; }
+.order-picker__hint { margin: 0 0 14px; color: var(--huiyue-text-secondary); }.order-picker { display: grid; gap: 10px; max-height: 430px; overflow-y: auto; }.order-picker__item { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 16px; border: 1px solid var(--huiyue-border); border-radius: 8px; background: #fff; text-align: left; cursor: pointer; }.order-picker__item:hover { border-color: var(--huiyue-primary); background: #f7fcff; }.order-picker__item>span { display: grid; gap: 6px; }.order-picker__item>span:last-child { justify-items: end; }.order-picker__item small { color: var(--huiyue-text-secondary); }.order-picker__item strong { color: #f59a23; }
 .notice-icon { flex: 0 0 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--huiyue-primary); font-weight: 700; }
 .notice-copy { flex: 1; min-width: 0; }
 .notice-copy b { color: var(--huiyue-text); }

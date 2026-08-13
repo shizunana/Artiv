@@ -2,11 +2,9 @@ package com.huiyue.dto;
 
 import lombok.Data;
 
-import java.util.List;
-
 @Data
 public class OrderStageSubmitRequest {
     private String content;
-    private List<String> previewImages;
-    private List<String> originalFiles;
+    /** 画师本次提交的唯一原图；服务端据此生成低分辨率水印预览。 */
+    private String image;
 }

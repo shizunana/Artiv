@@ -20,6 +20,7 @@ import com.huiyue.mapper.OrderStageMapper;
 import com.huiyue.mapper.StallMapper;
 import com.huiyue.mapper.UserMapper;
 import com.huiyue.service.MessageService;
+import com.huiyue.service.OrderPreviewService;
 import com.huiyue.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -29,7 +30,6 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -51,6 +51,7 @@ public class OrderServiceImpl implements OrderService {
     private final StallMapper stallMapper;
     private final UserMapper userMapper;
     private final MessageService messageService;
+    private final OrderPreviewService orderPreviewService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -179,7 +180,8 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderInfo requestAfterSale(Long id, Long userId, String reason) {
         OrderInfo order = requireParticipant(id, userId, true);
-        if (order.getStatus() != IN_PROGRESS && order.getStatus() != PENDING_REVIEW) flowError();
+        if (!userId.equals(order.getEmployerId())
+                || (order.getStatus() != IN_PROGRESS && order.getStatus() != PENDING_REVIEW)) flowError();
         order.setStatus(AFTER_SALE);
         order.setAfterSaleReason(requireReason(reason));
         save(order);
@@ -192,8 +194,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderInfo submitStage(Long id, Long userId, OrderStageSubmitRequest request) {
         OrderInfo order = requireParticipant(id, userId, true);
         if (!userId.equals(order.getPainterId()) || order.getStatus() != IN_PROGRESS || request == null) flowError();
-        List<String> previews = validateFiles(request.getPreviewImages(), true);
-        List<String> originals = validateFiles(request.getOriginalFiles(), true);
+        String original = validateFile(request.getImage());
+        String preview = orderPreviewService.createWatermarkedPreview(original);
         int stageIndex = order.getCurrentStage() == null ? 0 : order.getCurrentStage();
         List<Map<String, Object>> phases = phases(order);
         if (stageIndex < 0 || stageIndex >= phases.size()) flowError();
@@ -208,8 +210,8 @@ public class OrderServiceImpl implements OrderService {
         stage.setPercent(asPercent(phases.get(stageIndex).get("percent")));
         stage.setSubmitter(1);
         stage.setContent(trim(request.getContent(), 1000));
-        stage.setAttachments(String.join(",", previews));
-        stage.setOriginals(String.join(",", originals));
+        stage.setAttachments(preview);
+        stage.setOriginals(original);
         stage.setStatus(0);
         stage.setDeleted(0);
         LocalDateTime now = LocalDateTime.now();
@@ -238,6 +240,14 @@ public class OrderServiceImpl implements OrderService {
             order.setStatus(IN_PROGRESS);
             save(order);
             record(order, userId, "REVISION_REQUESTED", "企划方要求修改「" + stage.getName() + "」：" + normalizeReason(stage.getReviewRemark(), "请按沟通内容修改"), "ORDER_REVISION_REQUESTED");
+            return order;
+        }
+        if ("complete".equals(action)) {
+            stage.setStatus(1);
+            stage.setUpdatedAt(LocalDateTime.now());
+            orderStageMapper.updateById(stage);
+            settle(order);
+            record(order, userId, "COMPLETED", "企划方已确认当前交付并直接完成交易，后续创作阶段已跳过，款项已结算。", "ORDER_COMPLETED");
             return order;
         }
         if (!"approve".equals(action)) flowError();
@@ -339,11 +349,9 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private List<String> validateFiles(List<String> values, boolean required) {
-        if (values == null) values = new ArrayList<>();
-        List<String> result = values.stream().map(String::trim).filter(StringUtils::hasText).distinct().toList();
-        if ((required && result.isEmpty()) || result.size() > 9
-                || result.stream().anyMatch(value -> !value.startsWith("/uploads/"))) {
+    private String validateFile(String value) {
+        String result = trim(value, 500);
+        if (!StringUtils.hasText(result) || !result.startsWith("/uploads/")) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
         return result;

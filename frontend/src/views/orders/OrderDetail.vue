@@ -12,7 +12,8 @@
         <div class="action-row">
           <template v-if="isPainter && order.status === 0"><el-button type="primary" @click="accept">确认接单</el-button><el-button @click="reasonAction('reject')">拒绝接单</el-button></template>
           <el-button v-if="isEmployer && order.status === 0" type="danger" plain @click="reasonAction('cancel')">取消订单</el-button>
-          <el-button v-if="[1,2].includes(order.status)" type="danger" plain @click="reasonAction('afterSale')">申请退款/售后</el-button>
+          <el-button v-if="isEmployer && [1,2].includes(order.status)" type="danger" plain @click="reasonAction('afterSale')">申请退款/售后</el-button>
+          <el-button v-if="isPainter && [1,2,5].includes(order.status)" plain @click="contactService">联系客服（预留）</el-button>
           <el-button @click="goMessage">联系{{ isPainter ? '企划方' : '画师' }}</el-button>
           <el-button v-if="order.status === 3" disabled>去评价（接口预留）</el-button>
         </div>
@@ -26,10 +27,15 @@
         <div v-if="currentSubmission" class="submission-panel">
           <div class="submission-head"><b>{{ currentSubmission.name }} · 第 {{ currentSubmission.submissionNo }} 版</b><el-tag :type="stageTag(currentSubmission.status)">{{ stageText(currentSubmission.status) }}</el-tag></div>
           <p>{{ currentSubmission.content || '画师未填写交稿说明' }}</p>
-          <h4>预览图</h4>
+          <div v-if="currentSubmission.status === 2 && currentSubmission.reviewRemark" class="revision-note"><b>企划方修改意见</b><p>{{ currentSubmission.reviewRemark }}</p></div>
+          <h4>水印预览图</h4>
           <div class="image-grid"><el-image v-for="url in splitFiles(currentSubmission.attachments)" :key="url" :src="url" :preview-src-list="splitFiles(currentSubmission.attachments)" fit="cover" /></div>
           <template v-if="order.status === 3 && splitFiles(currentSubmission.originals).length"><h4>高清原图</h4><div class="original-list"><a v-for="url in splitFiles(currentSubmission.originals)" :key="url" :href="url" target="_blank" download>下载原图</a></div></template>
-          <div v-if="isEmployer && order.status === 2" class="review-actions"><el-button type="primary" @click="review('approve')">{{ finalStage ? '确认收货' : '通过并进入下一阶段' }}</el-button><el-button @click="review('revise')">要求修改</el-button></div>
+          <div v-if="isEmployer && order.status === 2" class="review-actions">
+            <el-button v-if="!finalStage" type="primary" @click="review('approve')">通过并进入下一阶段</el-button>
+            <el-button type="success" @click="review('complete')">确认当前交付并完成交易</el-button>
+            <el-button @click="review('revise')">要求修改</el-button>
+          </div>
         </div>
         <el-empty v-else description="当前阶段尚未交稿" :image-size="72" />
         <el-button v-if="isPainter && order.status === 1" type="primary" @click="submitVisible = true">交付当前阶段</el-button>
@@ -40,8 +46,9 @@
 
     <el-dialog v-model="submitVisible" title="交付当前阶段" width="600px">
       <el-input v-model="submitForm.content" type="textarea" :rows="3" maxlength="1000" placeholder="填写交稿说明" />
-      <h4>预览图（企划方验收前可见）</h4><el-upload :http-request="(o) => uploadInto(o, 'previewImages')" :show-file-list="true" multiple accept="image/*"><el-button>上传预览图</el-button></el-upload>
-      <h4>高清原图（最终确认后开放）</h4><el-upload :http-request="(o) => uploadInto(o, 'originalFiles')" :show-file-list="true" multiple accept="image/*"><el-button>上传高清原图</el-button></el-upload>
+      <h4>本阶段交付图</h4>
+      <p class="upload-tip">只需上传一张原图。系统会自动生成低分辨率水印预览供企划方验收；确认完成交易后才开放原图。</p>
+      <el-upload :http-request="uploadDelivery" :limit="1" :on-remove="clearDelivery" :show-file-list="true" accept="image/png,image/jpeg,image/gif,image/webp"><el-button>选择交付图片</el-button></el-upload>
       <template #footer><el-button @click="submitVisible=false">取消</el-button><el-button type="primary" :loading="acting" @click="submitStage">提交交稿</el-button></template>
     </el-dialog>
   </div>
@@ -59,7 +66,7 @@ import { useUserStore } from '@/stores/user'
 
 const route=useRoute(), router=useRouter(), userStore=useUserStore()
 const detail=ref(null), loading=ref(false), acting=ref(false), submitVisible=ref(false)
-const submitForm=reactive({content:'',previewImages:[],originalFiles:[]})
+const submitForm=reactive({content:'',image:''})
 const order=computed(()=>detail.value?.order || {})
 const isPainter=computed(()=>detail.value?.viewerRole==='painter')
 const isEmployer=computed(()=>detail.value?.viewerRole==='employer')
@@ -73,9 +80,11 @@ async function load(){loading.value=true;try{detail.value=await getOrder(route.p
 async function run(action,message){acting.value=true;try{await action();ElMessage.success(message);await userStore.fetchMe();await load()}finally{acting.value=false}}
 function accept(){run(()=>acceptOrder(order.value.id),'已确认接单')}
 async function reasonAction(type){try{const {value}=await ElMessageBox.prompt(type==='afterSale'?'请填写退款/售后原因':'可填写原因','确认操作',{inputType:'textarea',inputValidator:type==='afterSale'?(v)=>!!v?.trim()||'请填写原因':undefined});if(type==='reject')await run(()=>rejectOrder(order.value.id,value),'已拒绝订单');if(type==='cancel')await run(()=>cancelOrder(order.value.id,value),'订单已取消');if(type==='afterSale')await run(()=>requestOrderAfterSale(order.value.id,value),'售后申请已提交')}catch{}}
-async function uploadInto(options,key){try{const url=await uploadFile(options.file);submitForm[key].push(url);options.onSuccess(url)}catch(e){options.onError(e)}}
-function submitStage(){run(()=>submitOrderStage(order.value.id,submitForm),'阶段稿已提交').then(()=>{submitVisible.value=false;submitForm.content='';submitForm.previewImages=[];submitForm.originalFiles=[]})}
-async function review(action){let remark='';if(action==='revise'){try{const result=await ElMessageBox.prompt('请填写明确的修改意见','要求修改',{inputType:'textarea',inputValidator:(v)=>!!v?.trim()||'请填写修改意见'});remark=result.value}catch{return}}await run(()=>reviewOrderStage(order.value.id,{action,remark}),action==='approve'?(finalStage.value?'已确认收货':'阶段已通过'):'已要求修改')}
+async function uploadDelivery(options){try{submitForm.image=await uploadFile(options.file);options.onSuccess(submitForm.image)}catch(e){options.onError(e)}}
+function clearDelivery(){submitForm.image=''}
+async function submitStage(){if(!submitForm.image){ElMessage.warning('请先上传本阶段交付图片');return}await run(()=>submitOrderStage(order.value.id,submitForm),'阶段稿已提交');submitVisible.value=false;submitForm.content='';submitForm.image=''}
+async function review(action){let remark='';if(action==='revise'){try{const result=await ElMessageBox.prompt('请填写明确的修改意见','要求修改',{inputType:'textarea',inputValidator:(v)=>!!v?.trim()||'请填写修改意见'});remark=result.value}catch{return}}if(action==='complete'){try{await ElMessageBox.confirm('确认后将立即完成交易、把款项结算给画师，并开放当前交付原图。未执行的后续阶段会被跳过。','确认完成交易',{type:'warning',confirmButtonText:'确认收货并完成'})}catch{return}}await run(()=>reviewOrderStage(order.value.id,{action,remark}),action==='complete'?'交易已完成并结算':action==='approve'?'阶段已通过':'已要求修改')}
+function contactService(){ElMessage.info('联系客服接口已预留，后续接入客服工单')}
 function goMessage(){const otherId=isPainter.value?order.value.employerId:order.value.painterId;const nickname=isPainter.value?detail.value.employerName:detail.value.painterName;router.push({name:isPainter.value?'PainterMessages':'DashboardMessages',query:{withUserId:otherId,nickname,orderId:order.value.id}})}
 function splitFiles(value){return value?String(value).split(',').filter(Boolean):[]}
 function stageText(v){return ['待确认','已通过','需修改'][v]||'-'}
@@ -85,5 +94,5 @@ onMounted(load)
 </script>
 
 <style scoped>
-.order-detail{display:grid;gap:16px}.wb-card{background:#fff;border-radius:8px;padding:24px}.order-summary header{display:flex;justify-content:space-between;align-items:flex-start}.order-summary h2{margin:8px 0 5px}.order-summary p{margin:0;color:var(--huiyue-text-secondary)}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.summary-grid div{display:grid;gap:8px;padding:14px;background:var(--huiyue-section-alt);border-radius:7px}.summary-grid small{color:var(--huiyue-text-secondary)}.action-row{display:flex;flex-wrap:wrap;gap:10px}.phase-card h3,.timeline-card h3{margin:0 0 22px}.submission-panel{margin-top:24px;padding:18px;border:1px solid var(--huiyue-border);border-radius:8px}.submission-head{display:flex;justify-content:space-between}.image-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.image-grid :deep(.el-image){aspect-ratio:1;border-radius:6px;overflow:hidden}.original-list{display:flex;gap:12px}.original-list a{color:var(--huiyue-primary)}.review-actions{margin-top:18px}.phase-card>.el-button{margin-top:18px}@media(max-width:760px){.summary-grid{grid-template-columns:1fr 1fr}.image-grid{grid-template-columns:repeat(2,1fr)}}
+.order-detail{display:grid;gap:16px}.wb-card{background:#fff;border-radius:8px;padding:24px}.order-summary header{display:flex;justify-content:space-between;align-items:flex-start}.order-summary h2{margin:8px 0 5px}.order-summary p{margin:0;color:var(--huiyue-text-secondary)}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.summary-grid div{display:grid;gap:8px;padding:14px;background:var(--huiyue-section-alt);border-radius:7px}.summary-grid small{color:var(--huiyue-text-secondary)}.action-row{display:flex;flex-wrap:wrap;gap:10px}.phase-card h3,.timeline-card h3{margin:0 0 22px}.submission-panel{margin-top:24px;padding:18px;border:1px solid var(--huiyue-border);border-radius:8px}.submission-head{display:flex;justify-content:space-between}.revision-note{margin:14px 0;padding:12px 14px;border-left:3px solid #f56c6c;border-radius:4px;background:#fff4f4;color:#a83d3d}.revision-note p{margin:6px 0 0;white-space:pre-wrap}.upload-tip{color:var(--huiyue-text-secondary);line-height:1.65}.image-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.image-grid :deep(.el-image){aspect-ratio:1;border-radius:6px;overflow:hidden}.original-list{display:flex;gap:12px}.original-list a{color:var(--huiyue-primary)}.review-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.phase-card>.el-button{margin-top:18px}@media(max-width:760px){.summary-grid{grid-template-columns:1fr 1fr}.image-grid{grid-template-columns:repeat(2,1fr)}}
 </style>

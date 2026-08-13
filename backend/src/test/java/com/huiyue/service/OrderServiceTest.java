@@ -1,7 +1,10 @@
 package com.huiyue.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.huiyue.common.BusinessException;
+import com.huiyue.dto.OrderStageReviewRequest;
 import com.huiyue.entity.OrderInfo;
+import com.huiyue.entity.OrderStage;
 import com.huiyue.entity.Stall;
 import com.huiyue.entity.User;
 import com.huiyue.mapper.OrderEventMapper;
@@ -19,6 +22,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -36,6 +40,7 @@ class OrderServiceTest {
     @Mock private StallMapper stallMapper;
     @Mock private UserMapper userMapper;
     @Mock private MessageService messageService;
+    @Mock private OrderPreviewService orderPreviewService;
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
     @InjectMocks private OrderServiceImpl orderService;
 
@@ -97,6 +102,44 @@ class OrderServiceTest {
         verify(messageService).createOrderEventMessage(eq(result), eq(2L), eq("ORDER_ACCEPTED"), any());
     }
 
+    @Test
+    void painterCannotRequestAfterSale() {
+        OrderInfo order = activeOrder(1);
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
+
+        assertThrows(BusinessException.class,
+                () -> orderService.requestAfterSale(77L, 2L, "画师申请售后"));
+    }
+
+    @Test
+    void employerCanCompleteFromFirstSubmittedStageAndPainterIsPaidImmediately() {
+        OrderInfo order = activeOrder(2);
+        order.setAmount(new BigDecimal("288.00"));
+        order.setCurrentStage(0);
+        order.setPhaseSnapshot("[{\"name\":\"初稿\",\"percent\":40},{\"name\":\"终稿\",\"percent\":60}]");
+        OrderStage stage = new OrderStage();
+        stage.setId(8L);
+        stage.setOrderId(77L);
+        stage.setStageIndex(0);
+        stage.setSubmissionNo(1);
+        stage.setName("初稿");
+        stage.setStatus(0);
+        User painter = activeUser(2L, new BigDecimal("10.00"));
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
+        when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(painter);
+        OrderStageReviewRequest request = new OrderStageReviewRequest();
+        request.setAction("complete");
+
+        OrderInfo result = orderService.reviewStage(77L, 15L, request);
+
+        assertEquals(3, result.getStatus());
+        assertEquals(new BigDecimal("298.00"), painter.getBalance());
+        assertEquals(1, stage.getStatus());
+        verify(userMapper).updateById(painter);
+        verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"), any());
+    }
+
     private Stall activeStall() {
         Stall stall = new Stall();
         stall.setId(9L);
@@ -119,5 +162,16 @@ class OrderServiceTest {
         user.setStatus(0);
         user.setDeleted(0);
         return user;
+    }
+
+    private OrderInfo activeOrder(int status) {
+        OrderInfo order = new OrderInfo();
+        order.setId(77L);
+        order.setEmployerId(15L);
+        order.setPainterId(2L);
+        order.setStatus(status);
+        order.setCurrentStage(0);
+        order.setDeleted(0);
+        return order;
     }
 }
