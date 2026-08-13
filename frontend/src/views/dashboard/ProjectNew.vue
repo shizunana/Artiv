@@ -234,12 +234,21 @@ const form = reactive({
 })
 
 const imageFileList = ref([])
+const uploadedImageByUid = new Map()
 const subjectSummary = computed(() => form.subjects.length ? form.subjects.join(' / ') : '不限')
 const formatSummary = computed(() => form.requirements.formats.length ? form.requirements.formats.join(' / ') : '-')
+
+function uploadedImageUrl(file) {
+  const response = file?.response
+  if (typeof response === 'string') return response
+  return response?.url || file?.url || uploadedImageByUid.get(file?.uid) || ''
+}
 
 async function doUpload({ file, onSuccess, onError }) {
   try {
     const url = await uploadFile(file)
+    uploadedImageByUid.set(file.uid, url)
+    syncImageOrder(null, imageFileList.value)
     onSuccess(url)
   } catch (error) {
     ElMessage.error('图片上传失败')
@@ -249,14 +258,15 @@ async function doUpload({ file, onSuccess, onError }) {
 
 function syncImageOrder(_file, fileList) {
   imageFileList.value = fileList
-  form.images = fileList.map((item) => item.response).filter(Boolean)
+  form.images = fileList.map(uploadedImageUrl).filter(Boolean)
 }
 
 function onImageUploadSuccess(_response, _file, fileList) {
   syncImageOrder(null, fileList)
 }
 
-function onImageRemove(_file, fileList) {
+function onImageRemove(file, fileList) {
+  uploadedImageByUid.delete(file?.uid)
   syncImageOrder(null, fileList)
 }
 
