@@ -90,7 +90,7 @@
               </div>
 
               <button class="applicant-identity" type="button" @click="openPainterProfile(item.painter?.id)">
-                <el-avatar :size="66" :src="item.painter?.avatar">{{ painterName(item).slice(0, 1) }}</el-avatar>
+                <el-avatar class="applicant-avatar" :size="66" :src="item.painter?.avatar">{{ painterName(item).slice(0, 1) }}</el-avatar>
                 <div class="applicant-copy">
                   <h3>{{ painterName(item) }}</h3>
                   <p>{{ painterBio(item) }}</p>
@@ -426,6 +426,8 @@ onMounted(loadProject)
 .applicant-list { padding: 4px 28px 28px; }
 .applicant-card { position: relative; display: grid; grid-template-columns: minmax(250px, 1.15fr) 110px minmax(300px, 1.5fr); gap: 20px; align-items: center; height: 164px; margin-top: 24px; padding: 42px 20px 18px; overflow: hidden; border: 1px solid #e1e5ea; border-radius: 4px; background: #fff; }
 .applicant-identity { display: flex; gap: 15px; align-items: center; min-width: 0; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+.applicant-avatar { flex: 0 0 66px; width: 66px !important; min-width: 66px; max-width: 66px; height: 66px !important; min-height: 66px; max-height: 66px; overflow: hidden; }
+.applicant-avatar :deep(img) { width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .applicant-copy { min-width: 0; }
 .applicant-copy h3 { margin: 0 0 7px; color: #3e4650; font-size: 16px; }
 .applicant-copy p { display: -webkit-box; min-height: 42px; overflow: hidden; margin: 0; color: #777; font-size: 13px; line-height: 21px; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -434,8 +436,8 @@ onMounted(loadProject)
 .quote-block span, .quote-block strong { display: block; }
 .quote-block span { margin-bottom: 6px; color: #999; font-size: 12px; }
 .quote-block strong { color: #ff7043; font-size: 15px; }
-.applicant-works { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.work-thumbnail { width: 100%; height: 80px; border-radius: 3px; background: #f1f3f5; }
+.applicant-works { display: grid; grid-template-columns: repeat(4, 80px); justify-content: end; gap: 8px; }
+.work-thumbnail { width: 80px; height: 80px; border-radius: 3px; background: #f1f3f5; }
 .work-placeholder { display: grid; place-items: center; color: #a5acb5; font-size: 12px; }
 .applicant-actions { position: absolute; top: 10px; right: 12px; z-index: 1; display: flex; gap: 6px; }
 .applicant-actions :deep(.el-button) { padding: 6px 10px; }
@@ -457,6 +459,7 @@ onMounted(loadProject)
   .applicant-heading, .applicant-list { padding-left: 18px; padding-right: 18px; }
   .applicant-card { grid-template-columns: 1fr; padding-top: 52px; }
   .quote-block { padding: 12px 0 0; border-top: 1px solid #edf0f3; border-left: 0; }
-  .applicant-works { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .applicant-works { grid-template-columns: repeat(4, minmax(0, 1fr)); justify-content: stretch; }
+  .work-thumbnail { width: 100%; }
 }
 </style>
