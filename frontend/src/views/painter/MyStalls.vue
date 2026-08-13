@@ -42,7 +42,21 @@
             <el-button link type="primary" size="small" @click="toggle(row)">
               {{ row.status === 1 ? '下架' : '上架' }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row.id)">删除</el-button>
+            <el-tooltip
+              :disabled="!row.hasUnfinishedOrders"
+              content="该橱窗存在未完成订单，暂时无法删除"
+              placement="top"
+            >
+              <span>
+                <el-button
+                  link
+                  type="danger"
+                  size="small"
+                  :disabled="row.hasUnfinishedOrders"
+                  @click="remove(row.id)"
+                >删除</el-button>
+              </span>
+            </el-tooltip>
           </template>
         </el-table-column>
       </el-table>

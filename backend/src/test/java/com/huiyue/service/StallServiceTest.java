@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -63,6 +64,21 @@ class StallServiceTest {
     }
 
     @Test
+    void deleteRejectsStallWithUnfinishedOrders() {
+        Stall stall = ownedStall();
+        when(stallMapper.selectById(27L)).thenReturn(stall);
+        when(orderInfoMapper.selectCount(any())).thenReturn(1L);
+
+        com.huiyue.common.BusinessException exception = assertThrows(
+                com.huiyue.common.BusinessException.class,
+                () -> stallService.delete(27L, 2L));
+
+        assertEquals("该橱窗存在未完成订单，暂时无法删除", exception.getMessage());
+        verify(stallMapper, never()).updateById(any(Stall.class));
+        verify(stallMapper, never()).deleteById(any(Long.class));
+    }
+
+    @Test
     void ownerCanViewOfflineOutOfStockStall() {
         Stall stall = ownedStall();
         stall.setStatus(0);
@@ -82,6 +98,19 @@ class StallServiceTest {
 
         assertThrows(com.huiyue.common.BusinessException.class,
                 () -> stallService.getById(27L, null));
+    }
+
+    @Test
+    void historicalBuyerCanViewOfflineOutOfStockStall() {
+        Stall stall = ownedStall();
+        stall.setStatus(0);
+        stall.setStock(0);
+        when(stallMapper.selectById(27L)).thenReturn(stall);
+        when(orderInfoMapper.selectCount(any())).thenReturn(1L);
+
+        Stall result = stallService.getById(27L, 9L);
+
+        assertEquals(stall, result);
     }
 
     @Test

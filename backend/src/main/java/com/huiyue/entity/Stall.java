@@ -59,4 +59,8 @@ public class Stall {
     /** 画师昵称（非表字段，列表/详情联查填充） */
     @TableField(exist = false)
     private String painterName;
+
+    /** 是否存在尚未结束的关联订单（非表字段，仅用于“我的橱窗”操作提示） */
+    @TableField(exist = false)
+    private Boolean hasUnfinishedOrders;
 }

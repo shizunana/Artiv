@@ -30,6 +30,9 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class StallServiceImpl implements StallService {
 
+    private static final int ORDER_COMPLETED = 3;
+    private static final int ORDER_CANCELLED = 4;
+
     private final StallMapper stallMapper;
     private final UserMapper userMapper;
     private final OrderInfoMapper orderInfoMapper;
@@ -74,7 +77,9 @@ public class StallServiceImpl implements StallService {
                 .eq(Stall::getDeleted, 0)
                 .eq(Stall::getPainterId, painterId)
                 .orderByDesc(Stall::getCreatedAt);
-        return stallMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<Stall> result = stallMapper.selectPage(new Page<>(page, size), wrapper);
+        fillUnfinishedOrderFlags(result.getRecords());
+        return result;
     }
 
     @Override
@@ -108,6 +113,23 @@ public class StallServiceImpl implements StallService {
                 }
             }
         }
+    }
+
+    private void fillUnfinishedOrderFlags(List<Stall> stalls) {
+        if (stalls == null || stalls.isEmpty()) {
+            return;
+        }
+        for (Stall stall : stalls) {
+            stall.setHasUnfinishedOrders(hasUnfinishedOrders(stall.getId()));
+        }
+    }
+
+    private boolean hasUnfinishedOrders(Long stallId) {
+        return orderInfoMapper.selectCount(
+                new LambdaQueryWrapper<OrderInfo>()
+                        .eq(OrderInfo::getDeleted, 0)
+                        .eq(OrderInfo::getStallId, stallId)
+                        .notIn(OrderInfo::getStatus, ORDER_COMPLETED, ORDER_CANCELLED)) > 0;
     }
 
     @Override
@@ -188,6 +210,10 @@ public class StallServiceImpl implements StallService {
         Stall exist = requireExisting(id);
         if (!exist.getPainterId().equals(painterId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        if (hasUnfinishedOrders(id)) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(),
+                    "该橱窗存在未完成订单，暂时无法删除");
         }
         exist.setStatus(0);
         exist.setUpdatedAt(LocalDateTime.now());
