@@ -12,6 +12,26 @@ export function createOrder(data) {
   return request.post('/orders', data)
 }
 
-export function updateOrderStatus(id, status) {
-  return request.put(`/orders/${id}/status`, { status })
+export function acceptOrder(id) {
+  return request.post(`/orders/${id}/accept`)
+}
+
+export function rejectOrder(id, reason) {
+  return request.post(`/orders/${id}/reject`, { reason })
+}
+
+export function cancelOrder(id, reason) {
+  return request.post(`/orders/${id}/cancel`, { reason })
+}
+
+export function requestOrderAfterSale(id, reason) {
+  return request.post(`/orders/${id}/after-sale`, { reason })
+}
+
+export function submitOrderStage(id, data) {
+  return request.post(`/orders/${id}/stages`, data)
+}
+
+export function reviewOrderStage(id, data) {
+  return request.put(`/orders/${id}/stages/current`, data)
 }

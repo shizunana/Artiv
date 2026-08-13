@@ -31,7 +31,7 @@
                 <el-empty v-if="!messages.length" description="开始沟通吧" :image-size="72" />
                 <template v-for="msg in messages" :key="msg.id">
                   <article v-if="isBusinessSystemMessage(msg)" class="business-system-message">
-                    <span class="business-system-message__badge">系统提示</span>
+                    <span class="business-system-message__badge">{{ msg.subtype === 'PRIVATE_ORDER_CARD' ? '订单状态' : '系统提示' }}</span>
                     <p>{{ msg.content }}</p>
                     <div class="business-system-message__footer">
                       <button type="button" @click="viewMessageDetail(msg)">查看详情</button>
@@ -70,6 +70,7 @@
                   <el-tooltip content="文件功能预留中" placement="top">
                     <span><el-button text disabled>📎 文件</el-button></span>
                   </el-tooltip>
+                  <el-button text class="chat-extension-bar__item" @click="sendOrderCard">🧾 发送订单状态</el-button>
                   <span class="chat-extension-bar__hint">单次最多 9 张，每张不超过 5 MB</span>
                 </div>
                 <div v-if="pendingImages.length" class="image-queue">
@@ -265,12 +266,37 @@ async function scrollHistoryToBottom() {
 }
 
 function isBusinessSystemMessage(message) {
-  return ['APPLICATION_CONVERSATION_STARTED', 'STALL_PURCHASE_CONVERSATION_STARTED'].includes(message.subtype)
+  return message.subtype === 'APPLICATION_CONVERSATION_STARTED'
+    || message.subtype === 'STALL_PURCHASE_CONVERSATION_STARTED'
+    || message.subtype === 'PRIVATE_ORDER_CARD'
+    || message.subtype?.startsWith('ORDER_')
 }
 
 function viewMessageDetail(message) {
-  // TODO: 后续订单、企划详情页确定后，按 message.orderId / message.projectId 接入跳转。
-  void message
+  if (message.orderId) {
+    router.push({ name: userStore.workbenchRole === 2 ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id: message.orderId } })
+  } else if (message.projectId) {
+    router.push({ name: 'ProjectDetail', params: { id: message.projectId } })
+  }
+}
+
+async function sendOrderCard() {
+  if (!active.value) return
+  try {
+    const { getOrders } = await import('@/api/order')
+    const data = await getOrders({ page: 1, size: 30, source: 'stall' })
+    const related = (data.records || []).filter(order => [order.employerId, order.painterId].includes(active.value.withUserId))
+    if (!related.length) { ElMessage.info('与该用户暂无可发送的橱窗订单'); return }
+    const order = related[0]
+    const statusMap = ['待画师接单','进行中','待确认','已完成','已取消','退款/售后']
+    const message = await sendPrivateMessage({
+      toId: active.value.withUserId,
+      orderId: order.id,
+      content: `订单 #${order.id}｜${order.stallTitle || '橱窗订单'}｜${statusMap[order.status] || '状态更新'}｜¥${Number(order.amount || 0).toFixed(2)}`,
+    })
+    messages.value.push(message)
+    await scrollHistoryToBottom()
+  } catch (error) { ElMessage.error(error.message || '订单状态发送失败') }
 }
 
 async function readAll() {
@@ -283,17 +309,20 @@ function notificationTitle(notice) {
   if (notice.subtype === 'APPLICATION_SELECTED') return '应征已被选定'
   if (notice.subtype === 'STALL_PURCHASED') return '已购买橱窗'
   if (notice.subtype === 'STALL_PURCHASE_RECEIVED') return '收到橱窗订单'
+  if (notice.subtype?.startsWith('ORDER_')) return '订单状态更新'
   return '系统通知'
 }
 
 function notificationAction(notice) {
-  return notice.subtype?.startsWith('APPLICATION') ? '查看应征' : notice.subtype?.startsWith('STALL') ? '查看消息' : '查看'
+  return notice.subtype?.startsWith('APPLICATION') ? '查看应征' : notice.orderId ? '查看订单' : notice.subtype?.startsWith('STALL') ? '查看消息' : '查看'
 }
 
 async function openNotification(notice) {
   if (!notice.readAt) await markRead(notice.id)
   await messageStore.fetchUnreadCount()
-  if (notice.subtype === 'APPLICATION_CREATED' && notice.projectId) {
+  if (notice.orderId) {
+    router.push({ name: userStore.workbenchRole === 2 ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id: notice.orderId } })
+  } else if (notice.subtype === 'APPLICATION_CREATED' && notice.projectId) {
     router.push({ name: 'ProjectApplications', params: { id: notice.projectId } })
   } else if (notice.subtype?.startsWith('APPLICATION') || notice.subtype?.startsWith('STALL')) {
     activeTab.value = 'conversations'

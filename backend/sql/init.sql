@@ -153,8 +153,16 @@ CREATE TABLE `order_info` (
   `employer_id` BIGINT        NOT NULL COMMENT '企划方用户ID',
   `painter_id`  BIGINT        NOT NULL COMMENT '画师用户ID',
   `amount`      DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '成交金额（元）',
+  `stall_title` VARCHAR(100) DEFAULT NULL COMMENT '橱窗标题快照',
+  `stall_cover` VARCHAR(255) DEFAULT NULL COMMENT '橱窗封面快照',
+  `phase_snapshot` TEXT DEFAULT NULL COMMENT '创作阶段 JSON 快照',
   `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0 待接单、1 进行中、2 待验收、3 已完成、4 已取消、5 争议中',
   `current_stage` TINYINT     NOT NULL DEFAULT 0 COMMENT '当前阶段：0 初稿、1 修改、2 终稿、3 交付',
+  `cancel_reason` VARCHAR(500) DEFAULT NULL COMMENT '取消/拒单原因',
+  `after_sale_reason` VARCHAR(500) DEFAULT NULL COMMENT '售后申请原因',
+  `accepted_at` DATETIME DEFAULT NULL COMMENT '接单时间',
+  `completed_at` DATETIME DEFAULT NULL COMMENT '完成结算时间',
+  `cancelled_at` DATETIME DEFAULT NULL COMMENT '取消时间',
   `deleted`     TINYINT       NOT NULL DEFAULT 0 COMMENT '逻辑删除',
   `created_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -172,17 +180,34 @@ CREATE TABLE `order_stage` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
   `order_id`    BIGINT       NOT NULL COMMENT '订单ID',
   `name`        VARCHAR(50)  NOT NULL DEFAULT '' COMMENT '阶段名称（初稿/修改/终稿/交付）',
+  `stage_index` TINYINT      NOT NULL DEFAULT 0 COMMENT '阶段序号',
+  `submission_no` INT        NOT NULL DEFAULT 1 COMMENT '该阶段提交版本',
   `percent`     TINYINT      NOT NULL DEFAULT 0 COMMENT '阶段占比（%）',
   `submitter`   TINYINT      NOT NULL DEFAULT 1 COMMENT '提交方：1 画师、2 企划方',
   `content`     TEXT         DEFAULT NULL COMMENT '提交内容 / 修改意见',
   `attachments` TEXT         DEFAULT NULL COMMENT '附件地址，逗号分隔',
+  `originals`   TEXT         DEFAULT NULL COMMENT '高清原图地址，逗号分隔',
   `status`      TINYINT      NOT NULL DEFAULT 0 COMMENT '状态：0 待确认、1 已通过、2 需修改',
+  `review_remark` VARCHAR(500) DEFAULT NULL COMMENT '验收意见',
+  `reviewed_at` DATETIME DEFAULT NULL COMMENT '验收时间',
   `deleted`     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_order` (`order_id`)
 ) ENGINE = InnoDB COMMENT = '订单阶段表';
+
+DROP TABLE IF EXISTS `order_event`;
+CREATE TABLE `order_event` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `order_id` BIGINT NOT NULL,
+  `actor_id` BIGINT DEFAULT NULL,
+  `event_type` VARCHAR(50) NOT NULL,
+  `content` VARCHAR(500) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_event` (`order_id`, `created_at`)
+) ENGINE = InnoDB COMMENT = '订单操作时间线';
 
 -- -----------------------------------------------------
 -- 消息表

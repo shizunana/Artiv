@@ -21,6 +21,10 @@ public class OrderStage {
 
     private String name;
 
+    private Integer stageIndex;
+
+    private Integer submissionNo;
+
     /** 阶段占比（%） */
     private Integer percent;
 
@@ -30,6 +34,13 @@ public class OrderStage {
     private String content;
 
     private String attachments;
+
+    /** 高清原图地址，只有最终确认收货后才向企划方返回。 */
+    private String originals;
+
+    private String reviewRemark;
+
+    private LocalDateTime reviewedAt;
 
     /** 状态：0 待确认、1 已通过、2 需修改 */
     private Integer status;

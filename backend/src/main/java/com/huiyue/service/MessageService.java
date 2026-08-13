@@ -26,4 +26,6 @@ public interface MessageService {
     String createProjectOrderIntent(Long employerId, Long projectId, Long painterId);
 
     void createStallPurchaseCommunication(OrderInfo order, Stall stall);
+
+    void createOrderEventMessage(OrderInfo order, Long actorId, String subtype, String content);
 }

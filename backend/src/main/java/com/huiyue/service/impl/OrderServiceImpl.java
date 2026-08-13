@@ -2,43 +2,294 @@ package com.huiyue.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
+import com.huiyue.dto.OrderDetailResponse;
+import com.huiyue.dto.OrderStageReviewRequest;
+import com.huiyue.dto.OrderStageSubmitRequest;
+import com.huiyue.entity.OrderEvent;
 import com.huiyue.entity.OrderInfo;
+import com.huiyue.entity.OrderStage;
 import com.huiyue.entity.Stall;
 import com.huiyue.entity.User;
+import com.huiyue.mapper.OrderEventMapper;
 import com.huiyue.mapper.OrderInfoMapper;
+import com.huiyue.mapper.OrderStageMapper;
 import com.huiyue.mapper.StallMapper;
 import com.huiyue.mapper.UserMapper;
 import com.huiyue.service.MessageService;
 import com.huiyue.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
+    private static final int PENDING = 0;
+    private static final int IN_PROGRESS = 1;
+    private static final int PENDING_REVIEW = 2;
+    private static final int COMPLETED = 3;
+    private static final int CANCELLED = 4;
+    private static final int AFTER_SALE = 5;
+    private static final String DEFAULT_PHASES = "[{\"name\":\"初稿\",\"percent\":30},{\"name\":\"修改\",\"percent\":30},{\"name\":\"终稿\",\"percent\":30},{\"name\":\"交付\",\"percent\":10}]";
+
     private final OrderInfoMapper orderInfoMapper;
+    private final OrderStageMapper orderStageMapper;
+    private final OrderEventMapper orderEventMapper;
     private final StallMapper stallMapper;
     private final UserMapper userMapper;
     private final MessageService messageService;
+    private final ObjectMapper objectMapper;
 
     @Override
-    public Page<OrderInfo> listMine(long page, long size, Long userId) {
+    public Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup) {
         LambdaQueryWrapper<OrderInfo> wrapper = new LambdaQueryWrapper<OrderInfo>()
                 .eq(OrderInfo::getDeleted, 0)
-                .and(w -> w.eq(OrderInfo::getEmployerId, userId).or().eq(OrderInfo::getPainterId, userId))
-                .orderByDesc(OrderInfo::getCreatedAt);
-        return orderInfoMapper.selectPage(new Page<>(page, size), wrapper);
+                .and(w -> w.eq(OrderInfo::getEmployerId, userId).or().eq(OrderInfo::getPainterId, userId));
+        if ("stall".equalsIgnoreCase(source)) {
+            wrapper.isNotNull(OrderInfo::getStallId);
+        } else if ("project".equalsIgnoreCase(source)) {
+            wrapper.isNotNull(OrderInfo::getProjectId);
+        }
+        if ("delivery".equalsIgnoreCase(statusGroup)) {
+            wrapper.in(OrderInfo::getStatus, PENDING, IN_PROGRESS, PENDING_REVIEW);
+        } else if ("review".equalsIgnoreCase(statusGroup)) {
+            wrapper.eq(OrderInfo::getStatus, COMPLETED);
+        } else if ("afterSale".equalsIgnoreCase(statusGroup)) {
+            wrapper.in(OrderInfo::getStatus, CANCELLED, AFTER_SALE);
+        }
+        wrapper.orderByDesc(OrderInfo::getCreatedAt);
+        return orderInfoMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 50)), wrapper);
     }
 
     @Override
-    public OrderInfo getById(Long id, Long userId) {
-        OrderInfo order = orderInfoMapper.selectById(id);
+    public OrderDetailResponse getDetail(Long id, Long userId) {
+        OrderInfo order = requireParticipant(id, userId, false);
+        OrderDetailResponse response = new OrderDetailResponse();
+        response.setOrder(order);
+        response.setViewerRole(userId.equals(order.getEmployerId()) ? "employer" : "painter");
+        User employer = userMapper.selectById(order.getEmployerId());
+        User painter = userMapper.selectById(order.getPainterId());
+        response.setEmployerName(displayName(employer));
+        response.setPainterName(displayName(painter));
+        List<OrderStage> stages = orderStageMapper.selectList(new LambdaQueryWrapper<OrderStage>()
+                .eq(OrderStage::getOrderId, id).eq(OrderStage::getDeleted, 0)
+                .orderByAsc(OrderStage::getStageIndex).orderByAsc(OrderStage::getSubmissionNo));
+        if (userId.equals(order.getEmployerId()) && order.getStatus() != COMPLETED) {
+            stages = stages.stream().map(this::withoutOriginals).toList();
+        }
+        response.setSubmissions(stages);
+        response.setEvents(orderEventMapper.selectList(new LambdaQueryWrapper<OrderEvent>()
+                .eq(OrderEvent::getOrderId, id).orderByAsc(OrderEvent::getCreatedAt)));
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo createStallPurchase(Long stallId, Long employerId) {
+        Stall stall = stallMapper.selectByIdForUpdate(stallId);
+        if (stall == null || !Integer.valueOf(0).equals(stall.getDeleted())
+                || !Integer.valueOf(1).equals(stall.getStatus())
+                || stall.getStock() == null || stall.getStock() <= 0
+                || employerId.equals(stall.getPainterId()) || stall.getPrice() == null
+                || stall.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        User employer = userMapper.selectByIdForUpdate(employerId);
+        User painter = userMapper.selectById(stall.getPainterId());
+        if (!isActive(employer) || !isActive(painter)) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        BigDecimal balance = employer.getBalance() == null ? BigDecimal.ZERO : employer.getBalance();
+        if (balance.compareTo(stall.getPrice()) < 0) {
+            throw new BusinessException(ResultCode.BUDGET_NOT_ENOUGH);
+        }
+        employer.setBalance(balance.subtract(stall.getPrice()));
+        employer.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(employer);
+        stall.setStock(stall.getStock() - 1);
+        stall.setUpdatedAt(LocalDateTime.now());
+        stallMapper.updateById(stall);
+
+        LocalDateTime now = LocalDateTime.now();
+        OrderInfo order = new OrderInfo();
+        order.setStallId(stallId);
+        order.setEmployerId(employerId);
+        order.setPainterId(stall.getPainterId());
+        order.setAmount(stall.getPrice());
+        order.setStallTitle(stall.getTitle());
+        order.setStallCover(stall.getCover());
+        order.setPhaseSnapshot(StringUtils.hasText(stall.getPhases()) ? stall.getPhases() : DEFAULT_PHASES);
+        order.setStatus(PENDING);
+        order.setCurrentStage(0);
+        order.setDeleted(0);
+        order.setCreatedAt(now);
+        order.setUpdatedAt(now);
+        orderInfoMapper.insert(order);
+        record(order, employerId, "CREATED", "企划方已下单，金额已托管并等待画师接单。", "ORDER_CREATED");
+        messageService.createStallPurchaseCommunication(order, stall);
+        return order;
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo accept(Long id, Long userId) {
+        OrderInfo order = requireParticipant(id, userId, true);
+        if (!userId.equals(order.getPainterId()) || order.getStatus() != PENDING) flowError();
+        User painter = userMapper.selectById(order.getPainterId());
+        if (!isActive(painter) || !Integer.valueOf(2).equals(painter.getCertStatus())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        order.setStatus(IN_PROGRESS);
+        order.setAcceptedAt(LocalDateTime.now());
+        save(order);
+        record(order, userId, "ACCEPTED", "画师已确认接单，订单进入创作阶段。", "ORDER_ACCEPTED");
+        return order;
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo reject(Long id, Long userId, String reason) {
+        OrderInfo order = requireParticipant(id, userId, true);
+        if (!userId.equals(order.getPainterId()) || order.getStatus() != PENDING) flowError();
+        return cancelAndRefund(order, userId, normalizeReason(reason, "画师拒绝接单"), "ORDER_REJECTED");
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo cancel(Long id, Long userId, String reason) {
+        OrderInfo order = requireParticipant(id, userId, true);
+        if (!userId.equals(order.getEmployerId()) || order.getStatus() != PENDING) flowError();
+        return cancelAndRefund(order, userId, normalizeReason(reason, "企划方取消订单"), "ORDER_CANCELLED");
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo requestAfterSale(Long id, Long userId, String reason) {
+        OrderInfo order = requireParticipant(id, userId, true);
+        if (order.getStatus() != IN_PROGRESS && order.getStatus() != PENDING_REVIEW) flowError();
+        order.setStatus(AFTER_SALE);
+        order.setAfterSaleReason(requireReason(reason));
+        save(order);
+        record(order, userId, "AFTER_SALE", "订单已申请退款/售后：" + order.getAfterSaleReason(), "ORDER_AFTER_SALE");
+        return order;
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo submitStage(Long id, Long userId, OrderStageSubmitRequest request) {
+        OrderInfo order = requireParticipant(id, userId, true);
+        if (!userId.equals(order.getPainterId()) || order.getStatus() != IN_PROGRESS || request == null) flowError();
+        List<String> previews = validateFiles(request.getPreviewImages(), true);
+        List<String> originals = validateFiles(request.getOriginalFiles(), true);
+        int stageIndex = order.getCurrentStage() == null ? 0 : order.getCurrentStage();
+        List<Map<String, Object>> phases = phases(order);
+        if (stageIndex < 0 || stageIndex >= phases.size()) flowError();
+        long count = orderStageMapper.selectCount(new LambdaQueryWrapper<OrderStage>()
+                .eq(OrderStage::getOrderId, id).eq(OrderStage::getStageIndex, stageIndex)
+                .eq(OrderStage::getDeleted, 0));
+        OrderStage stage = new OrderStage();
+        stage.setOrderId(id);
+        stage.setName(String.valueOf(phases.get(stageIndex).getOrDefault("name", "阶段 " + (stageIndex + 1))));
+        stage.setStageIndex(stageIndex);
+        stage.setSubmissionNo((int) count + 1);
+        stage.setPercent(asPercent(phases.get(stageIndex).get("percent")));
+        stage.setSubmitter(1);
+        stage.setContent(trim(request.getContent(), 1000));
+        stage.setAttachments(String.join(",", previews));
+        stage.setOriginals(String.join(",", originals));
+        stage.setStatus(0);
+        stage.setDeleted(0);
+        LocalDateTime now = LocalDateTime.now();
+        stage.setCreatedAt(now);
+        stage.setUpdatedAt(now);
+        orderStageMapper.insert(stage);
+        order.setStatus(PENDING_REVIEW);
+        save(order);
+        record(order, userId, "STAGE_SUBMITTED", "画师已提交「" + stage.getName() + "」第 " + stage.getSubmissionNo() + " 版，请企划方验收。", "ORDER_STAGE_SUBMITTED");
+        return order;
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo reviewStage(Long id, Long userId, OrderStageReviewRequest request) {
+        OrderInfo order = requireParticipant(id, userId, true);
+        if (!userId.equals(order.getEmployerId()) || order.getStatus() != PENDING_REVIEW || request == null) flowError();
+        OrderStage stage = latestCurrentSubmission(order);
+        String action = request.getAction() == null ? "" : request.getAction().trim();
+        stage.setReviewRemark(trim(request.getRemark(), 500));
+        stage.setReviewedAt(LocalDateTime.now());
+        if ("revise".equals(action)) {
+            stage.setStatus(2);
+            stage.setUpdatedAt(LocalDateTime.now());
+            orderStageMapper.updateById(stage);
+            order.setStatus(IN_PROGRESS);
+            save(order);
+            record(order, userId, "REVISION_REQUESTED", "企划方要求修改「" + stage.getName() + "」：" + normalizeReason(stage.getReviewRemark(), "请按沟通内容修改"), "ORDER_REVISION_REQUESTED");
+            return order;
+        }
+        if (!"approve".equals(action)) flowError();
+        stage.setStatus(1);
+        stage.setUpdatedAt(LocalDateTime.now());
+        orderStageMapper.updateById(stage);
+        int next = order.getCurrentStage() + 1;
+        if (next < phases(order).size()) {
+            order.setCurrentStage(next);
+            order.setStatus(IN_PROGRESS);
+            save(order);
+            record(order, userId, "STAGE_APPROVED", "企划方已通过「" + stage.getName() + "」，进入下一阶段。", "ORDER_STAGE_APPROVED");
+        } else {
+            settle(order);
+            record(order, userId, "COMPLETED", "企划方已确认最终交付，订单完成并结算。", "ORDER_COMPLETED");
+        }
+        return order;
+    }
+
+    private OrderInfo cancelAndRefund(OrderInfo order, Long actorId, String reason, String subtype) {
+        User employer = userMapper.selectByIdForUpdate(order.getEmployerId());
+        employer.setBalance((employer.getBalance() == null ? BigDecimal.ZERO : employer.getBalance()).add(order.getAmount()));
+        employer.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(employer);
+        if (order.getStallId() != null) {
+            Stall stall = stallMapper.selectByIdForUpdate(order.getStallId());
+            if (stall != null) {
+                stall.setStock((stall.getStock() == null ? 0 : stall.getStock()) + 1);
+                stall.setUpdatedAt(LocalDateTime.now());
+                stallMapper.updateById(stall);
+            }
+        }
+        order.setStatus(CANCELLED);
+        order.setCancelReason(reason);
+        order.setCancelledAt(LocalDateTime.now());
+        save(order);
+        record(order, actorId, "CANCELLED", "订单已取消，托管金额已退回、库存已恢复：" + reason, subtype);
+        return order;
+    }
+
+    private void settle(OrderInfo order) {
+        User painter = userMapper.selectByIdForUpdate(order.getPainterId());
+        painter.setBalance((painter.getBalance() == null ? BigDecimal.ZERO : painter.getBalance()).add(order.getAmount()));
+        painter.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(painter);
+        order.setStatus(COMPLETED);
+        order.setCompletedAt(LocalDateTime.now());
+        save(order);
+    }
+
+    private OrderInfo requireParticipant(Long id, Long userId, boolean lock) {
+        OrderInfo order = lock ? orderInfoMapper.selectByIdForUpdate(id) : orderInfoMapper.selectById(id);
         if (order == null || !Integer.valueOf(0).equals(order.getDeleted())) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
@@ -48,41 +299,95 @@ public class OrderServiceImpl implements OrderService {
         return order;
     }
 
-    @Override
-    public OrderInfo create(OrderInfo order) {
-        order.setId(null);
-        order.setStatus(0);
-        order.setCurrentStage(0);
-        order.setDeleted(0);
-        LocalDateTime now = LocalDateTime.now();
-        order.setCreatedAt(now);
-        order.setUpdatedAt(now);
-        orderInfoMapper.insert(order);
-        return order;
+    private OrderStage latestCurrentSubmission(OrderInfo order) {
+        List<OrderStage> stages = orderStageMapper.selectList(new LambdaQueryWrapper<OrderStage>()
+                .eq(OrderStage::getOrderId, order.getId())
+                .eq(OrderStage::getStageIndex, order.getCurrentStage())
+                .eq(OrderStage::getStatus, 0).eq(OrderStage::getDeleted, 0)
+                .orderByDesc(OrderStage::getSubmissionNo).last("LIMIT 1"));
+        if (stages.isEmpty()) flowError();
+        return stages.get(0);
     }
 
-    @Override
-    @Transactional
-    public OrderInfo createStallPurchase(Long stallId, Long employerId) {
-        Stall stall = stallMapper.selectById(stallId);
-        if (stall == null || !Integer.valueOf(0).equals(stall.getDeleted())
-                || !Integer.valueOf(1).equals(stall.getStatus())
-                || stall.getStock() == null || stall.getStock() <= 0
-                || employerId.equals(stall.getPainterId())) {
+    private void record(OrderInfo order, Long actorId, String type, String content, String messageSubtype) {
+        OrderEvent event = new OrderEvent();
+        event.setOrderId(order.getId());
+        event.setActorId(actorId);
+        event.setEventType(type);
+        event.setContent(content);
+        event.setCreatedAt(LocalDateTime.now());
+        orderEventMapper.insert(event);
+        if (!"CREATED".equals(type)) {
+            messageService.createOrderEventMessage(order, actorId, messageSubtype, content);
+        }
+    }
+
+    private void save(OrderInfo order) {
+        order.setUpdatedAt(LocalDateTime.now());
+        orderInfoMapper.updateById(order);
+    }
+
+    private List<Map<String, Object>> phases(OrderInfo order) {
+        try {
+            List<Map<String, Object>> result = objectMapper.readValue(
+                    StringUtils.hasText(order.getPhaseSnapshot()) ? order.getPhaseSnapshot() : DEFAULT_PHASES,
+                    new TypeReference<>() {});
+            if (result == null || result.isEmpty()) throw new IllegalArgumentException();
+            return result;
+        } catch (Exception exception) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
-        User painter = userMapper.selectById(stall.getPainterId());
-        if (painter == null || !Integer.valueOf(0).equals(painter.getDeleted())
-                || !Integer.valueOf(0).equals(painter.getStatus())) {
-            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+    }
+
+    private List<String> validateFiles(List<String> values, boolean required) {
+        if (values == null) values = new ArrayList<>();
+        List<String> result = values.stream().map(String::trim).filter(StringUtils::hasText).distinct().toList();
+        if ((required && result.isEmpty()) || result.size() > 9
+                || result.stream().anyMatch(value -> !value.startsWith("/uploads/"))) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
         }
-        OrderInfo order = new OrderInfo();
-        order.setStallId(stallId);
-        order.setEmployerId(employerId);
-        order.setPainterId(stall.getPainterId());
-        order.setAmount(stall.getPrice());
-        create(order);
-        messageService.createStallPurchaseCommunication(order, stall);
-        return order;
+        return result;
+    }
+
+    private OrderStage withoutOriginals(OrderStage source) {
+        OrderStage copy = new OrderStage();
+        BeanUtils.copyProperties(source, copy);
+        copy.setOriginals(null);
+        return copy;
+    }
+
+    private String displayName(User user) {
+        if (user == null) return "未知用户";
+        return StringUtils.hasText(user.getNickname()) ? user.getNickname() : user.getUsername();
+    }
+
+    private boolean isActive(User user) {
+        return user != null && Integer.valueOf(0).equals(user.getDeleted()) && Integer.valueOf(0).equals(user.getStatus());
+    }
+
+    private String requireReason(String reason) {
+        String value = trim(reason, 500);
+        if (!StringUtils.hasText(value)) throw new BusinessException(ResultCode.PARAM_INVALID);
+        return value;
+    }
+
+    private String normalizeReason(String reason, String fallback) {
+        String value = trim(reason, 500);
+        return StringUtils.hasText(value) ? value : fallback;
+    }
+
+    private String trim(String value, int max) {
+        if (value == null) return null;
+        String result = value.trim();
+        return result.length() > max ? result.substring(0, max) : result;
+    }
+
+    private int asPercent(Object value) {
+        try { return Math.max(0, Math.min(100, Integer.parseInt(String.valueOf(value)))); }
+        catch (Exception ignored) { return 0; }
+    }
+
+    private void flowError() {
+        throw new BusinessException(ResultCode.STATUS_FLOW_INVALID);
     }
 }

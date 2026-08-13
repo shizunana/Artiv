@@ -101,15 +101,24 @@
             <div class="info-row"><span>截稿时间</span><span>{{ stall.deliverTime || '-' }}</span></div>
           </div>
 
-          <el-button type="primary" size="large" round class="buy-btn" :loading="buying" @click="buy">
+          <el-button type="primary" size="large" round class="buy-btn" @click="openConfirm">
             立即下单
           </el-button>
-          <p class="buy-tip">下单后自动建立与画师的沟通会话</p>
+          <p class="buy-tip">确认订单后托管固定金额，并建立与画师的沟通会话</p>
         </aside>
       </div>
     </div>
 
     <EmptyState v-else-if="!loading" description="橱窗不存在或已下架" />
+    <el-dialog v-model="confirmVisible" title="确认订单" width="520px">
+      <div class="confirm-order">
+        <img v-if="stall?.cover" :src="stall.cover" alt="橱窗封面" />
+        <div><h3>{{ stall?.title }}</h3><p>画师：{{ stall?.painterName || `#${stall?.painterId}` }}</p><p>创作阶段：{{ phaseList.map(p => p.name).join(' → ') }}</p></div>
+      </div>
+      <div class="confirm-amount"><span>订单固定金额</span><strong>¥{{ Number(stall?.price || 0).toFixed(2) }}</strong></div>
+      <p class="confirm-tip">确认后将从账户余额托管订单金额并扣减 1 件库存。待画师接单前可取消。</p>
+      <template #footer><el-button @click="confirmVisible=false">再想想</el-button><el-button type="primary" :loading="buying" @click="buy">确认下单</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
@@ -127,6 +136,7 @@ const userStore = useUserStore()
 const stall = ref(null)
 const loading = ref(false)
 const buying = ref(false)
+const confirmVisible = ref(false)
 
 const phaseList = computed(() => {
   try {
@@ -171,16 +181,26 @@ async function buy() {
   try {
     const { purchaseStall } = await import('@/api/stall')
     const order = await purchaseStall(stall.value.id)
-    ElMessage.success('下单成功，已自动开启与画师的沟通会话')
+    confirmVisible.value = false
+    await userStore.fetchMe()
+    ElMessage.success('下单成功，金额已托管并通知画师接单')
     router.push({
-      name: userStore.workbenchRole === 2 ? 'PainterMessages' : 'DashboardMessages',
-      query: { withUserId: stall.value.painterId, orderId: order.id, nickname: stall.value.painterName },
+      name: 'DashboardOrderDetail',
+      params: { id: order.id },
     })
   } catch (e) {
     ElMessage.error('下单失败：' + (e.message || '请先登录'))
   } finally {
     buying.value = false
   }
+}
+
+function openConfirm() {
+  if (!userStore.isLoggedIn) {
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    return
+  }
+  confirmVisible.value = true
 }
 
 onMounted(load)
@@ -497,6 +517,13 @@ onMounted(load)
   font-size: 12px;
   color: var(--huiyue-text-secondary);
 }
+.confirm-order { display:flex; gap:14px; padding-bottom:16px; border-bottom:1px solid var(--huiyue-border); }
+.confirm-order img { width:96px; height:76px; border-radius:7px; object-fit:cover; }
+.confirm-order h3 { margin:3px 0 10px; }
+.confirm-order p { margin:5px 0; color:var(--huiyue-text-secondary); }
+.confirm-amount { display:flex; justify-content:space-between; align-items:center; padding:20px 0 12px; }
+.confirm-amount strong { color:var(--huiyue-accent); font-size:23px; }
+.confirm-tip { margin:0; padding:10px 12px; border-radius:6px; background:#fff7e8; color:#8a6226; font-size:13px; line-height:1.6; }
 
 @media (max-width: 900px) {
   .detail-body {

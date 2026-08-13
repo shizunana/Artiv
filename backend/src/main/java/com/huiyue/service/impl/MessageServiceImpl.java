@@ -43,6 +43,7 @@ public class MessageServiceImpl implements MessageService {
     public static final int TYPE_PRIVATE = 3;
     public static final String SUBTYPE_PRIVATE_CHAT = "PRIVATE_CHAT";
     public static final String SUBTYPE_PRIVATE_IMAGE = "PRIVATE_IMAGE";
+    public static final String SUBTYPE_PRIVATE_ORDER_CARD = "PRIVATE_ORDER_CARD";
     private static final int MAX_PRIVATE_IMAGE_COUNT = 9;
     private static final String UPLOAD_PATH_PREFIX = "/uploads/";
 
@@ -82,9 +83,10 @@ public class MessageServiceImpl implements MessageService {
         message.setToId(request.getToId());
         // 一对用户只维护一个沟通会话；企划或橱窗来源由系统消息本身保留关联 ID。
         message.setProjectId(null);
-        message.setOrderId(null);
+        boolean orderCard = request.getOrderId() != null;
+        message.setOrderId(orderCard ? request.getOrderId() : null);
         message.setType(TYPE_PRIVATE);
-        message.setSubtype(hasImages ? SUBTYPE_PRIVATE_IMAGE : SUBTYPE_PRIVATE_CHAT);
+        message.setSubtype(orderCard ? SUBTYPE_PRIVATE_ORDER_CARD : (hasImages ? SUBTYPE_PRIVATE_IMAGE : SUBTYPE_PRIVATE_CHAT));
         message.setConversationKey(conversationKey(fromUserId, request.getToId()));
         message.setContent(hasImages ? toImagePayload(images) : textContent);
         message.setDeleted(0);
@@ -236,9 +238,9 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public void createStallPurchaseCommunication(OrderInfo order, Stall stall) {
-        createNotification(order.getEmployerId(), TYPE_SYSTEM, "STALL_PURCHASED", null,
+        createOrderNotification(order.getEmployerId(), order.getId(), "STALL_PURCHASED",
                 "已购买橱窗「" + stall.getTitle() + "」，订单已创建，可进入我的消息与画师沟通。");
-        createNotification(order.getPainterId(), TYPE_SYSTEM, "STALL_PURCHASE_RECEIVED", null,
+        createOrderNotification(order.getPainterId(), order.getId(), "STALL_PURCHASE_RECEIVED",
                 "企划方已购买你的橱窗「" + stall.getTitle() + "」，请进入我的消息与对方沟通。");
         Message message = new Message();
         message.setFromId(order.getEmployerId());
@@ -249,6 +251,32 @@ public class MessageServiceImpl implements MessageService {
         message.setConversationKey(conversationKey(order.getEmployerId(), order.getPainterId()));
         message.setContent("已购买橱窗「" + stall.getTitle() + "」，双方可在这里沟通委托需求。");
         saveAndPush(message, "NEW_MESSAGE");
+    }
+
+    @Override
+    public void createOrderEventMessage(OrderInfo order, Long actorId, String subtype, String content) {
+        createOrderNotification(order.getEmployerId(), order.getId(), subtype, content);
+        createOrderNotification(order.getPainterId(), order.getId(), subtype, content);
+        Message message = new Message();
+        message.setFromId(actorId);
+        message.setToId(actorId != null && actorId.equals(order.getEmployerId())
+                ? order.getPainterId() : order.getEmployerId());
+        message.setOrderId(order.getId());
+        message.setType(TYPE_PRIVATE);
+        message.setSubtype(subtype);
+        message.setConversationKey(conversationKey(order.getEmployerId(), order.getPainterId()));
+        message.setContent(content);
+        saveAndPush(message, "NEW_MESSAGE");
+    }
+
+    private void createOrderNotification(Long toUserId, Long orderId, String subtype, String content) {
+        Message message = new Message();
+        message.setToId(toUserId);
+        message.setOrderId(orderId);
+        message.setType(TYPE_ORDER);
+        message.setSubtype(subtype);
+        message.setContent(content);
+        saveAndPush(message, "SYSTEM");
     }
 
     private void validateProjectConversation(Long fromUserId, Long toUserId, Long projectId) {
