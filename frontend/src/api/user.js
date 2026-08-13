@@ -16,6 +16,10 @@ export function updateProfile(id, data) {
   return request.put(`/users/${id}`, data)
 }
 
+export function updateMyPainterProfile(data) {
+  return request.put('/users/me/profile', data)
+}
+
 export function getUsers(params) {
   return request.get('/admin/users', { params })
 }

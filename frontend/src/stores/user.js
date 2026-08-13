@@ -29,9 +29,12 @@ export const useUserStore = defineStore('user', {
     },
     async fetchMe() {
       const user = await getMe()
+      this.updateCurrentUser(user)
+      return user
+    },
+    updateCurrentUser(user) {
       this.user = user
       setUser(user)
-      return user
     },
     logout() {
       this.token = ''
