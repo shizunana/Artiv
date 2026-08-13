@@ -283,8 +283,10 @@ async function toggle(row) {
 async function remove(id) {
   await ElMessageBox.confirm('确定删除该橱窗吗？', '提示', { type: 'warning' })
   await deleteStall(id)
+  // 删除成功后先同步更新当前页面，避免等待重新请求期间仍显示已删除橱窗。
+  stalls.value = stalls.value.filter((item) => item.id !== id)
   ElMessage.success('橱窗已删除并下架')
-  load()
+  await load()
 }
 
 function goDetail(id) {

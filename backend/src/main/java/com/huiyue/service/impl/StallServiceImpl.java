@@ -11,6 +11,7 @@ import com.huiyue.mapper.StallMapper;
 import com.huiyue.service.StallService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -119,15 +120,17 @@ public class StallServiceImpl implements StallService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id, Long painterId) {
         Stall exist = requireExisting(id);
         if (!exist.getPainterId().equals(painterId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
         exist.setStatus(0);
-        exist.setDeleted(1);
         exist.setUpdatedAt(LocalDateTime.now());
         stallMapper.updateById(exist);
+        // 使用 MyBatis-Plus 标准逻辑删除，确保 deleted=1 且后续列表查询自动排除。
+        stallMapper.deleteById(id);
     }
 
     private Stall requireExisting(Long id) {
