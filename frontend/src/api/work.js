@@ -12,6 +12,10 @@ export function createWork(data) {
   return request.post('/works', data)
 }
 
+export function changeWorkVisibility(id, visibility) {
+  return request.put(`/works/${id}/visibility`, null, { params: { visibility } })
+}
+
 export function deleteWork(id) {
   return request.delete(`/works/${id}`)
 }

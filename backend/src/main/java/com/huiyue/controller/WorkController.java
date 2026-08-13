@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
 
 @RestController
 @RequestMapping("/api/v1/works")
@@ -54,6 +55,11 @@ public class WorkController {
         Work work = new Work();
         BeanUtils.copyProperties(request, work);
         return Result.ok(workService.create(work, UserContext.getUserId()));
+    }
+
+    @PutMapping("/{id}/visibility")
+    public Result<Work> changeVisibility(@PathVariable Long id, @RequestParam Integer visibility) {
+        return Result.ok(workService.changeVisibility(id, visibility, UserContext.getUserId()));
     }
 
     @DeleteMapping("/{id}")

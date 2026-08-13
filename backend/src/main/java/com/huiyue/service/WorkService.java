@@ -11,5 +11,7 @@ public interface WorkService {
 
     Work create(Work work, Long userId);
 
+    Work changeVisibility(Long id, Integer visibility, Long userId);
+
     void delete(Long id, Long userId);
 }

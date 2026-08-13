@@ -21,7 +21,10 @@
           <div class="work-info">
             <h4 :title="work.title">{{ work.title }}</h4>
             <p>{{ work.category }} · {{ work.subject || '未设置题材' }}</p>
-            <el-button link type="danger" size="small" @click="remove(work.id)">删除</el-button>
+            <el-button class="visibility-action" link :type="work.visibility === 1 ? 'warning' : 'primary'" size="small" @click="toggleVisibility(work)">
+              {{ work.visibility === 1 ? '隐藏' : '公开' }}
+            </el-button>
+            <el-button class="delete-action" link type="danger" size="small" @click="remove(work.id)">删除</el-button>
           </div>
         </article>
       </div>
@@ -82,7 +85,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getMyWorks, createWork, deleteWork } from '@/api/work'
+import { getMyWorks, createWork, changeWorkVisibility, deleteWork } from '@/api/work'
 import { uploadFile } from '@/api/upload'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -160,6 +163,19 @@ async function remove(id) {
   await load()
 }
 
+async function toggleVisibility(work) {
+  const nextVisibility = work.visibility === 1 ? 0 : 1
+  const action = nextVisibility === 1 ? '公开' : '隐藏'
+  await ElMessageBox.confirm(
+    nextVisibility === 1 ? '公开后，作品会显示在作品广场。确定公开吗？' : '隐藏后，作品将不再显示在作品广场。确定隐藏吗？',
+    `${action}作品`,
+    { type: 'warning' },
+  )
+  await changeWorkVisibility(work.id, nextVisibility)
+  ElMessage.success(nextVisibility === 1 ? '作品已公开' : '作品已隐藏')
+  await load()
+}
+
 onMounted(load)
 </script>
 
@@ -174,10 +190,12 @@ onMounted(load)
 .work-image { width: 100%; height: 100%; display: block; }
 .work-placeholder { width: 100%; height: 100%; display: grid; place-items: center; font-size: 42px; }
 .visibility-tag { position: absolute; top: 10px; right: 10px; }
-.work-info { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; padding: 12px; align-items: center; }
+.work-info { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 5px 10px; padding: 12px; align-items: center; }
 .work-info h4 { margin: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .work-info p { grid-column: 1 / 2; margin: 0; color: var(--huiyue-text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.work-info .el-button { grid-column: 2; grid-row: 1 / 3; }
+.work-info .el-button { grid-row: 1 / 3; }
+.visibility-action { grid-column: 2; }
+.delete-action { grid-column: 3; }
 .pager { display: flex; justify-content: center; margin-top: 28px; }
 .form-two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-two-columns :deep(.el-select) { width: 100%; }

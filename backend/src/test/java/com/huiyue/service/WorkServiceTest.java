@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,5 +53,20 @@ class WorkServiceTest {
         assertEquals(8L, saved.getUserId());
         assertEquals(0, saved.getDeleted());
         assertEquals(1, saved.getVisibility());
+    }
+
+    @Test
+    void ownerCanToggleWorkVisibility() {
+        Work work = new Work();
+        work.setId(12L);
+        work.setUserId(8L);
+        work.setVisibility(1);
+        when(workMapper.selectById(12L)).thenReturn(work);
+
+        Work updated = workService.changeVisibility(12L, 0, 8L);
+
+        verify(workMapper).updateById(work);
+        assertEquals(0, updated.getVisibility());
+        assertNotNull(updated.getUpdatedAt());
     }
 }

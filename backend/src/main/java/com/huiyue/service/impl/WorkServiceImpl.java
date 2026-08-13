@@ -63,6 +63,21 @@ public class WorkServiceImpl implements WorkService {
     }
 
     @Override
+    public Work changeVisibility(Long id, Integer visibility, Long userId) {
+        if (visibility == null || (visibility != 0 && visibility != 1)) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        Work work = workMapper.selectById(id);
+        if (work == null || !work.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        work.setVisibility(visibility);
+        work.setUpdatedAt(LocalDateTime.now());
+        workMapper.updateById(work);
+        return work;
+    }
+
+    @Override
     public void delete(Long id, Long userId) {
         Work work = workMapper.selectById(id);
         if (work == null || !work.getUserId().equals(userId)) {
