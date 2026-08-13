@@ -32,8 +32,8 @@ export function getApplications(projectId, params) {
   return request.get(`/projects/${projectId}/applications`, { params })
 }
 
-export function createProjectOrderIntent(projectId, painterId) {
-  return request.post(`/projects/${projectId}/order-intents/${painterId}`)
+export function createProjectOrder(projectId, applicationId) {
+  return request.post(`/projects/${projectId}/applications/${applicationId}/order`)
 }
 
 export function getMyApplications(params) {

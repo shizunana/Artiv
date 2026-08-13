@@ -14,6 +14,8 @@ public interface OrderService {
 
     OrderInfo createStallPurchase(Long stallId, Long employerId);
 
+    OrderInfo createProjectOrder(Long projectId, Long applicationId, Long employerId);
+
     OrderInfo accept(Long id, Long userId);
 
     OrderInfo reject(Long id, Long userId, String reason);

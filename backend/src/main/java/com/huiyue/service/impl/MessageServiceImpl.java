@@ -230,13 +230,6 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
-    public String createProjectOrderIntent(Long employerId, Long projectId, Long painterId) {
-        Project project = requireOwnedProject(employerId, projectId);
-        requireActiveApplication(project.getId(), painterId);
-        return "订单功能开发中";
-    }
-
-    @Override
     public void createStallPurchaseCommunication(OrderInfo order, Stall stall) {
         createOrderNotification(order.getEmployerId(), order.getId(), "STALL_PURCHASED",
                 "已购买橱窗「" + stall.getTitle() + "」，订单已创建，可进入我的消息与画师沟通。");
@@ -250,6 +243,24 @@ public class MessageServiceImpl implements MessageService {
         message.setSubtype("STALL_PURCHASE_CONVERSATION_STARTED");
         message.setConversationKey(conversationKey(order.getEmployerId(), order.getPainterId()));
         message.setContent("已购买橱窗「" + stall.getTitle() + "」，双方可在这里沟通委托需求。");
+        saveAndPush(message, "NEW_MESSAGE");
+    }
+
+    @Override
+    public void createProjectOrderCommunication(OrderInfo order, Project project) {
+        createOrderNotification(order.getEmployerId(), order.getId(), "PROJECT_ORDER_CREATED",
+                "已向画师发送企划订单「" + project.getTitle() + "」，金额已托管，等待画师接单。");
+        createOrderNotification(order.getPainterId(), order.getId(), "PROJECT_ORDER_RECEIVED",
+                "你收到企划「" + project.getTitle() + "」的新订单，请确认是否接单。");
+        Message message = new Message();
+        message.setFromId(order.getEmployerId());
+        message.setToId(order.getPainterId());
+        message.setProjectId(project.getId());
+        message.setOrderId(order.getId());
+        message.setType(TYPE_PRIVATE);
+        message.setSubtype("PROJECT_ORDER_CONVERSATION_STARTED");
+        message.setConversationKey(conversationKey(order.getEmployerId(), order.getPainterId()));
+        message.setContent("企划方已发送企划订单「" + project.getTitle() + "」，双方可继续沟通并推进交付。");
         saveAndPush(message, "NEW_MESSAGE");
     }
 

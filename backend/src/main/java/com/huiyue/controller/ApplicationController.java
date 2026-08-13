@@ -8,6 +8,7 @@ import com.huiyue.entity.Application;
 import com.huiyue.security.UserContext;
 import com.huiyue.service.ApplicationService;
 import com.huiyue.service.MessageService;
+import com.huiyue.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,6 +28,7 @@ public class ApplicationController {
 
     private final ApplicationService applicationService;
     private final MessageService messageService;
+    private final OrderService orderService;
 
     @GetMapping("/projects/{projectId}/applications")
     public Result<Page<ApplicationDetail>> byProject(@PathVariable Long projectId,
@@ -65,9 +67,10 @@ public class ApplicationController {
         return Result.ok(messageService.startProjectConversation(UserContext.getUserId(), projectId, painterId));
     }
 
-    @PostMapping("/projects/{projectId}/order-intents/{painterId}")
-    public Result<String> createOrderIntent(@PathVariable Long projectId, @PathVariable Long painterId) {
-        return Result.ok(messageService.createProjectOrderIntent(UserContext.getUserId(), projectId, painterId));
+    @PostMapping("/projects/{projectId}/applications/{applicationId}/order")
+    public Result<com.huiyue.entity.OrderInfo> createProjectOrder(@PathVariable Long projectId,
+                                                                  @PathVariable Long applicationId) {
+        return Result.ok(orderService.createProjectOrder(projectId, applicationId, UserContext.getUserId()));
     }
 
     @DeleteMapping("/applications/{id}")

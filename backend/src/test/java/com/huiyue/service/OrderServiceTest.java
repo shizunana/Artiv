@@ -5,11 +5,15 @@ import com.huiyue.common.BusinessException;
 import com.huiyue.dto.OrderStageReviewRequest;
 import com.huiyue.entity.OrderInfo;
 import com.huiyue.entity.OrderStage;
+import com.huiyue.entity.Application;
+import com.huiyue.entity.Project;
 import com.huiyue.entity.Stall;
 import com.huiyue.entity.User;
 import com.huiyue.mapper.OrderEventMapper;
 import com.huiyue.mapper.OrderInfoMapper;
 import com.huiyue.mapper.OrderStageMapper;
+import com.huiyue.mapper.ApplicationMapper;
+import com.huiyue.mapper.ProjectMapper;
 import com.huiyue.mapper.StallMapper;
 import com.huiyue.mapper.UserMapper;
 import com.huiyue.service.impl.OrderServiceImpl;
@@ -29,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +42,8 @@ class OrderServiceTest {
     @Mock private OrderInfoMapper orderInfoMapper;
     @Mock private OrderStageMapper orderStageMapper;
     @Mock private OrderEventMapper orderEventMapper;
+    @Mock private ApplicationMapper applicationMapper;
+    @Mock private ProjectMapper projectMapper;
     @Mock private StallMapper stallMapper;
     @Mock private UserMapper userMapper;
     @Mock private MessageService messageService;
@@ -67,6 +74,73 @@ class OrderServiceTest {
         verify(userMapper).updateById(employer);
         verify(stallMapper).updateById(stall);
         verify(messageService).createStallPurchaseCommunication(eq(result), eq(stall));
+    }
+
+    @Test
+    void createProjectOrderUsesApplicationQuoteAndDoesNotChangeProjectState() {
+        Application application = new Application();
+        application.setId(31L);
+        application.setProjectId(8L);
+        application.setPainterId(2L);
+        application.setQuote(new BigDecimal("350.00"));
+        application.setIntro("擅长相关题材");
+        application.setStatus(0);
+        application.setDeleted(0);
+        Project project = new Project();
+        project.setId(8L);
+        project.setEmployerId(15L);
+        project.setTitle("企划测试");
+        project.setDescription("测试需求");
+        project.setBudget(new BigDecimal("500.00"));
+        project.setImages("/uploads/project.png,/uploads/other.png");
+        project.setStatus(0);
+        project.setDeleted(0);
+        User employer = activeUser(15L, new BigDecimal("1000.00"));
+        User painter = activeUser(2L, BigDecimal.ZERO);
+        painter.setCertStatus(2);
+        when(applicationMapper.selectByIdForUpdate(31L)).thenReturn(application);
+        when(projectMapper.selectById(8L)).thenReturn(project);
+        when(orderInfoMapper.selectCount(any())).thenReturn(0L);
+        when(userMapper.selectByIdForUpdate(15L)).thenReturn(employer);
+        when(userMapper.selectById(2L)).thenReturn(painter);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            OrderInfo order = invocation.getArgument(0);
+            order.setId(88L);
+            return 1;
+        }).when(orderInfoMapper).insert(any(OrderInfo.class));
+
+        OrderInfo result = orderService.createProjectOrder(8L, 31L, 15L);
+
+        assertEquals(new BigDecimal("650.00"), employer.getBalance());
+        assertEquals(31L, result.getApplicationId());
+        assertEquals("企划测试", result.getProjectTitle());
+        assertEquals("/uploads/project.png", result.getProjectCover());
+        assertEquals(0, project.getStatus());
+        verify(projectMapper, never()).updateById(any(Project.class));
+        verify(messageService).createProjectOrderCommunication(result, project);
+    }
+
+    @Test
+    void createProjectOrderRejectsSecondActiveOrderForSameApplication() {
+        Application application = new Application();
+        application.setId(31L);
+        application.setProjectId(8L);
+        application.setPainterId(2L);
+        application.setQuote(new BigDecimal("350.00"));
+        application.setStatus(0);
+        application.setDeleted(0);
+        Project project = new Project();
+        project.setId(8L);
+        project.setEmployerId(15L);
+        project.setDeleted(0);
+        when(applicationMapper.selectByIdForUpdate(31L)).thenReturn(application);
+        when(projectMapper.selectById(8L)).thenReturn(project);
+        when(orderInfoMapper.selectCount(any())).thenReturn(1L);
+
+        assertThrows(BusinessException.class, () -> orderService.createProjectOrder(8L, 31L, 15L));
+
+        verify(userMapper, never()).selectByIdForUpdate(15L);
+        verify(orderInfoMapper, never()).insert(any(OrderInfo.class));
     }
 
     @Test

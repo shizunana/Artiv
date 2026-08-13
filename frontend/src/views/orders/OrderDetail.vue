@@ -2,7 +2,7 @@
   <div class="order-detail" v-loading="loading">
     <template v-if="detail">
       <section class="wb-card order-summary">
-        <header><div><el-button link @click="router.back()">← 返回订单管理</el-button><h2>{{ order.stallTitle || `订单 #${order.id}` }}</h2><p>订单编号 {{ order.id }} · {{ formatDateTime(order.createdAt) }}</p></div><el-tag size="large" :type="statusType(ORDER_STATUS, order.status)">{{ statusText(ORDER_STATUS, order.status) }}</el-tag></header>
+        <header><div><el-button link @click="router.back()">← 返回订单管理</el-button><h2>{{ order.projectTitle || order.stallTitle || `订单 #${order.id}` }}</h2><p>订单编号 {{ order.id }} · {{ formatDateTime(order.createdAt) }}</p></div><el-tag size="large" :type="statusType(ORDER_STATUS, order.status)">{{ statusText(ORDER_STATUS, order.status) }}</el-tag></header>
         <div class="summary-grid">
           <div><small>交易金额</small><strong>¥{{ money(order.amount) }}</strong></div>
           <div><small>企划方</small><strong>{{ detail.employerName }}</strong></div>
@@ -10,12 +10,27 @@
           <div><small>当前阶段</small><strong>第 {{ (order.currentStage ?? 0) + 1 }} 阶段</strong></div>
         </div>
         <div class="action-row">
+          <el-button v-if="order.projectId" type="primary" plain @click="goProject">查看企划快照来源</el-button>
+          <el-button v-if="order.stallId" type="primary" plain @click="goStall">查看橱窗来源</el-button>
           <template v-if="isPainter && order.status === 0"><el-button type="primary" @click="accept">确认接单</el-button><el-button @click="reasonAction('reject')">拒绝接单</el-button></template>
           <el-button v-if="isEmployer && order.status === 0" type="danger" plain @click="reasonAction('cancel')">取消订单</el-button>
           <el-button v-if="isEmployer && [1,2].includes(order.status)" type="danger" plain @click="reasonAction('afterSale')">申请退款/售后</el-button>
           <el-button v-if="isPainter && [1,2,5].includes(order.status)" plain @click="contactService">联系客服（预留）</el-button>
           <el-button @click="goMessage">联系{{ isPainter ? '企划方' : '画师' }}</el-button>
           <el-button v-if="order.status === 3" disabled>去评价（接口预留）</el-button>
+        </div>
+      </section>
+
+      <section v-if="order.projectId" class="wb-card source-card">
+        <h3>企划下单快照</h3>
+        <div class="source-layout">
+          <el-image v-if="order.projectCover" class="source-cover" :src="order.projectCover" fit="cover" />
+          <div>
+            <p><b>企划标题：</b>{{ projectSnapshot.title || order.projectTitle }}</p>
+            <p><b>应征报价：</b>¥{{ money(projectSnapshot.applicationQuote || order.amount) }}</p>
+            <p><b>截稿日期：</b>{{ projectSnapshot.deadline || '待商议' }}</p>
+            <p class="source-description"><b>需求说明：</b>{{ projectSnapshot.description || '未填写' }}</p>
+          </div>
         </div>
       </section>
 
@@ -75,6 +90,7 @@ const stepActive=computed(()=>order.value.status===3?phases.value.length:order.v
 const submissions=computed(()=>detail.value?.submissions||[])
 const currentSubmission=computed(()=>[...submissions.value].reverse().find(s=>s.stageIndex===order.value.currentStage)||[...submissions.value].reverse()[0])
 const finalStage=computed(()=>(order.value.currentStage||0)>=phases.value.length-1)
+const projectSnapshot=computed(()=>{try{return JSON.parse(order.value.projectSnapshot||'{}')}catch{return {}}})
 
 async function load(){loading.value=true;try{detail.value=await getOrder(route.params.id)}finally{loading.value=false}}
 async function run(action,message){acting.value=true;try{await action();ElMessage.success(message);await userStore.fetchMe();await load()}finally{acting.value=false}}
@@ -86,6 +102,8 @@ async function submitStage(){if(!submitForm.image){ElMessage.warning('请先上�
 async function review(action){let remark='';if(action==='revise'){try{const result=await ElMessageBox.prompt('请填写明确的修改意见','要求修改',{inputType:'textarea',inputValidator:(v)=>!!v?.trim()||'请填写修改意见'});remark=result.value}catch{return}}if(action==='complete'){try{await ElMessageBox.confirm('确认后将立即完成交易、把款项结算给画师，并开放当前交付原图。未执行的后续阶段会被跳过。','确认完成交易',{type:'warning',confirmButtonText:'确认收货并完成'})}catch{return}}await run(()=>reviewOrderStage(order.value.id,{action,remark}),action==='complete'?'交易已完成并结算':action==='approve'?'阶段已通过':'已要求修改')}
 function contactService(){ElMessage.info('联系客服接口已预留，后续接入客服工单')}
 function goMessage(){const otherId=isPainter.value?order.value.employerId:order.value.painterId;const nickname=isPainter.value?detail.value.employerName:detail.value.painterName;router.push({name:isPainter.value?'PainterMessages':'DashboardMessages',query:{withUserId:otherId,nickname,orderId:order.value.id}})}
+function goProject(){router.push({name:'ProjectDetail',params:{id:order.value.projectId},query:{from:'order'}})}
+function goStall(){router.push({name:'StallDetail',params:{id:order.value.stallId},query:{from:'order'}})}
 function splitFiles(value){return value?String(value).split(',').filter(Boolean):[]}
 function stageText(v){return ['待确认','已通过','需修改'][v]||'-'}
 function stageTag(v){return ['warning','success','danger'][v]||'info'}
@@ -94,5 +112,5 @@ onMounted(load)
 </script>
 
 <style scoped>
-.order-detail{display:grid;gap:16px}.wb-card{background:#fff;border-radius:8px;padding:24px}.order-summary header{display:flex;justify-content:space-between;align-items:flex-start}.order-summary h2{margin:8px 0 5px}.order-summary p{margin:0;color:var(--huiyue-text-secondary)}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.summary-grid div{display:grid;gap:8px;padding:14px;background:var(--huiyue-section-alt);border-radius:7px}.summary-grid small{color:var(--huiyue-text-secondary)}.action-row{display:flex;flex-wrap:wrap;gap:10px}.phase-card h3,.timeline-card h3{margin:0 0 22px}.submission-panel{margin-top:24px;padding:18px;border:1px solid var(--huiyue-border);border-radius:8px}.submission-head{display:flex;justify-content:space-between}.revision-note{margin:14px 0;padding:12px 14px;border-left:3px solid #f56c6c;border-radius:4px;background:#fff4f4;color:#a83d3d}.revision-note p{margin:6px 0 0;white-space:pre-wrap}.upload-tip{color:var(--huiyue-text-secondary);line-height:1.65}.image-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.image-grid :deep(.el-image){aspect-ratio:1;border-radius:6px;overflow:hidden}.original-list{display:flex;gap:12px}.original-list a{color:var(--huiyue-primary)}.review-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.phase-card>.el-button{margin-top:18px}@media(max-width:760px){.summary-grid{grid-template-columns:1fr 1fr}.image-grid{grid-template-columns:repeat(2,1fr)}}
+.order-detail{display:grid;gap:16px}.wb-card{background:#fff;border-radius:8px;padding:24px}.order-summary header{display:flex;justify-content:space-between;align-items:flex-start}.order-summary h2{margin:8px 0 5px}.order-summary p{margin:0;color:var(--huiyue-text-secondary)}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.summary-grid div{display:grid;gap:8px;padding:14px;background:var(--huiyue-section-alt);border-radius:7px}.summary-grid small{color:var(--huiyue-text-secondary)}.action-row{display:flex;flex-wrap:wrap;gap:10px}.source-card h3,.phase-card h3,.timeline-card h3{margin:0 0 22px}.source-layout{display:grid;grid-template-columns:140px minmax(0,1fr);gap:20px}.source-cover{width:140px;height:110px;border-radius:8px;background:var(--huiyue-section-alt)}.source-layout p{margin:0 0 10px;color:var(--huiyue-text-secondary)}.source-description{white-space:pre-wrap}.submission-panel{margin-top:24px;padding:18px;border:1px solid var(--huiyue-border);border-radius:8px}.submission-head{display:flex;justify-content:space-between}.revision-note{margin:14px 0;padding:12px 14px;border-left:3px solid #f56c6c;border-radius:4px;background:#fff4f4;color:#a83d3d}.revision-note p{margin:6px 0 0;white-space:pre-wrap}.upload-tip{color:var(--huiyue-text-secondary);line-height:1.65}.image-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.image-grid :deep(.el-image){aspect-ratio:1;border-radius:6px;overflow:hidden}.original-list{display:flex;gap:12px}.original-list a{color:var(--huiyue-primary)}.review-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.phase-card>.el-button{margin-top:18px}@media(max-width:760px){.summary-grid{grid-template-columns:1fr 1fr}.image-grid{grid-template-columns:repeat(2,1fr)}.source-layout{grid-template-columns:1fr}}
 </style>

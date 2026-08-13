@@ -12,11 +12,15 @@ import com.huiyue.dto.OrderStageSubmitRequest;
 import com.huiyue.entity.OrderEvent;
 import com.huiyue.entity.OrderInfo;
 import com.huiyue.entity.OrderStage;
+import com.huiyue.entity.Application;
+import com.huiyue.entity.Project;
 import com.huiyue.entity.Stall;
 import com.huiyue.entity.User;
 import com.huiyue.mapper.OrderEventMapper;
 import com.huiyue.mapper.OrderInfoMapper;
 import com.huiyue.mapper.OrderStageMapper;
+import com.huiyue.mapper.ApplicationMapper;
+import com.huiyue.mapper.ProjectMapper;
 import com.huiyue.mapper.StallMapper;
 import com.huiyue.mapper.UserMapper;
 import com.huiyue.service.MessageService;
@@ -31,6 +35,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -48,6 +53,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderInfoMapper orderInfoMapper;
     private final OrderStageMapper orderStageMapper;
     private final OrderEventMapper orderEventMapper;
+    private final ApplicationMapper applicationMapper;
+    private final ProjectMapper projectMapper;
     private final StallMapper stallMapper;
     private final UserMapper userMapper;
     private final MessageService messageService;
@@ -148,6 +155,70 @@ public class OrderServiceImpl implements OrderService {
         orderInfoMapper.insert(order);
         record(order, employerId, "CREATED", "企划方已下单，金额已托管并等待画师接单。", "ORDER_CREATED");
         messageService.createStallPurchaseCommunication(order, stall);
+        return order;
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo createProjectOrder(Long projectId, Long applicationId, Long employerId) {
+        Application application = applicationMapper.selectByIdForUpdate(applicationId);
+        if (application == null || !Integer.valueOf(0).equals(application.getDeleted())
+                || !projectId.equals(application.getProjectId())
+                || (application.getStatus() != 0 && application.getStatus() != 1)) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        Project project = projectMapper.selectById(projectId);
+        if (project == null || !Integer.valueOf(0).equals(project.getDeleted())
+                || !employerId.equals(project.getEmployerId())
+                || employerId.equals(application.getPainterId())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        long activeOrders = orderInfoMapper.selectCount(new LambdaQueryWrapper<OrderInfo>()
+                .eq(OrderInfo::getApplicationId, applicationId)
+                .eq(OrderInfo::getDeleted, 0)
+                .in(OrderInfo::getStatus, PENDING, IN_PROGRESS, PENDING_REVIEW, AFTER_SALE));
+        if (activeOrders > 0) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "该画师已有一笔未完成的企划订单，请勿重复发送");
+        }
+
+        BigDecimal amount = application.getQuote() != null && application.getQuote().compareTo(BigDecimal.ZERO) > 0
+                ? application.getQuote() : project.getBudget();
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        User employer = userMapper.selectByIdForUpdate(employerId);
+        User painter = userMapper.selectById(application.getPainterId());
+        if (!isActive(employer) || !isActive(painter)
+                || !Integer.valueOf(2).equals(painter.getCertStatus())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        BigDecimal balance = employer.getBalance() == null ? BigDecimal.ZERO : employer.getBalance();
+        if (balance.compareTo(amount) < 0) {
+            throw new BusinessException(ResultCode.BUDGET_NOT_ENOUGH);
+        }
+        employer.setBalance(balance.subtract(amount));
+        employer.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(employer);
+
+        LocalDateTime now = LocalDateTime.now();
+        OrderInfo order = new OrderInfo();
+        order.setProjectId(projectId);
+        order.setApplicationId(applicationId);
+        order.setEmployerId(employerId);
+        order.setPainterId(application.getPainterId());
+        order.setAmount(amount);
+        order.setProjectTitle(project.getTitle());
+        order.setProjectCover(firstProjectImage(project.getImages()));
+        order.setProjectSnapshot(projectSnapshot(project, application));
+        order.setPhaseSnapshot(DEFAULT_PHASES);
+        order.setStatus(PENDING);
+        order.setCurrentStage(0);
+        order.setDeleted(0);
+        order.setCreatedAt(now);
+        order.setUpdatedAt(now);
+        orderInfoMapper.insert(order);
+        record(order, employerId, "CREATED", "企划方已发送企划订单，金额已托管并等待画师接单。", "ORDER_CREATED");
+        messageService.createProjectOrderCommunication(order, project);
         return order;
     }
 
@@ -291,8 +362,40 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelReason(reason);
         order.setCancelledAt(LocalDateTime.now());
         save(order);
-        record(order, actorId, "CANCELLED", "订单已取消，托管金额已退回、库存已恢复：" + reason, subtype);
+        String content = order.getStallId() == null
+                ? "订单已取消，托管金额已退回：" + reason
+                : "订单已取消，托管金额已退回、库存已恢复：" + reason;
+        record(order, actorId, "CANCELLED", content, subtype);
         return order;
+    }
+
+    private String firstProjectImage(String images) {
+        if (!StringUtils.hasText(images)) return null;
+        String value = images.trim();
+        try {
+            List<String> parsed = objectMapper.readValue(value, new TypeReference<>() {});
+            return parsed == null || parsed.isEmpty() ? null : trim(parsed.get(0), 500);
+        } catch (Exception ignored) {
+            return trim(value.split(",")[0], 500);
+        }
+    }
+
+    private String projectSnapshot(Project project, Application application) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("title", project.getTitle());
+        snapshot.put("description", project.getDescription());
+        snapshot.put("category", project.getCategory());
+        snapshot.put("subject", project.getSubject());
+        snapshot.put("requirements", project.getRequirements());
+        snapshot.put("deadline", project.getDeadline());
+        snapshot.put("applicationId", application.getId());
+        snapshot.put("applicationIntro", application.getIntro());
+        snapshot.put("applicationQuote", application.getQuote());
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (Exception exception) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
     }
 
     private void settle(OrderInfo order) {

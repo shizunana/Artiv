@@ -5,6 +5,7 @@ import com.huiyue.dto.ConversationSummary;
 import com.huiyue.dto.PrivateMessageRequest;
 import com.huiyue.entity.Message;
 import com.huiyue.entity.OrderInfo;
+import com.huiyue.entity.Project;
 import com.huiyue.entity.Stall;
 
 public interface MessageService {
@@ -23,9 +24,9 @@ public interface MessageService {
 
     Message startProjectConversation(Long employerId, Long projectId, Long painterId);
 
-    String createProjectOrderIntent(Long employerId, Long projectId, Long painterId);
-
     void createStallPurchaseCommunication(OrderInfo order, Stall stall);
+
+    void createProjectOrderCommunication(OrderInfo order, Project project);
 
     void createOrderEventMessage(OrderInfo order, Long actorId, String subtype, String content);
 }

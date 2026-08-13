@@ -279,6 +279,7 @@ async function scrollHistoryToBottom() {
 function isBusinessSystemMessage(message) {
   return message.subtype === 'APPLICATION_CONVERSATION_STARTED'
     || message.subtype === 'STALL_PURCHASE_CONVERSATION_STARTED'
+    || message.subtype === 'PROJECT_ORDER_CONVERSATION_STARTED'
     || message.subtype === 'PRIVATE_ORDER_CARD'
     || message.subtype?.startsWith('ORDER_')
 }
@@ -311,7 +312,7 @@ async function sendSelectedOrder(order) {
     const message = await sendPrivateMessage({
       toId: active.value.withUserId,
       orderId: order.id,
-      content: `订单 #${order.id}｜${order.stallTitle || '订单'}｜${orderStatusText(order.status)}｜¥${Number(order.amount || 0).toFixed(2)}`,
+      content: `订单 #${order.id}｜${order.stallTitle || order.projectTitle || '订单'}｜${orderStatusText(order.status)}｜¥${Number(order.amount || 0).toFixed(2)}`,
     })
     messages.value.push(message)
     orderPickerVisible.value = false
@@ -329,6 +330,8 @@ function notificationTitle(notice) {
   if (notice.subtype === 'APPLICATION_SELECTED') return '应征已被选定'
   if (notice.subtype === 'STALL_PURCHASED') return '已购买橱窗'
   if (notice.subtype === 'STALL_PURCHASE_RECEIVED') return '收到橱窗订单'
+  if (notice.subtype === 'PROJECT_ORDER_CREATED') return '企划订单已发送'
+  if (notice.subtype === 'PROJECT_ORDER_RECEIVED') return '收到企划订单'
   if (notice.subtype?.startsWith('ORDER_')) return '订单状态更新'
   return '系统通知'
 }
@@ -343,7 +346,7 @@ async function openNotification(notice) {
   if (notice.orderId) {
     router.push({ name: userStore.workbenchRole === 2 ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id: notice.orderId } })
   } else if (notice.subtype === 'APPLICATION_CREATED' && notice.projectId) {
-    router.push({ name: 'ProjectApplications', params: { id: notice.projectId } })
+    router.push({ name: 'ProjectDetail', params: { id: notice.projectId } })
   } else if (notice.subtype?.startsWith('APPLICATION') || notice.subtype?.startsWith('STALL')) {
     activeTab.value = 'conversations'
     await loadConversations()

@@ -22,12 +22,12 @@
     </div>
 
     <div v-loading="loading" class="order-cards">
-      <el-empty v-if="!orders.length" :description="source === 'project' ? '企划订单将在应征订单流程中接入' : '暂无符合条件的橱窗订单'" />
+      <el-empty v-if="!orders.length" :description="source === 'project' ? '暂无符合条件的企划订单' : '暂无符合条件的橱窗订单'" />
       <article v-for="order in orders" :key="order.id" class="order-card" @click="goOrderDetail(order.id)">
-        <img v-if="order.stallCover" :src="order.stallCover" alt="橱窗封面" />
+        <img v-if="orderCover(order)" :src="orderCover(order)" :alt="order.stallId ? '橱窗封面' : '企划封面'" />
         <div v-else class="order-cover">订单</div>
         <div class="order-main">
-          <div class="order-title-row"><h3>{{ order.stallTitle || `订单 #${order.id}` }}</h3><el-tag :type="statusType(ORDER_STATUS, order.status)">{{ statusText(ORDER_STATUS, order.status) }}</el-tag></div>
+          <div class="order-title-row"><h3>{{ orderTitle(order) }}</h3><el-tag :type="statusType(ORDER_STATUS, order.status)">{{ statusText(ORDER_STATUS, order.status) }}</el-tag></div>
           <p>订单编号：{{ order.id }} · 下单时间：{{ formatDateTime(order.createdAt) }}</p>
           <p class="stage">当前阶段：第 {{ (order.currentStage ?? 0) + 1 }} 阶段</p>
         </div>
@@ -35,6 +35,7 @@
           <small>托管金额</small><strong>¥{{ money(order.amount) }}</strong>
           <div class="order-actions">
             <el-button v-if="order.stallId" type="primary" link @click.stop="goStallDetail(order.stallId)">橱窗详情</el-button>
+            <el-button v-if="order.projectId" type="primary" link @click.stop="goProjectDetail(order.projectId)">企划详情</el-button>
             <el-button type="primary" link @click.stop="goOrderDetail(order.id)">订单详情</el-button>
           </div>
         </div>
@@ -81,6 +82,9 @@ function selectFilter(value) { statusGroup.value = value; load() }
 const isPainterRoute = computed(() => route.path.startsWith('/painter'))
 function goOrderDetail(id) { router.push({ name: isPainterRoute.value ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id } }) }
 function goStallDetail(id) { router.push({ name: 'StallDetail', params: { id }, query: { from: 'order' } }) }
+function goProjectDetail(id) { router.push({ name: 'ProjectDetail', params: { id }, query: { from: 'order' } }) }
+function orderTitle(order) { return order.projectTitle || order.stallTitle || `订单 #${order.id}` }
+function orderCover(order) { return order.projectCover || order.stallCover || '' }
 function money(value) { return Number(value || 0).toFixed(2) }
 onMounted(load)
 </script>

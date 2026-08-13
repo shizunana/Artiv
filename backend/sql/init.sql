@@ -149,12 +149,16 @@ DROP TABLE IF EXISTS `order_info`;
 CREATE TABLE `order_info` (
   `id`          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
   `project_id`  BIGINT        DEFAULT NULL COMMENT '企划ID（企划下单时有值）',
+  `application_id` BIGINT     DEFAULT NULL COMMENT '企划订单对应的应征记录ID',
   `stall_id`    BIGINT        DEFAULT NULL COMMENT '服务板ID（橱窗下单时有值）',
   `employer_id` BIGINT        NOT NULL COMMENT '企划方用户ID',
   `painter_id`  BIGINT        NOT NULL COMMENT '画师用户ID',
   `amount`      DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '成交金额（元）',
   `stall_title` VARCHAR(100) DEFAULT NULL COMMENT '橱窗标题快照',
   `stall_cover` VARCHAR(255) DEFAULT NULL COMMENT '橱窗封面快照',
+  `project_title` VARCHAR(200) DEFAULT NULL COMMENT '企划标题快照',
+  `project_cover` VARCHAR(500) DEFAULT NULL COMMENT '企划封面快照',
+  `project_snapshot` TEXT DEFAULT NULL COMMENT '企划与应征信息 JSON 快照',
   `phase_snapshot` TEXT DEFAULT NULL COMMENT '创作阶段 JSON 快照',
   `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0 待接单、1 进行中、2 待验收、3 已完成、4 已取消、5 争议中',
   `current_stage` TINYINT     NOT NULL DEFAULT 0 COMMENT '当前阶段：0 初稿、1 修改、2 终稿、3 交付',
@@ -169,7 +173,8 @@ CREATE TABLE `order_info` (
   PRIMARY KEY (`id`),
   KEY `idx_employer` (`employer_id`),
   KEY `idx_painter` (`painter_id`),
-  KEY `idx_project` (`project_id`)
+  KEY `idx_project` (`project_id`),
+  KEY `idx_application_status` (`application_id`, `status`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '订单表';
 
 -- -----------------------------------------------------

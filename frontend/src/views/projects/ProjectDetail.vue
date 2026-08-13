@@ -84,7 +84,7 @@
             <article v-for="item in applicants" :key="item.application.id" class="applicant-card">
               <div v-if="showOwnerActions(item)" class="applicant-actions">
                 <el-button size="small" :loading="startingChatId === item.painter.id" @click="openChat(item)">私信</el-button>
-                <el-button size="small" type="primary" :loading="orderingPainterId === item.painter.id" @click="sendOrderIntent(item)">
+                <el-button size="small" type="primary" :loading="orderingPainterId === item.painter.id" @click="openOrderConfirm(item)">
                   发送企划订单
                 </el-button>
               </div>
@@ -156,6 +156,27 @@
         <el-button type="primary" :loading="updatingQuote" @click="submitQuoteUpdate">保存报价</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="orderConfirmVisible" title="确认企划订单" width="540px">
+      <div v-if="orderingApplication" class="confirm-order">
+        <el-image v-if="projectImages[0]" class="confirm-cover" :src="projectImages[0]" fit="cover" />
+        <div class="confirm-copy">
+          <h3>{{ project?.title }}</h3>
+          <p>接单画师：{{ painterName(orderingApplication) }}</p>
+          <p>订单来源：该画师对本企划的有效应征</p>
+          <p>交付流程：初稿 → 修改 → 终稿 → 交付</p>
+        </div>
+      </div>
+      <div class="confirm-amount">
+        <span>按应征报价托管</span>
+        <strong>¥{{ Number(orderingApplication?.application?.quote || project?.budget || 0).toFixed(2) }}</strong>
+      </div>
+      <p class="confirm-tip">确认后将从账户余额托管订单金额。此订单独立流转，不影响本企划向其他应征画师继续发单。</p>
+      <template #footer>
+        <el-button @click="orderConfirmVisible = false">再想想</el-button>
+        <el-button type="primary" :loading="creatingOrder" @click="confirmProjectOrder">确认发送订单</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -165,7 +186,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   applyProject,
-  createProjectOrderIntent,
+  createProjectOrder,
   deleteApplication,
   getApplications,
   getProject,
@@ -186,6 +207,9 @@ const applicantTotal = ref(0)
 const loadingApplicants = ref(false)
 const startingChatId = ref(null)
 const orderingPainterId = ref(null)
+const orderingApplication = ref(null)
+const orderConfirmVisible = ref(false)
+const creatingOrder = ref(false)
 const withdrawingApplicationId = ref(null)
 const applicationDialogVisible = ref(false)
 const applicationFormRef = ref()
@@ -359,15 +383,28 @@ async function openChat(item) {
   }
 }
 
-async function sendOrderIntent(item) {
+function openOrderConfirm(item) {
+  orderingApplication.value = item
+  orderConfirmVisible.value = true
+}
+
+async function confirmProjectOrder() {
+  const item = orderingApplication.value
+  if (!item) return
   orderingPainterId.value = item.painter.id
+  creatingOrder.value = true
   try {
-    const message = await createProjectOrderIntent(project.value.id, item.painter.id)
-    ElMessage.info(message)
+    const order = await createProjectOrder(project.value.id, item.application.id)
+    orderConfirmVisible.value = false
+    await userStore.fetchMe()
+    ElMessage.success('企划订单已发送，金额已托管并通知画师接单')
+    await router.push({ name: 'DashboardOrderDetail', params: { id: order.id } })
   } catch (error) {
     ElMessage.error(error.message || '发送企划订单失败')
   } finally {
+    if (orderConfirmVisible.value) orderConfirmVisible.value = false
     orderingPainterId.value = null
+    creatingOrder.value = false
   }
 }
 
@@ -420,6 +457,14 @@ onMounted(loadProject)
 .requirement-item dt { color: #8a929b; }
 .requirement-item dd { color: #555; }
 .applicant-panel { margin-top: 20px; }
+.confirm-order { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: center; }
+.confirm-cover { width: 104px; height: 104px; overflow: hidden; border-radius: 8px; background: #f2f4f6; }
+.confirm-copy h3 { margin: 0 0 10px; font-size: 18px; }
+.confirm-copy p { margin: 5px 0; color: #7e8790; font-size: 13px; }
+.confirm-amount { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 14px 16px; border-radius: 7px; background: #f5f9fc; }
+.confirm-amount span { color: #6e7882; }
+.confirm-amount strong { color: #f39a19; font-size: 22px; }
+.confirm-tip { margin: 13px 0 0; color: #8b939b; font-size: 13px; line-height: 1.7; }
 .applicant-heading { display: flex; justify-content: space-between; align-items: baseline; padding: 20px 28px; border-bottom: 1px solid #edf0f3; }
 .applicant-heading h2 { margin: 0; color: #555; font-size: 16px; }
 .applicant-heading span { color: #999; font-size: 13px; }

@@ -20,6 +20,9 @@ public class OrderInfo {
 
     private Long projectId;
 
+    /** 企划订单对应的应征记录；允许同一企划给多名应征画师分别发单。 */
+    private Long applicationId;
+
     private Long stallId;
 
     private Long employerId;
@@ -32,6 +35,13 @@ public class OrderInfo {
     private String stallTitle;
 
     private String stallCover;
+
+    /** 下单时的企划信息快照，避免企划后续变更影响历史订单。 */
+    private String projectTitle;
+
+    private String projectCover;
+
+    private String projectSnapshot;
 
     /** 下单时复制的创作阶段 JSON。 */
     private String phaseSnapshot;

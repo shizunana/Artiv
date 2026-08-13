@@ -98,6 +98,27 @@ class MessageServiceTest {
     }
 
     @Test
+    void createProjectOrderCommunicationCreatesOrderCardsWithProjectLinkage() {
+        OrderInfo order = new OrderInfo();
+        order.setId(78L);
+        order.setEmployerId(15L);
+        order.setPainterId(2L);
+        Project project = new Project();
+        project.setId(8L);
+        project.setTitle("企划测试");
+
+        messageService.createProjectOrderCommunication(order, project);
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(messageMapper, org.mockito.Mockito.times(3)).insert(captor.capture());
+        assertEquals("PROJECT_ORDER_CREATED", captor.getAllValues().get(0).getSubtype());
+        assertEquals("PROJECT_ORDER_RECEIVED", captor.getAllValues().get(1).getSubtype());
+        assertEquals("PROJECT_ORDER_CONVERSATION_STARTED", captor.getAllValues().get(2).getSubtype());
+        assertEquals(8L, captor.getAllValues().get(2).getProjectId());
+        assertEquals(78L, captor.getAllValues().get(2).getOrderId());
+    }
+
+    @Test
     void employerStartsProjectConversationForPendingApplicant() {
         Project project = ownedProject();
         when(projectMapper.selectById(8L)).thenReturn(project);
@@ -168,58 +189,6 @@ class MessageServiceTest {
 
         assertEquals(99L, started.getId());
         verify(messageMapper).insert(any(Message.class));
-    }
-
-    @Test
-    void orderIntentRejectsNonOwnerWithoutMutation() {
-        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
-
-        assertThrows(BusinessException.class, () -> messageService.createProjectOrderIntent(3L, 8L, 2L));
-
-        verify(applicationMapper, never()).selectOne(any());
-        verify(messageMapper, never()).insert(any(Message.class));
-        verify(projectMapper, never()).updateById(any(Project.class));
-        verify(applicationMapper, never()).updateById(any(Application.class));
-    }
-
-    @Test
-    void orderIntentReturnsExactPlaceholderForPendingApplicantWithoutMutation() {
-        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
-        when(applicationMapper.selectOne(any())).thenReturn(pendingApplication());
-
-        String response = messageService.createProjectOrderIntent(1L, 8L, 2L);
-
-        assertEquals("订单功能开发中", response);
-        verify(messageMapper, never()).insert(any(Message.class));
-        verify(projectMapper, never()).updateById(any(Project.class));
-        verify(applicationMapper, never()).updateById(any(Application.class));
-    }
-
-    @Test
-    void orderIntentReturnsExactPlaceholderForSelectedApplicantWithoutMutation() {
-        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
-        Application selected = pendingApplication();
-        selected.setStatus(1);
-        when(applicationMapper.selectOne(any())).thenReturn(selected);
-
-        String response = messageService.createProjectOrderIntent(1L, 8L, 2L);
-
-        assertEquals("订单功能开发中", response);
-        verify(messageMapper, never()).insert(any(Message.class));
-        verify(projectMapper, never()).updateById(any(Project.class));
-        verify(applicationMapper, never()).updateById(any(Application.class));
-    }
-
-    @Test
-    void orderIntentRejectsWithdrawnApplicantWithoutMutation() {
-        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
-        when(applicationMapper.selectOne(any())).thenReturn(null);
-
-        assertThrows(BusinessException.class, () -> messageService.createProjectOrderIntent(1L, 8L, 2L));
-
-        verify(messageMapper, never()).insert(any(Message.class));
-        verify(projectMapper, never()).updateById(any(Project.class));
-        verify(applicationMapper, never()).updateById(any(Application.class));
     }
 
     @Test
