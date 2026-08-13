@@ -88,6 +88,20 @@ class StallServiceTest {
         Stall result = stallService.getById(27L, 2L);
 
         assertEquals(stall, result);
+        assertEquals(false, result.getHasUnfinishedOrders());
+    }
+
+    @Test
+    void createRejectsCategoryOutsideSharedOptions() {
+        Stall stall = ownedStall();
+        stall.setCategory("国潮插画");
+
+        com.huiyue.common.BusinessException exception = assertThrows(
+                com.huiyue.common.BusinessException.class,
+                () -> stallService.create(stall, 2L));
+
+        assertEquals("橱窗类型必须从统一选项中选择", exception.getMessage());
+        verify(stallMapper, never()).insert(any(Stall.class));
     }
 
     @Test

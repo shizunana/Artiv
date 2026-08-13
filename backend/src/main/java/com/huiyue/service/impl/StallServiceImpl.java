@@ -33,6 +33,11 @@ public class StallServiceImpl implements StallService {
     private static final int ORDER_COMPLETED = 3;
     private static final int ORDER_CANCELLED = 4;
 
+    private static final Set<String> CATEGORY_OPTIONS = Set.of(
+            "头像", "Q版全身", "半身像", "立绘", "组合页",
+            "服设", "壁纸", "表情包", "Live2d", "平面设计"
+    );
+
     private final StallMapper stallMapper;
     private final UserMapper userMapper;
     private final OrderInfoMapper orderInfoMapper;
@@ -97,6 +102,9 @@ public class StallServiceImpl implements StallService {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND.getCode(), "请先上架后查看详情");
         }
         fillPainterNames(java.util.List.of(stall));
+        if (owner) {
+            stall.setHasUnfinishedOrders(hasUnfinishedOrders(id));
+        }
         return stall;
     }
 
@@ -134,6 +142,9 @@ public class StallServiceImpl implements StallService {
 
     @Override
     public Stall create(Stall stall, Long painterId) {
+        if (!CATEGORY_OPTIONS.contains(stall.getCategory())) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "橱窗类型必须从统一选项中选择");
+        }
         stall.setId(null);
         stall.setPainterId(painterId);
         stall.setStatus(1);

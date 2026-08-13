@@ -36,27 +36,9 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="80">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="goDetail(row.id)">详情</el-button>
-            <el-button link type="primary" size="small" @click="toggle(row)">
-              {{ row.status === 1 ? '下架' : '上架' }}
-            </el-button>
-            <el-tooltip
-              :disabled="!row.hasUnfinishedOrders"
-              content="该橱窗存在未完成订单，暂时无法删除"
-              placement="top"
-            >
-              <span>
-                <el-button
-                  link
-                  type="danger"
-                  size="small"
-                  :disabled="row.hasUnfinishedOrders"
-                  @click="remove(row.id)"
-                >删除</el-button>
-              </span>
-            </el-tooltip>
+            <el-button link type="primary" size="small" @click="goEdit(row.id)">编辑</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -162,18 +144,18 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getMyStalls, createStall, changeStallStatus, deleteStall } from '@/api/stall'
+import { getMyStalls, createStall } from '@/api/stall'
 import { uploadFile } from '@/api/upload'
-import { SUBJECT_OPTIONS } from '@/constants/subjects'
+import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 
 const stalls = ref([])
 const router = useRouter()
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
-const categories = ['国潮插画', '角色立绘', '场景原画', '头像', 'Q版', 'Live2d']
+const categories = CATEGORY_OPTIONS
 const subjectOptions = SUBJECT_OPTIONS
 const form = reactive({
   title: '',
@@ -291,23 +273,8 @@ function removePhase(i) {
   form.phases.splice(i, 1)
 }
 
-async function toggle(row) {
-  await changeStallStatus(row.id, row.status === 1 ? 0 : 1)
-  ElMessage.success(row.status === 1 ? '已下架' : '已上架')
-  load()
-}
-
-async function remove(id) {
-  await ElMessageBox.confirm('确定删除该橱窗吗？', '提示', { type: 'warning' })
-  await deleteStall(id)
-  // 删除成功后先同步更新当前页面，避免等待重新请求期间仍显示已删除橱窗。
-  stalls.value = stalls.value.filter((item) => item.id !== id)
-  ElMessage.success('橱窗已删除并下架')
-  await load()
-}
-
-function goDetail(id) {
-  router.push({ name: 'StallDetail', params: { id } })
+function goEdit(id) {
+  router.push({ name: 'StallDetail', params: { id }, query: { edit: '1' } })
 }
 
 onMounted(load)

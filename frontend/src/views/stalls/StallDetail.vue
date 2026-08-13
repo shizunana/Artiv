@@ -146,8 +146,32 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveLimitedEdit">保存修改</el-button>
+        <div class="edit-footer">
+          <div class="edit-footer__danger-zone">
+            <el-button :loading="changingStatus" @click="toggleStatus">
+              {{ stall?.status === 1 ? '下架橱窗' : '上架橱窗' }}
+            </el-button>
+            <el-tooltip
+              :disabled="!stall?.hasUnfinishedOrders"
+              content="该橱窗存在未完成订单，暂时无法删除"
+              placement="top"
+            >
+              <span>
+                <el-button
+                  type="danger"
+                  plain
+                  :disabled="stall?.hasUnfinishedOrders"
+                  :loading="deleting"
+                  @click="removeStall"
+                >删除橱窗</el-button>
+              </span>
+            </el-tooltip>
+          </div>
+          <div>
+            <el-button @click="editVisible = false">取消</el-button>
+            <el-button type="primary" :loading="saving" @click="saveLimitedEdit">保存修改</el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -156,8 +180,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getStall, updateStall } from '@/api/stall'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { changeStallStatus, deleteStall, getStall, updateStall } from '@/api/stall'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
@@ -171,6 +195,8 @@ const buying = ref(false)
 const confirmVisible = ref(false)
 const editVisible = ref(false)
 const saving = ref(false)
+const changingStatus = ref(false)
+const deleting = ref(false)
 const subjectOptions = SUBJECT_OPTIONS
 const editForm = ref({ stock: 0, subjects: [] })
 
@@ -217,6 +243,9 @@ async function load() {
   try {
     stall.value = await getStall(route.params.id)
     document.title = `${stall.value.title} - 绘约`
+    if (route.query.edit === '1' && Number(userStore.user?.id) === Number(stall.value.painterId)) {
+      openEdit()
+    }
   } finally {
     loading.value = false
   }
@@ -251,21 +280,63 @@ function openConfirm() {
 
 function handlePrimaryAction() {
   if (isOwner.value) {
-    editForm.value = { stock: Number(stall.value.stock || 0), subjects: [...currentSubjects.value] }
-    editVisible.value = true
+    openEdit()
     return
   }
   if (canPurchase.value) openConfirm()
 }
 
+function openEdit() {
+  editForm.value = { stock: Number(stall.value.stock || 0), subjects: [...currentSubjects.value] }
+  editVisible.value = true
+}
+
 async function saveLimitedEdit() {
   saving.value = true
   try {
-    stall.value = await updateStall(stall.value.id, editForm.value)
+    const updated = await updateStall(stall.value.id, editForm.value)
+    stall.value = {
+      ...stall.value,
+      ...updated,
+      hasUnfinishedOrders: stall.value.hasUnfinishedOrders,
+    }
     editVisible.value = false
     ElMessage.success('橱窗库存与题材风格已更新')
   } finally {
     saving.value = false
+  }
+}
+
+async function toggleStatus() {
+  changingStatus.value = true
+  try {
+    const nextStatus = stall.value.status === 1 ? 0 : 1
+    const updated = await changeStallStatus(stall.value.id, nextStatus)
+    stall.value = {
+      ...stall.value,
+      ...updated,
+      hasUnfinishedOrders: stall.value.hasUnfinishedOrders,
+    }
+    ElMessage.success(nextStatus === 1 ? '橱窗已上架' : '橱窗已下架')
+  } finally {
+    changingStatus.value = false
+  }
+}
+
+async function removeStall() {
+  await ElMessageBox.confirm(
+    '确定删除该橱窗吗？删除后会同时下架，且无法恢复。',
+    '删除橱窗',
+    { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' },
+  )
+  deleting.value = true
+  try {
+    await deleteStall(stall.value.id)
+    ElMessage.success('橱窗已删除并下架')
+    editVisible.value = false
+    router.replace({ name: 'PainterStalls' })
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -586,6 +657,8 @@ onMounted(load)
 .stock-empty { color: var(--huiyue-accent); font-weight: 600; }
 .edit-tip { margin-left: 10px; color: var(--huiyue-text-secondary); font-size: 12px; }
 .edit-subjects { width: 100%; }
+.edit-footer { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.edit-footer__danger-zone { display: flex; align-items: center; gap: 8px; }
 .confirm-order { display:flex; gap:14px; padding-bottom:16px; border-bottom:1px solid var(--huiyue-border); }
 .confirm-order img { width:96px; height:76px; border-radius:7px; object-fit:cover; }
 .confirm-order h3 { margin:3px 0 10px; }

@@ -13,6 +13,7 @@ public class StallRequest {
     @NotBlank(message = "服务名称不能为空")
     private String title;
 
+    @NotBlank(message = "请选择橱窗类型")
     private String category;
 
     @NotBlank(message = "必须上传封面图")
