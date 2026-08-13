@@ -69,6 +69,12 @@ public class AuthInterceptor implements HandlerInterceptor {
             return (module.equals("projects") || module.equals("stalls") || module.equals("works"))
                     && segments[4].matches("\\d+");
         }
+        // 企划详情中的应征画师为公开展示信息。
+        if (segments.length == 6) {
+            return segments[3].equals("projects")
+                    && segments[4].matches("\\d+")
+                    && segments[5].equals("applications");
+        }
         return false;
     }
 

@@ -48,6 +48,10 @@ export function deleteApplication(id) {
   return request.delete(`/applications/${id}`)
 }
 
+export function updateApplicationQuote(id, quote) {
+  return request.put(`/applications/${id}/quote`, { quote })
+}
+
 export function selectApplication(id) {
   return request.put(`/applications/${id}/select`)
 }

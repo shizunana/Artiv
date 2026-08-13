@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,17 +45,21 @@ class ApplicationServiceTest {
     private ApplicationServiceImpl applicationService;
 
     @Test
-    void listApplicantDetailsRejectsNonEmployer() {
+    void listApplicantDetailsIsVisibleToNonEmployer() {
         Project project = new Project();
         project.setId(8L);
         project.setEmployerId(1L);
         project.setDeleted(0);
         when(projectMapper.selectById(8L)).thenReturn(project);
 
-        assertThrows(BusinessException.class,
-                () -> applicationService.listApplicantDetails(1, 10, 8L, 2L));
+        var applications = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<Application>(1, 10);
+        applications.setRecords(java.util.List.of());
+        when(applicationMapper.selectPage(any(), any())).thenReturn(applications);
 
-        verify(applicationMapper, never()).selectPage(any(), any());
+        var result = applicationService.listApplicantDetails(1, 10, 8L);
+
+        assertEquals(0, result.getRecords().size());
+        verify(applicationMapper).selectPage(any(), any());
     }
 
     @Test
@@ -84,9 +87,9 @@ class ApplicationServiceTest {
         var works = java.util.List.of(new Work(), new Work(), new Work(), new Work());
         when(workMapper.selectList(any())).thenReturn(works);
 
-        var result = applicationService.listApplicantDetails(1, 10, 8L, 1L);
+        var result = applicationService.listApplicantDetails(1, 10, 8L);
 
-        assertEquals(painter, result.getRecords().getFirst().getPainter());
+        assertEquals(painter.getId(), result.getRecords().getFirst().getPainter().getId());
         assertEquals(4, result.getRecords().getFirst().getWorks().size());
     }
 
@@ -97,11 +100,22 @@ class ApplicationServiceTest {
         project.setEmployerId(1L);
         project.setTitle("角色海报插画");
         project.setDeleted(0);
+        project.setStatus(0);
         when(projectMapper.selectById(8L)).thenReturn(project);
+        User painter = new User();
+        painter.setId(2L);
+        painter.setRole(2);
+        painter.setCertStatus(2);
+        painter.setStatus(0);
+        painter.setDeleted(0);
+        when(userMapper.selectById(2L)).thenReturn(painter);
+        when(workMapper.selectCount(any())).thenReturn(4L);
+        when(applicationMapper.selectCount(any())).thenReturn(0L);
 
         Application application = new Application();
         application.setProjectId(8L);
         application.setPainterId(2L);
+        application.setQuote(java.math.BigDecimal.valueOf(500));
 
         applicationService.create(application);
 
@@ -112,6 +126,46 @@ class ApplicationServiceTest {
                 eq(8L),
                 eq("画师 #2 应征了你的企划「角色海报插画」。")
         );
+    }
+
+    @Test
+    void createRejectsPainterWithFewerThanFourPublicWorks() {
+        Project project = new Project();
+        project.setId(8L);
+        project.setEmployerId(1L);
+        project.setDeleted(0);
+        project.setStatus(0);
+        when(projectMapper.selectById(8L)).thenReturn(project);
+        User painter = new User();
+        painter.setId(2L);
+        painter.setRole(2);
+        painter.setCertStatus(2);
+        painter.setStatus(0);
+        painter.setDeleted(0);
+        when(userMapper.selectById(2L)).thenReturn(painter);
+        when(workMapper.selectCount(any())).thenReturn(3L);
+
+        Application application = new Application();
+        application.setProjectId(8L);
+        application.setPainterId(2L);
+        application.setQuote(java.math.BigDecimal.valueOf(500));
+
+        assertThrows(BusinessException.class, () -> applicationService.create(application));
+    }
+
+    @Test
+    void updateQuoteAllowsOnlyPendingApplicationOwner() {
+        Application application = new Application();
+        application.setId(12L);
+        application.setPainterId(2L);
+        application.setDeleted(0);
+        application.setStatus(0);
+        when(applicationMapper.selectById(12L)).thenReturn(application);
+
+        var updated = applicationService.updateQuote(12L, 2L, java.math.BigDecimal.valueOf(880));
+
+        assertEquals(0, java.math.BigDecimal.valueOf(880).compareTo(updated.getQuote()));
+        verify(applicationMapper).updateById(application);
     }
 
     @Test

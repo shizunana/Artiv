@@ -7,7 +7,9 @@ import com.huiyue.common.ResultCode;
 import com.huiyue.dto.PainterProfileUpdateRequest;
 import com.huiyue.dto.ArtistSummary;
 import com.huiyue.entity.User;
+import com.huiyue.entity.Work;
 import com.huiyue.mapper.UserMapper;
+import com.huiyue.mapper.WorkMapper;
 import com.huiyue.security.UserContext;
 import com.huiyue.service.ArtistService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 /**
  * 用户模块：个人资料与画师认证
@@ -40,6 +43,7 @@ public class UserController {
     );
 
     private final UserMapper userMapper;
+    private final WorkMapper workMapper;
     private final ArtistService artistService;
 
     /** 画师大厅：仅展示账号正常的已认证画师，并携带公开作品预览。 */
@@ -60,6 +64,13 @@ public class UserController {
         if (current.getCertStatus() != null
                 && (current.getCertStatus() == 1 || current.getCertStatus() == 2)) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID);
+        }
+        Long publicWorkCount = workMapper.selectCount(new LambdaQueryWrapper<Work>()
+                .eq(Work::getUserId, userId)
+                .eq(Work::getVisibility, 1)
+                .eq(Work::getDeleted, 0));
+        if (publicWorkCount == null || publicWorkCount < 4) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "申请画师认证前至少需要公开 4 件作品");
         }
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, userId)

@@ -3,11 +3,13 @@ package com.huiyue.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.Result;
 import com.huiyue.dto.ApplicationDetail;
+import com.huiyue.dto.ApplicationQuoteUpdateRequest;
 import com.huiyue.entity.Application;
 import com.huiyue.security.UserContext;
 import com.huiyue.service.ApplicationService;
 import com.huiyue.service.MessageService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,7 +32,7 @@ public class ApplicationController {
     public Result<Page<ApplicationDetail>> byProject(@PathVariable Long projectId,
                                                      @RequestParam(defaultValue = "1") long page,
                                                      @RequestParam(defaultValue = "10") long size) {
-        return Result.ok(applicationService.listApplicantDetails(page, size, projectId, UserContext.getUserId()));
+        return Result.ok(applicationService.listApplicantDetails(page, size, projectId));
     }
 
     @PostMapping("/projects/{projectId}/applications")
@@ -49,6 +51,12 @@ public class ApplicationController {
     @PutMapping("/applications/{id}/select")
     public Result<Application> select(@PathVariable Long id) {
         return Result.ok(applicationService.select(id, UserContext.getUserId()));
+    }
+
+    @PutMapping("/applications/{id}/quote")
+    public Result<Application> updateQuote(@PathVariable Long id,
+                                           @Valid @RequestBody ApplicationQuoteUpdateRequest request) {
+        return Result.ok(applicationService.updateQuote(id, UserContext.getUserId(), request.getQuote()));
     }
 
     @PostMapping("/projects/{projectId}/conversations/{painterId}")
