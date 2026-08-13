@@ -240,8 +240,13 @@ const formatSummary = computed(() => form.requirements.formats.length ? form.req
 
 function uploadedImageUrl(file) {
   const response = file?.response
-  if (typeof response === 'string') return response
-  return response?.url || file?.url || uploadedImageByUid.get(file?.uid) || ''
+  const uploadedUrl = uploadedImageByUid.get(file?.uid)
+  const candidates = [
+    typeof response === 'string' ? response : response?.url,
+    uploadedUrl,
+    file?.url,
+  ]
+  return candidates.find((url) => typeof url === 'string' && url && !url.startsWith('blob:')) || ''
 }
 
 async function doUpload({ file, onSuccess, onError }) {
