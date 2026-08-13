@@ -39,13 +39,52 @@
                     </div>
                   </article>
                   <div v-else class="bubble-row" :class="{ mine: msg.fromId === userStore.user?.id }">
-                    <div class="bubble">{{ msg.content }}<time>{{ formatDateTime(msg.createdAt) }}</time></div>
+                    <div class="bubble" :class="{ 'bubble--images': isImageMessage(msg) }">
+                      <template v-if="isImageMessage(msg)">
+                        <div class="message-images">
+                          <el-image
+                            v-for="image in imageUrls(msg)"
+                            :key="image"
+                            :src="image"
+                            :preview-src-list="imageUrls(msg)"
+                            :initial-index="imageUrls(msg).indexOf(image)"
+                            preview-teleported
+                            fit="cover"
+                          />
+                        </div>
+                      </template>
+                      <template v-else>{{ msg.content }}</template>
+                      <time>{{ formatDateTime(msg.createdAt) }}</time>
+                    </div>
                   </div>
                 </template>
               </div>
-              <footer>
-                <el-input v-model="draft" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="输入消息，Enter 发送，Shift + Enter 换行" @keydown.enter.exact.prevent="send" />
-                <el-button type="primary" :loading="sending" @click="send">发送</el-button>
+              <footer class="chat-composer">
+                <div class="chat-extension-bar" aria-label="消息扩展功能">
+                  <el-button text class="chat-extension-bar__item" :loading="sendingImages" @click="openImagePicker">
+                    🖼️ 发送图片
+                  </el-button>
+                  <el-tooltip content="表情功能预留中" placement="top">
+                    <span><el-button text disabled>😊 表情</el-button></span>
+                  </el-tooltip>
+                  <el-tooltip content="文件功能预留中" placement="top">
+                    <span><el-button text disabled>📎 文件</el-button></span>
+                  </el-tooltip>
+                  <span class="chat-extension-bar__hint">单次最多 9 张，每张不超过 5 MB</span>
+                </div>
+                <div v-if="pendingImages.length" class="image-queue">
+                  <div v-for="item in pendingImages" :key="item.url" class="image-queue__item">
+                    <img :src="item.url" :alt="item.name" />
+                    <button type="button" aria-label="移除图片" @click="removePendingImage(item.url)">×</button>
+                  </div>
+                  <el-button link type="danger" @click="clearPendingImages">清空</el-button>
+                  <el-button type="primary" size="small" :loading="sendingImages" @click="sendImages">发送 {{ pendingImages.length }} 张图片</el-button>
+                </div>
+                <div class="chat-composer__input-row">
+                  <el-input v-model="draft" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="输入消息，Enter 发送，Shift + Enter 换行" @keydown.enter.exact.prevent="send" />
+                  <el-button type="primary" :loading="sending" @click="send">发送</el-button>
+                </div>
+                <input ref="imageInput" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple @change="queueImages" />
               </footer>
             </template>
             <el-empty v-else description="从左侧选择会话，或从应征、橱窗下单页面发起沟通" />
@@ -69,7 +108,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getConversation, getConversations, getNotifications, markRead, sendPrivateMessage } from '@/api/message'
@@ -77,6 +116,7 @@ import { formatDateTime } from '@/utils/date'
 import { useUserStore } from '@/stores/user'
 import { useMessageStore } from '@/stores/message'
 import { startMessageSocket } from '@/utils/ws'
+import { uploadFile } from '@/api/upload'
 
 const route = useRoute()
 const router = useRouter()
@@ -92,6 +132,10 @@ const loadingConversations = ref(false)
 const loadingNotifications = ref(false)
 const loadingMessages = ref(false)
 const sending = ref(false)
+const sendingImages = ref(false)
+const imageInput = ref(null)
+const pendingImages = ref([])
+const maxImageCount = 9
 let stopSocket
 
 const conversationId = (item) => String(item.withUserId)
@@ -126,6 +170,7 @@ async function openConversation(item) {
     await Promise.all(messages.value.filter((msg) => msg.toId === userStore.user?.id && !msg.readAt).map((msg) => markRead(msg.id)))
     await messageStore.fetchUnreadCount()
     await loadConversations()
+    await scrollHistoryToBottom()
   } finally {
     loadingMessages.value = false
   }
@@ -140,11 +185,83 @@ async function send() {
     messages.value.push(message)
     draft.value = ''
     await loadConversations()
+    await scrollHistoryToBottom()
   } catch (error) {
     ElMessage.error(error.message || '发送失败')
   } finally {
     sending.value = false
   }
+}
+
+function openImagePicker() {
+  imageInput.value?.click()
+}
+
+function queueImages(event) {
+  const selected = Array.from(event.target.files || [])
+  const available = maxImageCount - pendingImages.value.length
+  const accepted = selected.slice(0, Math.max(0, available))
+  if (accepted.length < selected.length) {
+    ElMessage.warning(`单次最多发送 ${maxImageCount} 张图片`)
+  }
+  const existing = new Set(pendingImages.value.map((item) => `${item.name}_${item.size}_${item.lastModified}`))
+  accepted.forEach((file) => {
+    const identity = `${file.name}_${file.size}_${file.lastModified}`
+    if (!existing.has(identity)) {
+      pendingImages.value.push({ file, name: file.name, url: URL.createObjectURL(file) })
+      existing.add(identity)
+    }
+  })
+  event.target.value = ''
+}
+
+function removePendingImage(url) {
+  const target = pendingImages.value.find((item) => item.url === url)
+  if (target) URL.revokeObjectURL(target.url)
+  pendingImages.value = pendingImages.value.filter((item) => item.url !== url)
+}
+
+function clearPendingImages() {
+  pendingImages.value.forEach((item) => URL.revokeObjectURL(item.url))
+  pendingImages.value = []
+}
+
+async function sendImages() {
+  if (!active.value || !pendingImages.value.length) return
+  sendingImages.value = true
+  try {
+    const uploaded = await Promise.all(pendingImages.value.map((item) => uploadFile(item.file)))
+    const imageUrls = uploaded.map((result) => typeof result === 'string' ? result : result?.url).filter(Boolean)
+    const message = await sendPrivateMessage({ toId: active.value.withUserId, images: imageUrls })
+    messages.value.push(message)
+    clearPendingImages()
+    await loadConversations()
+    await scrollHistoryToBottom()
+  } catch (error) {
+    ElMessage.error(error.message || '图片发送失败')
+  } finally {
+    sendingImages.value = false
+  }
+}
+
+function isImageMessage(message) {
+  return message.subtype === 'PRIVATE_IMAGE'
+}
+
+function imageUrls(message) {
+  if (!isImageMessage(message)) return []
+  try {
+    const payload = JSON.parse(message.content || '{}')
+    return Array.isArray(payload.images) ? payload.images : []
+  } catch {
+    return []
+  }
+}
+
+async function scrollHistoryToBottom() {
+  await nextTick()
+  const history = document.querySelector('.chat-history')
+  if (history) history.scrollTop = history.scrollHeight
 }
 
 function isBusinessSystemMessage(message) {
@@ -205,12 +322,16 @@ onMounted(async () => {
       messages.value.push(event.data)
       await markRead(event.data.id)
       await messageStore.fetchUnreadCount()
+      await scrollHistoryToBottom()
     }
   })
 })
 
 watch(() => route.fullPath, openFromQuery)
-onUnmounted(() => stopSocket?.())
+onUnmounted(() => {
+  stopSocket?.()
+  clearPendingImages()
+})
 </script>
 
 <style scoped>
@@ -224,7 +345,7 @@ onUnmounted(() => stopSocket?.())
 .conversation-scroll, .chat-history { scrollbar-width: none; -ms-overflow-style: none; }
 .conversation-scroll::-webkit-scrollbar, .chat-history::-webkit-scrollbar { width: 0; height: 0; }
 .conversation-scroll { min-height: 0; flex: 1; overflow-y: auto; }
-.panel-title, .chat-panel header, .chat-panel footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.panel-title, .chat-panel header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .panel-title h3 { margin: 0; font-size: 17px; }
 .conversation-item { display: flex; width: 100%; gap: 10px; align-items: center; border: 0; background: transparent; padding: 13px 8px; text-align: left; cursor: pointer; border-radius: 6px; }
 .conversation-item.active, .conversation-item:hover { background: var(--huiyue-primary-light); }
@@ -240,14 +361,28 @@ onUnmounted(() => stopSocket?.())
 .bubble { max-width: 68%; padding: 10px 13px; border-radius: 8px; background: #f2f4f7; line-height: 1.6; white-space: pre-wrap; }
 .mine .bubble { background: var(--huiyue-primary); color: #fff; }
 .bubble time { display: block; margin-top: 5px; font-size: 11px; opacity: .7; }
+.bubble--images { width: min(480px, 78%); max-width: 78%; padding: 6px; }
+.message-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.message-images :deep(.el-image) { width: 100%; aspect-ratio: 1 / 1; border-radius: 5px; overflow: hidden; cursor: zoom-in; }
+.message-images :deep(.el-image:only-child) { grid-column: span 2; max-height: 380px; aspect-ratio: auto; }
 .business-system-message { width: min(460px, 78%); margin: 14px 0; padding: 12px 14px 10px; border: 1px solid #c8d8ea; border-radius: 8px; background: #f6faff; color: #46566b; }
 .business-system-message__badge { display: inline-block; margin-bottom: 6px; padding: 2px 7px; border-radius: 10px; background: #e4f3ff; color: var(--huiyue-primary); font-size: 11px; }
 .business-system-message p { margin: 0; line-height: 1.65; }
 .business-system-message__footer { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; }
 .business-system-message__footer button { padding: 0; border: 0; background: transparent; color: var(--huiyue-primary); cursor: pointer; font-size: 12px; }
 .business-system-message__footer time { color: var(--huiyue-text-secondary); font-size: 11px; }
-.chat-panel footer { align-items: flex-end; padding: 16px 24px; border-top: 1px solid var(--huiyue-border); }
-.chat-panel footer :deep(.el-textarea) { flex: 1; }
+.chat-composer { display: grid; gap: 10px; padding: 10px 24px 16px; border-top: 1px solid var(--huiyue-border); }
+.chat-extension-bar { display: flex; min-height: 30px; align-items: center; gap: 4px; border-bottom: 1px solid #edf0f4; }
+.chat-extension-bar :deep(.el-button) { margin: 0; padding-inline: 7px; }
+.chat-extension-bar__item { color: var(--huiyue-primary); }
+.chat-extension-bar__hint { margin-left: auto; color: var(--huiyue-text-secondary); font-size: 12px; }
+.image-queue { display: flex; max-height: 90px; align-items: center; gap: 8px; overflow-x: auto; }
+.image-queue__item { position: relative; flex: 0 0 auto; width: 64px; height: 64px; }
+.image-queue__item img { width: 100%; height: 100%; border: 1px solid var(--huiyue-border); border-radius: 5px; object-fit: cover; }
+.image-queue__item button { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border: 0; border-radius: 50%; background: #4c5563; color: #fff; cursor: pointer; line-height: 16px; }
+.chat-composer__input-row { display: flex; align-items: flex-end; gap: 12px; }
+.chat-composer__input-row :deep(.el-textarea) { flex: 1; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; clip-path: inset(50%); }
 .notification-panel { min-height: 535px; padding: 20px 28px; }
 .notification-card { display: flex; align-items: flex-start; gap: 14px; padding: 18px; margin-top: 12px; border: 1px solid var(--huiyue-border); border-radius: 10px; cursor: pointer; }
 .notification-card:hover { border-color: var(--huiyue-primary); }
@@ -257,5 +392,5 @@ onUnmounted(() => stopSocket?.())
 .notice-copy b { color: var(--huiyue-text); }
 .notice-copy p { margin: 8px 0; color: var(--huiyue-text-secondary); line-height: 1.6; }
 .notice-copy small { color: var(--huiyue-text-secondary); }
-@media (max-width: 760px) { .message-center { height: auto; min-height: 0; }.message-tabs { min-height: 0; }.message-layout { grid-template-columns: 1fr; height: auto; }.conversation-list { border-right: 0; border-bottom: 1px solid var(--huiyue-border); max-height: 220px; }.conversation-scroll { max-height: 172px; }.chat-panel { min-height: 440px; }.notification-panel { padding: 16px; }.business-system-message { width: auto; max-width: 100%; } }
+@media (max-width: 760px) { .message-center { height: auto; min-height: 0; }.message-tabs { min-height: 0; }.message-layout { grid-template-columns: 1fr; height: auto; }.conversation-list { border-right: 0; border-bottom: 1px solid var(--huiyue-border); max-height: 220px; }.conversation-scroll { max-height: 172px; }.chat-panel { min-height: 440px; }.notification-panel { padding: 16px; }.business-system-message { width: auto; max-width: 100%; }.chat-extension-bar__hint { display: none; }.chat-composer { padding-inline: 16px; }.bubble--images { width: min(100%, 360px); max-width: 88%; } }
 </style>

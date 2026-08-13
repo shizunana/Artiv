@@ -35,7 +35,7 @@
                   <div class="account-menu__funds-title">资金管理</div>
                   <div class="account-menu__balance">
                     <span>账户余额</span>
-                    <strong>¥0.00</strong>
+                    <strong>{{ formattedBalance }}</strong>
                     <div>
                       <button type="button" @click.stop="onCommand('withdraw')">提现</button>
                       <button type="button" @click.stop="onCommand('recharge')">充值</button>
@@ -80,6 +80,11 @@ const avatarText = computed(() => {
 const workbenchHome = computed(() => {
   const role = userStore.workbenchRole
   return role === 2 ? '/painter' : role === 3 ? '/admin' : '/dashboard'
+})
+
+const formattedBalance = computed(() => {
+  const amount = Number(userStore.user?.balance ?? 0)
+  return `¥${Number.isFinite(amount) ? amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`
 })
 
 function goPublish() {

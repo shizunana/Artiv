@@ -21,6 +21,7 @@ CREATE TABLE `user` (
   `password`    VARCHAR(100) NOT NULL COMMENT '密码（BCrypt）',
   `nickname`    VARCHAR(50)  NOT NULL COMMENT '昵称',
   `avatar`      VARCHAR(255) DEFAULT NULL COMMENT '头像地址',
+  `balance`     DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '账户可用余额',
   `bio`         VARCHAR(500) DEFAULT NULL COMMENT '个人简介',
   `tags`        VARCHAR(255) DEFAULT NULL COMMENT '风格标签，逗号分隔',
   `role`        TINYINT      NOT NULL DEFAULT 2 COMMENT '角色：1 企划方、2 画师、3 管理员',

@@ -28,8 +28,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +42,9 @@ public class MessageServiceImpl implements MessageService {
     public static final int TYPE_ORDER = 2;
     public static final int TYPE_PRIVATE = 3;
     public static final String SUBTYPE_PRIVATE_CHAT = "PRIVATE_CHAT";
+    public static final String SUBTYPE_PRIVATE_IMAGE = "PRIVATE_IMAGE";
+    private static final int MAX_PRIVATE_IMAGE_COUNT = 9;
+    private static final String UPLOAD_PATH_PREFIX = "/uploads/";
 
     private final MessageMapper messageMapper;
     private final UserMapper userMapper;
@@ -54,8 +59,11 @@ public class MessageServiceImpl implements MessageService {
         if (fromUserId == null || request == null || request.getToId() == null) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
-        String content = request.getContent() == null ? "" : request.getContent().trim();
-        if (content.isEmpty() || content.length() > 500 || fromUserId.equals(request.getToId())) {
+        String textContent = request.getContent() == null ? "" : request.getContent().trim();
+        List<String> images = normalizeImages(request.getImages());
+        boolean hasText = !textContent.isEmpty();
+        boolean hasImages = !images.isEmpty();
+        if (hasText == hasImages || textContent.length() > 500 || fromUserId.equals(request.getToId())) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
         User recipient = userMapper.selectById(request.getToId());
@@ -76,9 +84,9 @@ public class MessageServiceImpl implements MessageService {
         message.setProjectId(null);
         message.setOrderId(null);
         message.setType(TYPE_PRIVATE);
-        message.setSubtype(SUBTYPE_PRIVATE_CHAT);
+        message.setSubtype(hasImages ? SUBTYPE_PRIVATE_IMAGE : SUBTYPE_PRIVATE_CHAT);
         message.setConversationKey(conversationKey(fromUserId, request.getToId()));
-        message.setContent(content);
+        message.setContent(hasImages ? toImagePayload(images) : textContent);
         message.setDeleted(0);
         LocalDateTime now = LocalDateTime.now();
         message.setCreatedAt(now);
@@ -329,6 +337,41 @@ public class MessageServiceImpl implements MessageService {
 
     private String projectConversationStarterKey(Long projectId, Long employerId, Long painterId) {
         return projectId + ":" + conversationKey(employerId, painterId) + ":APPLICATION_CONVERSATION_STARTED";
+    }
+
+    private List<String> normalizeImages(List<String> requestImages) {
+        if (requestImages == null || requestImages.isEmpty()) {
+            return List.of();
+        }
+        if (requestImages.size() > MAX_PRIVATE_IMAGE_COUNT) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        Set<String> uniqueImages = new LinkedHashSet<>();
+        for (String image : requestImages) {
+            String normalized = image == null ? "" : image.trim();
+            if (normalized.isEmpty() || !normalized.startsWith(UPLOAD_PATH_PREFIX)) {
+                throw new BusinessException(ResultCode.PARAM_INVALID);
+            }
+            uniqueImages.add(normalized);
+        }
+        if (uniqueImages.isEmpty() || uniqueImages.size() > MAX_PRIVATE_IMAGE_COUNT) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        return List.copyOf(uniqueImages);
+    }
+
+    private String toImagePayload(List<String> images) {
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of("images", images));
+            if (payload.length() > 500) {
+                throw new BusinessException(ResultCode.PARAM_INVALID);
+            }
+            return payload;
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
     }
 
     private void push(Message message, String eventType) {

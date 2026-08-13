@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -27,6 +28,9 @@ public class User {
     private String nickname;
 
     private String avatar;
+
+    /** 账户可用余额；充值、提现和冻结金额将在正式资金模块中实现。 */
+    private BigDecimal balance;
 
     /** 角色：1 企划方、2 画师、3 管理员 */
     private Integer role;

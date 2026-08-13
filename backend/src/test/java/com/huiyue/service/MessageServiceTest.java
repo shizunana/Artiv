@@ -1,5 +1,6 @@
 package com.huiyue.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huiyue.common.BusinessException;
 import com.huiyue.dto.PrivateMessageRequest;
 import com.huiyue.entity.Application;
@@ -18,8 +19,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -35,6 +39,7 @@ class MessageServiceTest {
     @Mock private UserMapper userMapper;
     @Mock private ProjectMapper projectMapper;
     @Mock private ApplicationMapper applicationMapper;
+    @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks private MessageServiceImpl messageService;
 
@@ -57,6 +62,20 @@ class MessageServiceTest {
     void sendPrivateMessageRejectsSendingToSelf() {
         assertThrows(BusinessException.class, () -> messageService.sendPrivateMessage(15L, request(15L, null, "self")));
         verify(messageMapper, never()).insert(any(Message.class));
+    }
+
+    @Test
+    void sendPrivateMessageStoresMultipleImagesAsOneImageMessage() {
+        when(userMapper.selectById(2L)).thenReturn(activeUser(2L));
+        PrivateMessageRequest request = request(2L, null, null);
+        request.setImages(List.of("/uploads/chat-a.png", "/uploads/chat-b.png"));
+
+        messageService.sendPrivateMessage(15L, request);
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(messageMapper).insert(captor.capture());
+        assertEquals("PRIVATE_IMAGE", captor.getValue().getSubtype());
+        assertEquals("{\"images\":[\"/uploads/chat-a.png\",\"/uploads/chat-b.png\"]}", captor.getValue().getContent());
     }
 
     @Test
