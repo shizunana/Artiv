@@ -5,14 +5,17 @@ import com.huiyue.common.Result;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
 import com.huiyue.dto.PainterProfileUpdateRequest;
+import com.huiyue.dto.ArtistSummary;
 import com.huiyue.entity.User;
 import com.huiyue.mapper.UserMapper;
 import com.huiyue.security.UserContext;
+import com.huiyue.service.ArtistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 
@@ -37,6 +40,16 @@ public class UserController {
     );
 
     private final UserMapper userMapper;
+    private final ArtistService artistService;
+
+    /** 画师大厅：仅展示账号正常的已认证画师，并携带公开作品预览。 */
+    @GetMapping("/artists")
+    public Result<List<ArtistSummary>> artists(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String subjects,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(artistService.listArtists(category, subjects, keyword));
+    }
 
     /** 申请画师认证：提交后进入审核中（cert_status=1） */
     @PutMapping("/me/cert")

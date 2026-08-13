@@ -31,3 +31,7 @@ export function updateUserStatus(id, status) {
 export function applyCert() {
   return request.put('/users/me/cert')
 }
+
+export function getArtists(params) {
+  return request.get('/users/artists', { params })
+}

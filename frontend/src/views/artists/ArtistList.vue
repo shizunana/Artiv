@@ -1,137 +1,374 @@
 <template>
-  <div class="list-page">
-    <div class="list-header page-container">
-      <h1 class="section-title">画师列表</h1>
-      <p class="section-subtitle">发现心仪的合作画师</p>
-    </div>
+  <div class="artist-page">
+    <header class="artist-hero page-container">
+      <h1>画师大厅</h1>
+      <p>发现适合企划与委托需求的认证画师</p>
+    </header>
 
-    <div class="page-container">
-      <div class="filter-bar">
-        <div class="filter-tabs">
-          <span
-            v-for="c in categories"
-            :key="c"
-            class="filter-tab"
-            :class="{ 'is-active': activeCategory === c }"
-            @click="activeCategory = c"
-          >
-            {{ c }}
-          </span>
-        </div>
+    <main class="artist-main page-container">
+      <section class="artist-toolbar" aria-label="画师筛选">
+        <el-select
+          v-model="filters.category"
+          class="type-select"
+          clearable
+          placeholder="类型"
+          @change="loadArtists"
+        >
+          <el-option v-for="item in categoryOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+
+        <el-select
+          v-model="filters.subjects"
+          class="subject-select"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable
+          placeholder="题材风格（可多选）"
+          @change="loadArtists"
+        >
+          <el-option v-for="item in subjectOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+
+        <el-input
+          v-model="filters.keyword"
+          class="artist-search"
+          clearable
+          placeholder="搜索画师昵称、账号、简介或题材风格"
+          @keyup.enter="loadArtists"
+          @clear="loadArtists"
+        >
+          <template #prefix>⌕</template>
+        </el-input>
+        <el-button type="primary" @click="loadArtists">搜索</el-button>
+      </section>
+
+      <div v-loading="loading" class="artist-results">
+        <article
+          v-for="artist in artists"
+          :key="artist.id"
+          class="artist-row"
+          @click="goProfile(artist.id)"
+        >
+          <section class="artist-summary">
+            <el-avatar :size="70" :src="artist.avatar || undefined" class="artist-avatar">
+              {{ artist.nickname?.slice(0, 1) || '绘' }}
+            </el-avatar>
+            <div class="artist-copy">
+              <div class="artist-name-line">
+                <h2>{{ artist.nickname || artist.username }}</h2>
+                <el-tag size="small" type="success" effect="light">已认证</el-tag>
+              </div>
+              <p class="artist-account">@{{ artist.username }}</p>
+              <p class="artist-bio">{{ artist.bio || '这位画师暂未填写个人简介。' }}</p>
+              <div class="artist-tags">
+                <el-tag v-for="tag in splitTags(artist.tags)" :key="tag" size="small" effect="plain">
+                  {{ tag }}
+                </el-tag>
+                <span v-if="splitTags(artist.tags).length === 0" class="muted">暂未设置题材风格</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="artist-works">
+            <div
+              v-for="work in artist.works"
+              :key="work.id"
+              class="work-preview"
+              :title="work.title"
+            >
+              <img :src="work.image" :alt="work.title" />
+              <span>{{ work.title }}</span>
+            </div>
+            <div v-if="!artist.works?.length" class="no-works">
+              <span>暂无公开作品</span>
+              <small>画师已认证，可通过题材风格了解擅长方向</small>
+            </div>
+          </section>
+        </article>
+
+        <EmptyState
+          v-if="!loading && artists.length === 0"
+          description="没有找到符合条件的认证画师，请调整筛选条件"
+        />
       </div>
-
-      <div class="artist-grid">
-        <div v-for="artist in artists" :key="artist.id" class="artist-card" @click="goProfile(artist.id)">
-          <el-avatar :size="72" class="artist-avatar">{{ artist.nickname?.slice(0, 1) || '绘' }}</el-avatar>
-          <h3>{{ artist.nickname }}</h3>
-          <p class="artist-tags">{{ artist.tags || '未填写风格标签' }}</p>
-          <el-tag size="small" :type="artist.certStatus === 2 ? 'success' : 'info'">
-            {{ artist.certStatus === 2 ? '已认证' : '未认证' }}
-          </el-tag>
-        </div>
-      </div>
-
-      <EmptyState v-if="artists.length === 0" description="暂无画师数据（演示数据为单画师）" />
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { getArtists } from '@/api/user'
+import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 
 const router = useRouter()
-const activeCategory = ref('全部')
-const categories = ['全部', '国潮', '插画', '立绘', '场景']
+const loading = ref(false)
+const artists = ref([])
+const categoryOptions = CATEGORY_OPTIONS
+const subjectOptions = SUBJECT_OPTIONS
+const filters = reactive({
+  category: '',
+  subjects: [],
+  keyword: '',
+})
 
-// 演示数据：真实画师列表接口在阶段 3 接入，先用演示画师
-const artists = ref([
-  { id: 2, nickname: '画师阿绘', tags: '国潮,插画,人物', certStatus: 2 },
-])
+onMounted(loadArtists)
+
+async function loadArtists() {
+  loading.value = true
+  try {
+    artists.value = await getArtists({
+      category: filters.category || undefined,
+      subjects: filters.subjects.length ? filters.subjects.join(',') : undefined,
+      keyword: filters.keyword.trim() || undefined,
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+function splitTags(value) {
+  return (value || '').split(',').map((item) => item.trim()).filter(Boolean)
+}
 
 function goProfile(id) {
   router.push({ name: 'ArtistProfile', params: { id } })
 }
+
 </script>
 
 <style scoped>
-.list-page {
-  min-height: 60vh;
-  padding-bottom: 48px;
+.artist-page {
+  min-height: calc(100vh - 56px);
+  padding: 42px 0 64px;
+  background: #f5f7fa;
 }
 
-.list-header {
-  padding-top: 48px;
+.artist-hero {
+  text-align: center;
+  margin-bottom: 28px;
 }
 
-.filter-bar {
-  margin-bottom: 24px;
+.artist-hero h1 {
+  margin: 0;
+  color: var(--huiyue-text-primary);
+  font-size: 30px;
+  font-weight: 600;
 }
 
-.filter-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.filter-tab {
-  padding: 8px 20px;
-  border-radius: 18px;
-  background: #fff;
-  border: 1px solid var(--huiyue-border);
+.artist-hero p {
+  margin: 10px 0 0;
   color: var(--huiyue-text-secondary);
-  cursor: pointer;
   font-size: 14px;
 }
 
-.filter-tab.is-active {
-  background: var(--huiyue-primary);
-  color: #fff;
+.artist-main {
+  max-width: 1180px;
 }
 
-.artist-grid {
+.artist-toolbar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-}
-
-.artist-card {
+  grid-template-columns: 180px minmax(260px, 340px) minmax(280px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 18px 20px;
+  margin-bottom: 14px;
   background: #fff;
-  border-radius: 8px;
   border: 1px solid var(--huiyue-border);
-  padding: 28px 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(42, 63, 84, 0.04);
 }
 
-.artist-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+.type-select,
+.subject-select,
+.artist-search {
+  width: 100%;
+}
+
+.artist-results {
+  min-height: 220px;
+  background: #fff;
+  border: 1px solid var(--huiyue-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.artist-row {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: 30px;
+  min-height: 190px;
+  padding: 26px 28px;
+  border-bottom: 1px solid #edf0f4;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.artist-row:last-child {
+  border-bottom: 0;
+}
+
+.artist-row:hover {
+  background: #fbfdff;
+}
+
+.artist-summary {
+  display: flex;
+  gap: 18px;
+  min-width: 0;
+  align-items: flex-start;
 }
 
 .artist-avatar {
-  background: var(--huiyue-primary);
+  flex: 0 0 auto;
+  background: linear-gradient(145deg, #e9f8ff, #00a8e8);
   color: #fff;
-  font-size: 26px;
-  margin-bottom: 14px;
+  font-size: 24px;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 10px rgba(0, 168, 232, 0.16);
 }
 
-.artist-card h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
+.artist-copy {
+  min-width: 0;
+}
+
+.artist-name-line {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.artist-name-line h2 {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--huiyue-text-primary);
+}
+
+.artist-account {
+  margin: 6px 0;
+  color: #9aa2ad;
+  font-size: 12px;
+}
+
+.artist-bio {
+  display: -webkit-box;
+  margin: 10px 0 14px;
+  overflow: hidden;
+  color: var(--huiyue-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .artist-tags {
-  color: var(--huiyue-text-secondary);
-  font-size: 13px;
-  margin: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-@media (max-width: 900px) {
-  .artist-grid {
-    grid-template-columns: repeat(2, 1fr);
+.muted {
+  color: #a4abb4;
+  font-size: 12px;
+}
+
+.artist-works {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-self: center;
+}
+
+.work-preview {
+  position: relative;
+  height: 132px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 5px;
+  background: #f0f3f7;
+}
+
+.work-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.work-preview:hover img {
+  transform: scale(1.04);
+}
+
+.work-preview span {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 18px 8px 7px;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.no-works {
+  grid-column: 1 / -1;
+  display: flex;
+  min-height: 132px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #d9e1e8;
+  border-radius: 5px;
+  color: #87919c;
+  background: #fafbfd;
+}
+
+.no-works small {
+  margin-top: 7px;
+  color: #b1b8c0;
+}
+
+@media (max-width: 1000px) {
+  .artist-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .artist-row {
+    grid-template-columns: 1fr;
+  }
+
+  .artist-works {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .artist-page {
+    padding-top: 24px;
+  }
+
+  .artist-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .artist-row {
+    padding: 22px 18px;
+  }
+
+  .artist-summary {
+    flex-direction: column;
+  }
+
+  .artist-works {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
