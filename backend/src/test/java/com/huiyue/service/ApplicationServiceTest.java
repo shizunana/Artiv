@@ -110,7 +110,7 @@ class ApplicationServiceTest {
         painter.setDeleted(0);
         when(userMapper.selectById(2L)).thenReturn(painter);
         when(workMapper.selectCount(any())).thenReturn(4L);
-        when(applicationMapper.selectCount(any())).thenReturn(0L);
+        when(applicationMapper.selectOne(any())).thenReturn(null);
 
         Application application = new Application();
         application.setProjectId(8L);
@@ -151,6 +151,46 @@ class ApplicationServiceTest {
         application.setQuote(java.math.BigDecimal.valueOf(500));
 
         assertThrows(BusinessException.class, () -> applicationService.create(application));
+    }
+
+    @Test
+    void createReusesWithdrawnApplicationInsteadOfViolatingUniqueKey() {
+        Project project = new Project();
+        project.setId(8L);
+        project.setEmployerId(1L);
+        project.setTitle("角色海报插画");
+        project.setDeleted(0);
+        project.setStatus(0);
+        when(projectMapper.selectById(8L)).thenReturn(project);
+        User painter = new User();
+        painter.setId(2L);
+        painter.setRole(2);
+        painter.setCertStatus(2);
+        painter.setStatus(0);
+        painter.setDeleted(0);
+        when(userMapper.selectById(2L)).thenReturn(painter);
+        when(workMapper.selectCount(any())).thenReturn(4L);
+        Application withdrawn = new Application();
+        withdrawn.setId(12L);
+        withdrawn.setProjectId(8L);
+        withdrawn.setPainterId(2L);
+        withdrawn.setStatus(3);
+        withdrawn.setDeleted(0);
+        when(applicationMapper.selectOne(any())).thenReturn(withdrawn);
+
+        Application request = new Application();
+        request.setProjectId(8L);
+        request.setPainterId(2L);
+        request.setIntro("重新应征");
+        request.setQuote(java.math.BigDecimal.valueOf(660));
+
+        Application reapplied = applicationService.create(request);
+
+        assertEquals(12L, reapplied.getId());
+        assertEquals(0, reapplied.getStatus());
+        assertEquals("重新应征", reapplied.getIntro());
+        assertEquals(0, java.math.BigDecimal.valueOf(660).compareTo(reapplied.getQuote()));
+        verify(applicationMapper).updateById(withdrawn);
     }
 
     @Test

@@ -22,8 +22,8 @@
             v-if="showApplyButton"
             class="apply-button"
             type="primary"
-            :disabled="!canApply"
-            @click="applicationDialogVisible = true"
+            :disabled="applyButtonDisabled"
+            @click="handleApplyButton"
           >
             {{ applyButtonText }}
           </el-button>
@@ -81,32 +81,19 @@
           </header>
 
           <div v-if="applicants.length" class="applicant-list">
-            <article
-              v-for="item in applicants"
-              :key="item.application.id"
-              class="applicant-card"
-              :class="{ 'has-actions': showOwnerActions(item) || showSelfActions(item) }"
-            >
-              <div v-if="showOwnerActions(item) || showSelfActions(item)" class="applicant-actions">
-                <template v-if="showOwnerActions(item)">
-                  <el-button size="small" :loading="startingChatId === item.painter.id" @click="openChat(item)">私信</el-button>
-                  <el-button size="small" type="primary" :loading="orderingPainterId === item.painter.id" @click="sendOrderIntent(item)">
-                    发送企划订单
-                  </el-button>
-                </template>
-                <template v-else>
-                  <el-button size="small" type="danger" plain :loading="withdrawingApplicationId === item.application.id" @click="withdrawApplication(item)">
-                    取消应征
-                  </el-button>
-                  <el-button size="small" type="primary" plain @click="openQuoteDialog(item)">更改报价</el-button>
-                </template>
+            <article v-for="item in applicants" :key="item.application.id" class="applicant-card">
+              <div v-if="showOwnerActions(item)" class="applicant-actions">
+                <el-button size="small" :loading="startingChatId === item.painter.id" @click="openChat(item)">私信</el-button>
+                <el-button size="small" type="primary" :loading="orderingPainterId === item.painter.id" @click="sendOrderIntent(item)">
+                  发送企划订单
+                </el-button>
               </div>
 
               <button class="applicant-identity" type="button" @click="openPainterProfile(item.painter?.id)">
                 <el-avatar :size="66" :src="item.painter?.avatar">{{ painterName(item).slice(0, 1) }}</el-avatar>
                 <div class="applicant-copy">
                   <h3>{{ painterName(item) }}</h3>
-                  <p>{{ item.painter?.bio || '这位画师还没有填写个人简介。' }}</p>
+                  <p>{{ painterBio(item) }}</p>
                   <div v-if="painterTags(item).length" class="painter-tags">
                     <el-tag v-for="tag in painterTags(item)" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
                   </div>
@@ -157,14 +144,15 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="quoteDialogVisible" title="更改应征报价" width="420px">
+    <el-dialog v-model="quoteDialogVisible" title="更改应征" width="420px">
       <el-form label-position="top">
         <el-form-item label="新报价（元）">
           <el-input-number v-model="quoteForm.quote" :min="0.01" :precision="2" :step="100" controls-position="right" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="quoteDialogVisible = false">取消</el-button>
+        <el-button type="danger" plain :loading="withdrawingApplicationId === quoteForm.id" @click="withdrawCurrentApplication">取消应征</el-button>
+        <el-button @click="quoteDialogVisible = false">关闭</el-button>
         <el-button type="primary" :loading="updatingQuote" @click="submitQuoteUpdate">保存报价</el-button>
       </template>
     </el-dialog>
@@ -224,10 +212,13 @@ const canApply = computed(() => userStore.isLoggedIn
   && !currentApplication.value
   && Number(project.value?.status) === 0
   && !recruitExpired.value)
+const applyButtonDisabled = computed(() => currentApplication.value
+  ? Number(currentApplication.value.application.status) !== 0
+  : !canApply.value)
 const showApplyButton = computed(() => !isOwner.value && (userStore.user?.certStatus === 2 || !userStore.isLoggedIn))
 const applyButtonText = computed(() => {
   if (!userStore.isLoggedIn) return '登录后应征企划'
-  if (currentApplication.value) return '已应征企划'
+  if (currentApplication.value) return '更改应征'
   if (recruitExpired.value || Number(project.value?.status) !== 0) return '应征已截止'
   return '应征企划'
 })
@@ -257,11 +248,21 @@ const requirementItems = computed(() => [
 ])
 
 const painterName = (item) => item.painter?.nickname || `画师 #${item.application.painterId}`
+const painterBio = (item) => {
+  const bio = String(item.painter?.bio || '这位画师还没有填写个人简介。').trim()
+  const characters = Array.from(bio)
+  return characters.length > 20 ? `${characters.slice(0, 20).join('')}...` : bio
+}
 const painterTags = (item) => String(item.painter?.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean)
 const showOwnerActions = () => isOwner.value
-const showSelfActions = (item) => !isOwner.value
-  && currentUserId.value === Number(item.painter?.id)
-  && Number(item.application.status) === 0
+
+function handleApplyButton() {
+  if (currentApplication.value) {
+    openQuoteDialog(currentApplication.value)
+  } else {
+    applicationDialogVisible.value = true
+  }
+}
 
 function resetApplicationForm() {
   applicationFormRef.value?.resetFields()
@@ -309,12 +310,17 @@ async function withdrawApplication(item) {
   try {
     await deleteApplication(item.application.id)
     ElMessage.success('已取消应征')
+    quoteDialogVisible.value = false
     await loadApplicants()
   } catch (error) {
     ElMessage.error(error.message || '取消应征失败')
   } finally {
     withdrawingApplicationId.value = null
   }
+}
+
+function withdrawCurrentApplication() {
+  return withdrawApplication(currentApplication.value)
 }
 
 function openQuoteDialog(item) {
@@ -398,7 +404,7 @@ onMounted(loadProject)
 .recruit-countdown { margin: 22px 0 10px; color: #8b939b; font-size: 12px; text-align: center; }
 .apply-button, .back-button { width: 100%; }
 .apply-button { height: 42px; font-size: 15px; }
-.back-button { margin-top: 12px; }
+.back-button { margin-top: 12px; margin-left: 0 !important; }
 .project-main-card { min-height: 650px; padding: 32px; }
 .project-heading { padding-bottom: 24px; border-bottom: 1px solid #edf0f3; }
 .project-title { margin: 0; color: #333; font-size: 29px; line-height: 1.45; }
@@ -418,19 +424,18 @@ onMounted(loadProject)
 .applicant-heading h2 { margin: 0; color: #555; font-size: 16px; }
 .applicant-heading span { color: #999; font-size: 13px; }
 .applicant-list { padding: 4px 28px 28px; }
-.applicant-card { position: relative; display: grid; grid-template-columns: minmax(250px, 1.15fr) 110px minmax(300px, 1.5fr); gap: 20px; align-items: center; margin-top: 24px; min-height: 126px; padding: 22px 20px; border: 1px solid #e1e5ea; border-radius: 4px; background: #fff; }
-.applicant-card.has-actions { padding-top: 48px; }
+.applicant-card { position: relative; display: grid; grid-template-columns: minmax(250px, 1.15fr) 110px minmax(300px, 1.5fr); gap: 20px; align-items: center; height: 164px; margin-top: 24px; padding: 42px 20px 18px; overflow: hidden; border: 1px solid #e1e5ea; border-radius: 4px; background: #fff; }
 .applicant-identity { display: flex; gap: 15px; align-items: center; min-width: 0; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
 .applicant-copy { min-width: 0; }
 .applicant-copy h3 { margin: 0 0 7px; color: #3e4650; font-size: 16px; }
-.applicant-copy p { display: -webkit-box; overflow: hidden; margin: 0; color: #777; font-size: 13px; line-height: 1.65; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.applicant-copy p { display: -webkit-box; min-height: 42px; overflow: hidden; margin: 0; color: #777; font-size: 13px; line-height: 21px; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .painter-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .quote-block { padding-left: 16px; border-left: 1px solid #edf0f3; }
 .quote-block span, .quote-block strong { display: block; }
 .quote-block span { margin-bottom: 6px; color: #999; font-size: 12px; }
 .quote-block strong { color: #ff7043; font-size: 15px; }
 .applicant-works { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.work-thumbnail { width: 100%; aspect-ratio: 1; border-radius: 3px; background: #f1f3f5; }
+.work-thumbnail { width: 100%; height: 80px; border-radius: 3px; background: #f1f3f5; }
 .work-placeholder { display: grid; place-items: center; color: #a5acb5; font-size: 12px; }
 .applicant-actions { position: absolute; top: 10px; right: 12px; z-index: 1; display: flex; gap: 6px; }
 .applicant-actions :deep(.el-button) { padding: 6px 10px; }

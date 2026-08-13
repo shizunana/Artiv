@@ -101,22 +101,33 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (application.getQuote() == null || application.getQuote().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "报价必须大于 0");
         }
-        Long activeCount = applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
+        Application existing = applicationMapper.selectOne(new LambdaQueryWrapper<Application>()
                 .eq(Application::getProjectId, application.getProjectId())
                 .eq(Application::getPainterId, application.getPainterId())
-                .eq(Application::getDeleted, 0)
-                .in(Application::getStatus, 0, 1));
-        if (activeCount != null && activeCount > 0) {
+                .eq(Application::getDeleted, 0));
+        if (existing != null && (Integer.valueOf(0).equals(existing.getStatus())
+                || Integer.valueOf(1).equals(existing.getStatus()))) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "你已经应征过该企划");
         }
 
-        application.setId(null);
-        application.setStatus(0);
-        application.setDeleted(0);
         LocalDateTime now = LocalDateTime.now();
-        application.setCreatedAt(now);
-        application.setUpdatedAt(now);
-        applicationMapper.insert(application);
+        if (existing != null) {
+            existing.setIntro(application.getIntro());
+            existing.setWorkLink(application.getWorkLink());
+            existing.setQuote(application.getQuote());
+            existing.setStatus(0);
+            existing.setCreatedAt(now);
+            existing.setUpdatedAt(now);
+            applicationMapper.updateById(existing);
+            application = existing;
+        } else {
+            application.setId(null);
+            application.setStatus(0);
+            application.setDeleted(0);
+            application.setCreatedAt(now);
+            application.setUpdatedAt(now);
+            applicationMapper.insert(application);
+        }
         messageService.createNotification(
                 project.getEmployerId(),
                 1,
