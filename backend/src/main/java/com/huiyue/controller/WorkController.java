@@ -2,10 +2,14 @@ package com.huiyue.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.Result;
+import com.huiyue.dto.WorkRequest;
 import com.huiyue.entity.Work;
 import com.huiyue.security.UserContext;
 import com.huiyue.service.WorkService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,8 +29,18 @@ public class WorkController {
     @GetMapping
     public Result<Page<Work>> list(@RequestParam(defaultValue = "1") long page,
                                    @RequestParam(defaultValue = "12") long size,
-                                   @RequestParam(required = false) String category) {
-        return Result.ok(workService.listWorks(page, size, category));
+                                   @RequestParam(required = false) String category,
+                                   @RequestParam(required = false) String subject,
+                                   @RequestParam(required = false) String keyword,
+                                   @RequestParam(defaultValue = "newest") String sort) {
+        return Result.ok(workService.listWorks(
+                page,
+                size,
+                normalizeFilter(category),
+                normalizeFilter(subject),
+                normalizeFilter(keyword),
+                sort
+        ));
     }
 
     @GetMapping("/mine")
@@ -36,7 +50,9 @@ public class WorkController {
     }
 
     @PostMapping
-    public Result<Work> create(@RequestBody Work work) {
+    public Result<Work> create(@Valid @RequestBody WorkRequest request) {
+        Work work = new Work();
+        BeanUtils.copyProperties(request, work);
         return Result.ok(workService.create(work, UserContext.getUserId()));
     }
 
@@ -44,5 +60,9 @@ public class WorkController {
     public Result<Void> delete(@PathVariable Long id) {
         workService.delete(id, UserContext.getUserId());
         return Result.ok();
+    }
+
+    private String normalizeFilter(String value) {
+        return StringUtils.hasText(value) && !"all".equals(value) ? value.trim() : null;
     }
 }

@@ -42,8 +42,10 @@ CREATE TABLE `work` (
   `user_id`     BIGINT       NOT NULL COMMENT '画师用户ID',
   `title`       VARCHAR(100) NOT NULL COMMENT '作品标题',
   `category`    VARCHAR(50)  DEFAULT NULL COMMENT '分类（国潮/立绘/场景等）',
+  `subject`     VARCHAR(500) DEFAULT NULL COMMENT '题材风格，英文逗号分隔',
   `image`       VARCHAR(255) DEFAULT NULL COMMENT '作品图地址',
   `description` VARCHAR(500) DEFAULT NULL COMMENT '作品说明',
+  `visibility`  TINYINT      NOT NULL DEFAULT 1 COMMENT '可见范围：0 仅自己可见、1 公开',
   `deleted`     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -234,9 +236,9 @@ INSERT INTO `user` (`id`, `username`, `password`, `nickname`, `avatar`, `bio`, `
   (2, 'artist',  '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '画师阿绘', NULL, '国潮插画师，擅长人物与场景，接稿中。', '国潮,插画,人物', 2, 2, 0),
   (3, 'admin',   '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '平台管理员', NULL, NULL, NULL, 3, 0, 0);
 
-INSERT INTO `work` (`id`, `user_id`, `title`, `category`, `description`) VALUES
-  (1, 2, '国潮·龙腾四海', '国潮', '节日主题国潮插画，曾用于品牌海报宣传。'),
-  (2, 2, '少女与猫·立绘', '立绘', '游戏角色立绘练习，半身像。');
+INSERT INTO `work` (`id`, `user_id`, `title`, `category`, `subject`, `description`, `visibility`) VALUES
+  (1, 2, '国潮·龙腾四海', '平面设计', '古风,有背景', '节日主题国潮插画，曾用于品牌海报宣传。', 1),
+  (2, 2, '少女与猫·立绘', '立绘', '女性,日系', '游戏角色立绘练习，半身像。', 1);
 
 INSERT INTO `stall` (`id`, `painter_id`, `title`, `category`, `price`, `description`, `status`) VALUES
   (1, 2, '国潮插画约稿（单张）', '国潮插画', 1200.00, '含初稿、2 次修改、终稿源文件，交付周期 2 周。', 1),

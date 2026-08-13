@@ -20,11 +20,21 @@ public class WorkServiceImpl implements WorkService {
     private final WorkMapper workMapper;
 
     @Override
-    public Page<Work> listWorks(long page, long size, String category) {
+    public Page<Work> listWorks(long page, long size, String category, String subject, String keyword, String sort) {
         LambdaQueryWrapper<Work> wrapper = new LambdaQueryWrapper<Work>()
                 .eq(Work::getDeleted, 0)
+                .eq(Work::getVisibility, 1)
                 .eq(StringUtils.hasText(category), Work::getCategory, category)
-                .orderByDesc(Work::getCreatedAt);
+                .like(StringUtils.hasText(subject), Work::getSubject, subject)
+                .and(StringUtils.hasText(keyword), query -> query
+                        .like(Work::getTitle, keyword)
+                        .or()
+                        .like(Work::getDescription, keyword));
+        if ("oldest".equals(sort)) {
+            wrapper.orderByAsc(Work::getCreatedAt);
+        } else {
+            wrapper.orderByDesc(Work::getCreatedAt);
+        }
         return workMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
@@ -42,6 +52,9 @@ public class WorkServiceImpl implements WorkService {
         work.setId(null);
         work.setUserId(userId);
         work.setDeleted(0);
+        if (work.getVisibility() == null) {
+            work.setVisibility(1);
+        }
         LocalDateTime now = LocalDateTime.now();
         work.setCreatedAt(now);
         work.setUpdatedAt(now);

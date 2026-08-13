@@ -23,9 +23,15 @@ public class Work {
 
     private String category;
 
+    /** 题材风格，多个值使用英文逗号分隔 */
+    private String subject;
+
     private String image;
 
     private String description;
+
+    /** 可见范围：0 仅自己可见、1 公开 */
+    private Integer visibility;
 
     private Integer deleted;
 

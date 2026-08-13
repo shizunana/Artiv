@@ -5,7 +5,7 @@ import com.huiyue.entity.Work;
 
 public interface WorkService {
 
-    Page<Work> listWorks(long page, long size, String category);
+    Page<Work> listWorks(long page, long size, String category, String subject, String keyword, String sort);
 
     Page<Work> listMine(long page, long size, Long userId);
 

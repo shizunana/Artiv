@@ -1,197 +1,115 @@
 <template>
-  <div class="list-page">
-    <div class="list-header page-container">
-      <h1 class="section-title">作品广场</h1>
-      <p class="section-subtitle">来自认证画师的优选作品</p>
-      <el-alert
-        title="该模块开发中：作品详情、画师主页跳转、点赞收藏等功能待完善，当前展示基础作品列表"
-        type="warning"
-        :closable="false"
-        show-icon
-        class="dev-alert"
-      />
+  <div class="list-page page-container">
+    <div class="category-bar">
+      <span v-for="category in categories" :key="category" class="category-tab" :class="{ 'is-active': activeCategory === category }" @click="setCategory(category)">
+        {{ category }}
+      </span>
     </div>
 
-    <div class="page-container">
-      <div class="filter-bar">
-        <div class="filter-tabs">
-          <span
-            v-for="c in categories"
-            :key="c"
-            class="filter-tab"
-            :class="{ 'is-active': activeCategory === c }"
-            @click="activeCategory = c"
-          >
-            {{ c }}
-          </span>
-        </div>
-      </div>
+    <div class="filter-row">
+      <el-select v-model="sort" class="sort-select" @change="reload">
+        <el-option label="最新发布" value="newest" />
+        <el-option label="最早发布" value="oldest" />
+      </el-select>
+      <el-select v-model="subject" class="filter-select" @change="reload">
+        <el-option label="题材风格" value="all" />
+        <el-option v-for="item in subjectOptions" :key="item" :label="item" :value="item" />
+      </el-select>
+      <el-input v-model="keyword" clearable class="search-input" placeholder="搜索作品标题、作品说明" @keyup.enter="reload" @clear="reload">
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+    </div>
 
-      <div class="work-grid" v-loading="loading">
-        <div v-for="(work, i) in filteredWorks" :key="work.id" class="work-card">
-          <div class="work-thumb" :style="gradient(i)">
-            <span class="work-emoji">{{ emojis[i % emojis.length] }}</span>
-          </div>
-          <div class="work-info">
-            <h3>{{ work.title }}</h3>
-            <div class="work-meta">
-              <span class="work-cat">{{ work.category }}</span>
-              <span class="work-desc">{{ work.description }}</span>
-            </div>
+    <div v-loading="loading" class="work-waterfall">
+      <article v-for="work in works" :key="work.id" class="work-card">
+        <div class="work-cover">
+          <el-image v-if="work.image" :src="work.image" fit="cover" class="work-image" :preview-src-list="[work.image]" preview-teleported />
+          <div v-else class="work-placeholder"><span>🎨</span></div>
+          <div class="work-overlay">
+            <strong :title="work.title">{{ work.title }}</strong>
+            <span>{{ work.category }}</span>
           </div>
         </div>
-      </div>
+        <div class="work-meta">
+          <span class="subject-list">{{ work.subject || '未设置题材风格' }}</span>
+          <span class="public-label">公开作品</span>
+        </div>
+      </article>
+    </div>
 
-      <EmptyState v-if="!loading && filteredWorks.length === 0" description="暂无作品" />
+    <EmptyState v-if="!loading && works.length === 0" description="暂无符合筛选条件的公开作品" />
+    <div v-if="total > size" class="pager">
+      <Pagination v-model:page="page" v-model:size="size" :total="total" @change="load" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { Search } from '@element-plus/icons-vue'
 import { getWorks } from '@/api/work'
+import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
+import Pagination from '@/components/common/Pagination.vue'
 
 const works = ref([])
 const loading = ref(false)
+const page = ref(1)
+const size = ref(20)
+const total = ref(0)
 const activeCategory = ref('全部')
-const categories = ['全部', '国潮', '插画', '立绘', '场景', '原画', '同人']
-const emojis = ['🎨', '🖌️', '✨', '🖼️', '🎭', '🌊']
-const gradients = [
-  'linear-gradient(135deg, #4facfe, #00f2fe)',
-  'linear-gradient(135deg, #f093fb, #f5576c)',
-  'linear-gradient(135deg, #43e97b, #38f9d7)',
-  'linear-gradient(135deg, #fa709a, #fee140)',
-  'linear-gradient(135deg, #30cfd0, #330867)',
-  'linear-gradient(135deg, #a8edea, #fed6e3)',
-]
+const subject = ref('all')
+const keyword = ref('')
+const sort = ref('newest')
+const categories = ['全部', ...CATEGORY_OPTIONS]
+const subjectOptions = SUBJECT_OPTIONS
 
-const filteredWorks = computed(() => {
-  if (activeCategory.value === '全部') return works.value
-  return works.value.filter((w) => w.category === activeCategory.value)
-})
-
-function gradient(i) {
-  return { background: gradients[i % gradients.length] }
+function setCategory(category) {
+  activeCategory.value = category
+  reload()
 }
 
-onMounted(async () => {
+function reload() {
+  page.value = 1
+  load()
+}
+
+async function load() {
   loading.value = true
   try {
-    const data = await getWorks({ page: 1, size: 30 })
+    const params = { page: page.value, size: size.value, sort: sort.value }
+    if (activeCategory.value !== '全部') params.category = activeCategory.value
+    if (subject.value !== 'all') params.subject = subject.value
+    if (keyword.value.trim()) params.keyword = keyword.value.trim()
+    const data = await getWorks(params)
     works.value = data.records || []
+    total.value = data.total || 0
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 </script>
 
 <style scoped>
-.list-page {
-  min-height: 60vh;
-  padding-bottom: 48px;
-}
-
-.list-header {
-  padding-top: 48px;
-}
-
-.dev-alert {
-  margin: 8px 0 20px;
-}
-
-.filter-bar {
-  margin-bottom: 24px;
-}
-
-.filter-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.filter-tab {
-  padding: 8px 20px;
-  border-radius: 18px;
-  background: #fff;
-  border: 1px solid var(--huiyue-border);
-  color: var(--huiyue-text-secondary);
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.filter-tab.is-active {
-  background: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
-  color: #fff;
-}
-
-.work-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-}
-
-.work-card {
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--huiyue-border);
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-  cursor: pointer;
-}
-
-.work-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-}
-
-.work-thumb {
-  aspect-ratio: 1 / 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.work-emoji {
-  font-size: 52px;
-}
-
-.work-info {
-  padding: 14px;
-}
-
-.work-info h3 {
-  margin: 0 0 8px;
-  font-size: 15px;
-}
-
-.work-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.work-cat {
-  font-size: 12px;
-  color: var(--huiyue-primary);
-  background: var(--huiyue-primary-light);
-  padding: 2px 8px;
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-
-.work-desc {
-  font-size: 12px;
-  color: var(--huiyue-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (max-width: 900px) {
-  .work-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
+.list-page { min-height: 60vh; max-width: 1100px; padding: 16px 16px 48px; }
+.category-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--huiyue-border); }
+.category-tab { padding: 7px 18px; border-radius: 18px; background: #fff; border: 1px solid var(--huiyue-border); color: var(--huiyue-text-secondary); cursor: pointer; font-size: 14px; transition: all .2s; }
+.category-tab:hover { color: var(--huiyue-primary); border-color: var(--huiyue-primary); }
+.category-tab.is-active { color: #fff; background: var(--huiyue-primary); border-color: var(--huiyue-primary); }
+.filter-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; }
+.sort-select { width: 150px; }.filter-select { width: 140px; }.search-input { width: 260px; margin-left: auto; }.search-input :deep(.el-input__wrapper) { border-radius: 20px; }
+.work-waterfall { columns: 5 180px; column-gap: 18px; min-height: 160px; }
+.work-card { break-inside: avoid; margin: 0 0 18px; border: 1px solid var(--huiyue-border); border-radius: 10px; overflow: hidden; background: #fff; transition: transform .2s, box-shadow .2s; }
+.work-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, .08); }
+.work-cover { position: relative; background: var(--huiyue-section-alt); }
+.work-image { display: block; width: 100%; height: auto; min-height: 150px; }
+.work-placeholder { display: grid; place-items: center; min-height: 210px; background: linear-gradient(135deg, #e2f4fd, #efe8ff); color: #6d9db4; font-size: 44px; }
+.work-overlay { position: absolute; inset: auto 0 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; padding: 24px 10px 9px; background: linear-gradient(transparent, rgba(0, 0, 0, .72)); color: #fff; }
+.work-overlay strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }.work-overlay span { flex-shrink: 0; font-size: 12px; opacity: .9; }
+.work-meta { display: flex; justify-content: space-between; gap: 8px; padding: 9px 10px; color: var(--huiyue-text-secondary); font-size: 12px; }.subject-list { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.public-label { flex-shrink: 0; color: var(--huiyue-primary); }
+.pager { display: flex; justify-content: center; margin-top: 32px; }
+@media (max-width: 900px) { .filter-row { flex-wrap: wrap; }.search-input { margin-left: 0; }.work-waterfall { columns: 3 180px; } }
+@media (max-width: 560px) { .work-waterfall { columns: 2 150px; }.category-bar { justify-content: flex-start; }.category-tab { padding: 6px 13px; } }
 </style>
