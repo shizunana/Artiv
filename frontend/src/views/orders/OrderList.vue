@@ -1,13 +1,13 @@
 <template>
   <div class="order-list wb-card">
     <header class="order-header">
-      <div><h2>订单管理</h2><p>统一查看交易状态，并进入订单详情处理当前待办。</p></div>
+      <div><h2>订单管理</h2><p>统一查看作为画师承接和作为企划方下单的全部交易。</p></div>
       <el-button @click="load">刷新</el-button>
     </header>
 
-    <el-tabs v-if="isPainterWorkbench" v-model="participantRole" class="participant-tabs" @tab-change="load">
-      <el-tab-pane label="我接的订单" name="painter" />
-      <el-tab-pane label="我下的订单" name="employer" />
+    <el-tabs v-model="participantRole" class="participant-tabs" @tab-change="load">
+      <el-tab-pane label="画师受约订单" name="painter" />
+      <el-tab-pane label="企划方订单" name="employer" />
     </el-tabs>
 
     <el-tabs v-model="source" class="source-tabs" @tab-change="load">
@@ -45,17 +45,16 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getOrders } from '@/api/order'
 import { formatDateTime } from '@/utils/date'
 import { ORDER_STATUS, statusText, statusType } from '@/utils/status'
-import { useUserStore } from '@/stores/user'
 
+const route = useRoute()
 const router = useRouter()
-const userStore = useUserStore()
 const source = ref('stall')
 const statusGroup = ref('all')
-const participantRole = ref('painter')
+const participantRole = ref(route.path.startsWith('/dashboard') ? 'employer' : 'painter')
 const orders = ref([])
 const loading = ref(false)
 const filters = [
@@ -73,14 +72,14 @@ async function load() {
       size: 30,
       source: source.value,
       statusGroup: statusGroup.value,
-      participantRole: isPainterWorkbench.value ? participantRole.value : 'employer',
+      participantRole: participantRole.value,
     })
     orders.value = data.records || []
   } finally { loading.value = false }
 }
 function selectFilter(value) { statusGroup.value = value; load() }
-const isPainterWorkbench = computed(() => userStore.workbenchRole === 2)
-function goOrderDetail(id) { router.push({ name: isPainterWorkbench.value ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id } }) }
+const isPainterRoute = computed(() => route.path.startsWith('/painter'))
+function goOrderDetail(id) { router.push({ name: isPainterRoute.value ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id } }) }
 function goStallDetail(id) { router.push({ name: 'StallDetail', params: { id }, query: { from: 'order' } }) }
 function money(value) { return Number(value || 0).toFixed(2) }
 onMounted(load)
