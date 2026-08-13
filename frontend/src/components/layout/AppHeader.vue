@@ -30,10 +30,20 @@
               <el-icon class="header-caret"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
-              <el-dropdown-menu>
+              <el-dropdown-menu class="account-menu">
+                <div class="account-menu__funds">
+                  <div class="account-menu__funds-title">资金管理</div>
+                  <div class="account-menu__balance">
+                    <span>账户余额</span>
+                    <strong>¥0.00</strong>
+                    <div>
+                      <button type="button" @click.stop="onCommand('withdraw')">提现</button>
+                      <button type="button" @click.stop="onCommand('recharge')">充值</button>
+                    </div>
+                  </div>
+                </div>
+                <el-dropdown-item command="home">首页</el-dropdown-item>
                 <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-                <el-dropdown-item command="workbench">工作台</el-dropdown-item>
-                <el-dropdown-item v-if="canSwitchRole" command="switchRole">切换身份</el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -52,6 +62,7 @@
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowDown, Bell } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useMessageStore } from '@/stores/message'
 
@@ -65,8 +76,6 @@ const avatarText = computed(() => {
   const n = userStore.user?.nickname || userStore.user?.username || ''
   return n ? n.slice(0, 1) : '绘'
 })
-
-const canSwitchRole = computed(() => userStore.workbenchRole !== 3)
 
 const workbenchHome = computed(() => {
   const role = userStore.workbenchRole
@@ -87,13 +96,12 @@ function goMessages() {
 }
 
 function onCommand(command) {
-  if (command === 'profile') {
+  if (command === 'home') {
+    ElMessage.info('首页正在开发中')
+  } else if (command === 'recharge' || command === 'withdraw') {
+    ElMessage.info('资金管理功能正在开发中')
+  } else if (command === 'profile') {
     router.push(userStore.workbenchRole === 2 ? '/painter/profile' : workbenchHome.value)
-  } else if (command === 'workbench') {
-    router.push(workbenchHome.value)
-  } else if (command === 'switchRole') {
-    userStore.switchRole(userStore.workbenchRole === 2 ? 1 : 2)
-    router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
   } else if (command === 'logout') {
     userStore.logout()
     router.push({ name: 'Home' })
@@ -216,6 +224,15 @@ function onCommand(command) {
   font-size: 12px;
   color: var(--huiyue-text-secondary);
 }
+
+:global(.account-menu) { min-width: 190px; padding: 0 0 6px; }
+:global(.account-menu__funds) { padding: 12px; border-bottom: 1px solid var(--huiyue-border); }
+:global(.account-menu__funds-title) { margin-bottom: 8px; color: var(--huiyue-text); font-size: 14px; font-weight: 600; }
+:global(.account-menu__balance) { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 4px 8px; padding: 9px 10px; border-radius: 8px; background: var(--huiyue-primary-light); }
+:global(.account-menu__balance span) { color: var(--huiyue-text-secondary); font-size: 12px; }
+:global(.account-menu__balance strong) { color: var(--huiyue-text); font-size: 18px; }
+:global(.account-menu__balance div) { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 12px; }
+:global(.account-menu__balance button) { border: 0; padding: 0; color: var(--huiyue-primary); background: transparent; cursor: pointer; font-size: 12px; }
 
 @media (max-width: 900px) {
   .app-header__nav {

@@ -4,6 +4,10 @@ export function getWorks(params) {
   return request.get('/works', { params })
 }
 
+export function getWorkDetail(id) {
+  return request.get(`/works/${id}`)
+}
+
 export function getMyWorks(params) {
   return request.get('/works/mine', { params })
 }

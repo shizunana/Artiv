@@ -58,7 +58,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         if (segments.length == 5) {
             String module = segments[3];
-            return (module.equals("projects") || module.equals("stalls"))
+            return (module.equals("projects") || module.equals("stalls") || module.equals("works"))
                     && segments[4].matches("\\d+");
         }
         return false;

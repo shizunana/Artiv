@@ -3,6 +3,7 @@ package com.huiyue.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.Result;
 import com.huiyue.dto.WorkRequest;
+import com.huiyue.dto.WorkDetailResponse;
 import com.huiyue.entity.Work;
 import com.huiyue.security.UserContext;
 import com.huiyue.service.WorkService;
@@ -42,6 +43,11 @@ public class WorkController {
                 normalizeFilter(keyword),
                 sort
         ));
+    }
+
+    @GetMapping("/{id}")
+    public Result<WorkDetailResponse> detail(@PathVariable Long id) {
+        return Result.ok(workService.getPublicDetail(id));
     }
 
     @GetMapping("/mine")

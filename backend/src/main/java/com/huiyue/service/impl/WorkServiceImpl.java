@@ -4,10 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
+import com.huiyue.dto.WorkDetailResponse;
 import com.huiyue.entity.Work;
+import com.huiyue.entity.User;
 import com.huiyue.mapper.WorkMapper;
+import com.huiyue.mapper.UserMapper;
 import com.huiyue.service.WorkService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -18,6 +22,7 @@ import java.time.LocalDateTime;
 public class WorkServiceImpl implements WorkService {
 
     private final WorkMapper workMapper;
+    private final UserMapper userMapper;
 
     @Override
     public Page<Work> listWorks(long page, long size, String category, String subject, String keyword, String sort) {
@@ -25,17 +30,47 @@ public class WorkServiceImpl implements WorkService {
                 .eq(Work::getDeleted, 0)
                 .eq(Work::getVisibility, 1)
                 .eq(StringUtils.hasText(category), Work::getCategory, category)
-                .like(StringUtils.hasText(subject), Work::getSubject, subject)
                 .and(StringUtils.hasText(keyword), query -> query
                         .like(Work::getTitle, keyword)
                         .or()
                         .like(Work::getDescription, keyword));
+
+        if (StringUtils.hasText(subject)) {
+            for (String item : subject.split(",")) {
+                if (StringUtils.hasText(item)) {
+                    wrapper.like(Work::getSubject, item.trim());
+                }
+            }
+        }
         if ("oldest".equals(sort)) {
             wrapper.orderByAsc(Work::getCreatedAt);
         } else {
             wrapper.orderByDesc(Work::getCreatedAt);
         }
         return workMapper.selectPage(new Page<>(page, size), wrapper);
+    }
+
+    @Override
+    public WorkDetailResponse getPublicDetail(Long id) {
+        Work work = workMapper.selectOne(new LambdaQueryWrapper<Work>()
+                .eq(Work::getId, id)
+                .eq(Work::getDeleted, 0)
+                .eq(Work::getVisibility, 1));
+        if (work == null) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        User author = userMapper.selectById(work.getUserId());
+        if (author == null || Integer.valueOf(1).equals(author.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+
+        WorkDetailResponse response = new WorkDetailResponse();
+        BeanUtils.copyProperties(work, response);
+        response.setAuthorName(StringUtils.hasText(author.getNickname()) ? author.getNickname() : author.getUsername());
+        response.setAuthorAvatar(author.getAvatar());
+        response.setAuthorBio(author.getBio());
+        response.setAuthorCertStatus(author.getCertStatus());
+        return response;
     }
 
     @Override
