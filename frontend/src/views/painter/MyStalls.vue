@@ -25,11 +25,14 @@
         <el-table-column label="价格" width="80">
           <template #default="{ row }">¥{{ row.price }}</template>
         </el-table-column>
+        <el-table-column label="剩余库存" width="90">
+          <template #default="{ row }">{{ row.stock ?? 0 }} 件</template>
+        </el-table-column>
         <el-table-column prop="description" label="橱窗详情" min-width="150" show-overflow-tooltip />
         <el-table-column label="状态" width="76">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? '上架中' : '已下架' }}
+            <el-tag :type="row.status === 1 && row.stock > 0 ? 'success' : 'info'" size="small">
+              {{ row.status !== 1 ? '已下架' : row.stock > 0 ? '上架中' : '无库存' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -290,11 +293,6 @@ async function remove(id) {
 }
 
 function goDetail(id) {
-  const stall = stalls.value.find((item) => item.id === id)
-  if (stall?.status !== 1) {
-    ElMessage.warning('请先上架后查看详情')
-    return
-  }
   router.push({ name: 'StallDetail', params: { id } })
 }
 

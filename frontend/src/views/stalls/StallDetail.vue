@@ -66,7 +66,7 @@
               <div class="param-item"><span class="param-label">颜色模式</span><span>{{ params.colorMode }}</span></div>
               <div class="param-item"><span class="param-label">规格</span><span>{{ params.spec }}</span></div>
               <div class="param-item"><span class="param-label">稿件格式</span><span>{{ formatText }}</span></div>
-              <div class="param-item"><span class="param-label">题材风格</span><span>{{ params.subject }}</span></div>
+              <div class="param-item"><span class="param-label">题材风格</span><span>{{ subjectText }}</span></div>
               <div class="param-item"><span class="param-label">发布权限</span><span>画师可公开发布带水印稿件</span></div>
               <div class="param-item"><span class="param-label">交付方式</span><span>在线交付（分阶段验收）</span></div>
             </div>
@@ -97,14 +97,21 @@
               <strong class="price">￥{{ stall.price }}</strong>
             </div>
             <div class="info-row"><span>已售</span><span>0 件</span></div>
-            <div class="info-row"><span>库存</span><span>{{ stall.stock }} 件</span></div>
+            <div class="info-row"><span>库存</span><span :class="{ 'stock-empty': !hasStock }">{{ hasStock ? `${stall.stock} 件` : '无库存' }}</span></div>
             <div class="info-row"><span>截稿时间</span><span>{{ stall.deliverTime || '-' }}</span></div>
           </div>
 
-          <el-button type="primary" size="large" round class="buy-btn" @click="openConfirm">
-            立即下单
+          <el-button
+            type="primary"
+            size="large"
+            round
+            class="buy-btn"
+            :disabled="!isOwner && !canPurchase"
+            @click="handlePrimaryAction"
+          >
+            {{ isOwner ? '修改橱窗' : canPurchase ? '立即下单' : !hasStock ? '无库存' : '已下架' }}
           </el-button>
-          <p class="buy-tip">确认订单后托管固定金额，并建立与画师的沟通会话</p>
+          <p class="buy-tip">{{ isOwner ? '仅可调整库存并追加题材风格，其他交易信息保持不变' : '确认订单后托管固定金额，并建立与画师的沟通会话' }}</p>
         </aside>
       </div>
     </div>
@@ -119,6 +126,30 @@
       <p class="confirm-tip">确认后将从账户余额托管订单金额并扣减 1 件库存。待画师接单前可取消。</p>
       <template #footer><el-button @click="confirmVisible=false">再想想</el-button><el-button type="primary" :loading="buying" @click="buy">确认下单</el-button></template>
     </el-dialog>
+    <el-dialog v-model="editVisible" title="修改橱窗" width="520px">
+      <el-form label-position="top">
+        <el-form-item label="剩余库存">
+          <el-input-number v-model="editForm.stock" :min="0" :max="9999" />
+          <span class="edit-tip">库存为 0 时，橱窗会从橱窗大厅隐藏。</span>
+        </el-form-item>
+        <el-form-item label="题材风格">
+          <el-select v-model="editForm.subjects" multiple filterable class="edit-subjects" placeholder="选择要追加的题材风格">
+            <el-option
+              v-for="item in subjectOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+              :disabled="currentSubjects.includes(item)"
+            />
+          </el-select>
+          <span class="edit-tip">已有题材风格不可删除，只能继续追加。</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveLimitedEdit">保存修改</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -126,9 +157,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getStall } from '@/api/stall'
+import { getStall, updateStall } from '@/api/stall'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
+import { SUBJECT_OPTIONS } from '@/constants/subjects'
 
 const route = useRoute()
 const router = useRouter()
@@ -137,6 +169,10 @@ const stall = ref(null)
 const loading = ref(false)
 const buying = ref(false)
 const confirmVisible = ref(false)
+const editVisible = ref(false)
+const saving = ref(false)
+const subjectOptions = SUBJECT_OPTIONS
+const editForm = ref({ stock: 0, subjects: [] })
 
 const phaseList = computed(() => {
   try {
@@ -165,6 +201,16 @@ const formatText = computed(() => {
   const f = params.value.format
   return Array.isArray(f) ? f.join('、') : f || '-'
 })
+
+const currentSubjects = computed(() => {
+  const value = params.value.subject
+  if (Array.isArray(value)) return value
+  return value ? String(value).split(',').filter(Boolean) : []
+})
+const subjectText = computed(() => currentSubjects.value.join('、') || '-')
+const isOwner = computed(() => Number(userStore.user?.id) === Number(stall.value?.painterId))
+const hasStock = computed(() => Number(stall.value?.stock || 0) > 0)
+const canPurchase = computed(() => stall.value?.status === 1 && hasStock.value)
 
 async function load() {
   loading.value = true
@@ -201,6 +247,26 @@ function openConfirm() {
     return
   }
   confirmVisible.value = true
+}
+
+function handlePrimaryAction() {
+  if (isOwner.value) {
+    editForm.value = { stock: Number(stall.value.stock || 0), subjects: [...currentSubjects.value] }
+    editVisible.value = true
+    return
+  }
+  if (canPurchase.value) openConfirm()
+}
+
+async function saveLimitedEdit() {
+  saving.value = true
+  try {
+    stall.value = await updateStall(stall.value.id, editForm.value)
+    editVisible.value = false
+    ElMessage.success('橱窗库存与题材风格已更新')
+  } finally {
+    saving.value = false
+  }
 }
 
 onMounted(load)
@@ -517,6 +583,9 @@ onMounted(load)
   font-size: 12px;
   color: var(--huiyue-text-secondary);
 }
+.stock-empty { color: var(--huiyue-accent); font-weight: 600; }
+.edit-tip { margin-left: 10px; color: var(--huiyue-text-secondary); font-size: 12px; }
+.edit-subjects { width: 100%; }
 .confirm-order { display:flex; gap:14px; padding-bottom:16px; border-bottom:1px solid var(--huiyue-border); }
 .confirm-order img { width:96px; height:76px; border-radius:7px; object-fit:cover; }
 .confirm-order h3 { margin:3px 0 10px; }

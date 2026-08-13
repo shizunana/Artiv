@@ -24,8 +24,16 @@ public class AuthInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        // 公开端点（GET 列表 / 数字 ID 详情）无需登录；写操作一律要求登录
+        // 公开端点允许匿名访问；若携带 token，仍解析身份供详情页做发布者/历史买家鉴权。
         if (isPublicPath(request)) {
+            String optionalAuth = request.getHeader("Authorization");
+            if (optionalAuth != null && optionalAuth.startsWith("Bearer ")) {
+                String optionalToken = optionalAuth.substring(7);
+                if (!jwtUtil.validate(optionalToken)) {
+                    throw new BusinessException(ResultCode.UNAUTHORIZED);
+                }
+                UserContext.set(new LoginUser(jwtUtil.parseUserId(optionalToken), null, null));
+            }
             return true;
         }
         String auth = request.getHeader("Authorization");

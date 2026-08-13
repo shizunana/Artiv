@@ -1,6 +1,7 @@
 package com.huiyue.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.huiyue.dto.StallLimitedUpdateRequest;
 import com.huiyue.entity.Stall;
 
 public interface StallService {
@@ -11,11 +12,11 @@ public interface StallService {
 
     Page<Stall> listMine(long page, long size, Long painterId);
 
-    Stall getById(Long id);
+    Stall getById(Long id, Long viewerId);
 
     Stall create(Stall stall, Long painterId);
 
-    Stall update(Long id, Stall stall, Long painterId);
+    Stall updateLimited(Long id, StallLimitedUpdateRequest request, Long painterId);
 
     Stall changeStatus(Long id, Integer status, Long painterId);
 

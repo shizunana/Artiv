@@ -55,10 +55,17 @@ public class OrderServiceImpl implements OrderService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup) {
+    public Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup,
+                                    String participantRole) {
         LambdaQueryWrapper<OrderInfo> wrapper = new LambdaQueryWrapper<OrderInfo>()
-                .eq(OrderInfo::getDeleted, 0)
-                .and(w -> w.eq(OrderInfo::getEmployerId, userId).or().eq(OrderInfo::getPainterId, userId));
+                .eq(OrderInfo::getDeleted, 0);
+        if ("employer".equalsIgnoreCase(participantRole)) {
+            wrapper.eq(OrderInfo::getEmployerId, userId);
+        } else if ("painter".equalsIgnoreCase(participantRole)) {
+            wrapper.eq(OrderInfo::getPainterId, userId);
+        } else {
+            wrapper.and(w -> w.eq(OrderInfo::getEmployerId, userId).or().eq(OrderInfo::getPainterId, userId));
+        }
         if ("stall".equalsIgnoreCase(source)) {
             wrapper.isNotNull(OrderInfo::getStallId);
         } else if ("project".equalsIgnoreCase(source)) {

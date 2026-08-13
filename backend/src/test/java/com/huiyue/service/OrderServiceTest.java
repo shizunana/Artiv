@@ -140,6 +140,16 @@ class OrderServiceTest {
         verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"), any());
     }
 
+    @Test
+    void listMineCanSeparateBoughtOrdersFromAcceptedOrders() {
+        when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        orderService.listMine(1, 10, 2L, "stall", "all", "employer");
+        orderService.listMine(1, 10, 2L, "stall", "all", "painter");
+
+        verify(orderInfoMapper, org.mockito.Mockito.times(2)).selectPage(any(), any());
+    }
+
     private Stall activeStall() {
         Stall stall = new Stall();
         stall.setId(9L);

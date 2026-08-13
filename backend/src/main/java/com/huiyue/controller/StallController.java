@@ -3,6 +3,7 @@ package com.huiyue.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huiyue.common.Result;
 import com.huiyue.dto.StallRequest;
+import com.huiyue.dto.StallLimitedUpdateRequest;
 import com.huiyue.entity.OrderInfo;
 import com.huiyue.entity.Stall;
 import com.huiyue.security.UserContext;
@@ -51,7 +52,7 @@ public class StallController {
 
     @GetMapping("/{id}")
     public Result<Stall> detail(@PathVariable Long id) {
-        return Result.ok(stallService.getById(id));
+        return Result.ok(stallService.getById(id, UserContext.getUserId()));
     }
 
     @PostMapping
@@ -62,10 +63,9 @@ public class StallController {
     }
 
     @PutMapping("/{id}")
-    public Result<Stall> update(@PathVariable Long id, @Valid @RequestBody StallRequest request) {
-        Stall stall = new Stall();
-        BeanUtils.copyProperties(request, stall);
-        return Result.ok(stallService.update(id, stall, UserContext.getUserId()));
+    public Result<Stall> update(@PathVariable Long id,
+                                @Valid @RequestBody StallLimitedUpdateRequest request) {
+        return Result.ok(stallService.updateLimited(id, request, UserContext.getUserId()));
     }
 
     @PutMapping("/{id}/status")

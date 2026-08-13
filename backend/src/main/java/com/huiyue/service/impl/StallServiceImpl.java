@@ -2,10 +2,15 @@ package com.huiyue.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huiyue.common.BusinessException;
 import com.huiyue.common.ResultCode;
+import com.huiyue.dto.StallLimitedUpdateRequest;
+import com.huiyue.entity.OrderInfo;
 import com.huiyue.entity.Stall;
 import com.huiyue.entity.User;
+import com.huiyue.mapper.OrderInfoMapper;
 import com.huiyue.mapper.UserMapper;
 import com.huiyue.mapper.StallMapper;
 import com.huiyue.service.StallService;
@@ -15,6 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +32,15 @@ public class StallServiceImpl implements StallService {
 
     private final StallMapper stallMapper;
     private final UserMapper userMapper;
+    private final OrderInfoMapper orderInfoMapper;
+    private final ObjectMapper objectMapper;
+
+    private static final Set<String> SUBJECT_OPTIONS = Set.of(
+            "LOGO", "Q版", "lolita", "安头", "拆分", "场景", "定制", "动图", "氛围", "搞笑",
+            "古风", "黑白", "横插", "厚涂", "可爱", "立绘", "模板", "男性", "女性", "排版",
+            "签名", "日常", "日系", "色块", "竖插", "双人", "水印", "像素", "小动物", "小元素",
+            "有背景", "正比", "周边制品", "桌宠", "字体设计"
+    );
 
     @Override
     public Page<Stall> listStalls(long page, long size, String category, String keyword, String sort,
@@ -30,6 +49,7 @@ public class StallServiceImpl implements StallService {
         LambdaQueryWrapper<Stall> wrapper = new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getDeleted, 0)
                 .eq(Stall::getStatus, 1)
+                .gt(Stall::getStock, 0)
                 .eq(StringUtils.hasText(category), Stall::getCategory, category)
                 .like(StringUtils.hasText(keyword), Stall::getTitle, keyword)
                 .like(StringUtils.hasText(subject), Stall::getParams, subject)
@@ -58,9 +78,17 @@ public class StallServiceImpl implements StallService {
     }
 
     @Override
-    public Stall getById(Long id) {
+    public Stall getById(Long id, Long viewerId) {
         Stall stall = requireExisting(id);
-        if (!Integer.valueOf(1).equals(stall.getStatus())) {
+        boolean publiclyAvailable = Integer.valueOf(1).equals(stall.getStatus())
+                && stall.getStock() != null && stall.getStock() > 0;
+        boolean owner = viewerId != null && viewerId.equals(stall.getPainterId());
+        boolean historicalBuyer = viewerId != null && orderInfoMapper.selectCount(
+                new LambdaQueryWrapper<OrderInfo>()
+                        .eq(OrderInfo::getDeleted, 0)
+                        .eq(OrderInfo::getStallId, id)
+                        .eq(OrderInfo::getEmployerId, viewerId)) > 0;
+        if (!publiclyAvailable && !owner && !historicalBuyer) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND.getCode(), "请先上架后查看详情");
         }
         fillPainterNames(java.util.List.of(stall));
@@ -96,16 +124,51 @@ public class StallServiceImpl implements StallService {
     }
 
     @Override
-    public Stall update(Long id, Stall stall, Long painterId) {
+    public Stall updateLimited(Long id, StallLimitedUpdateRequest request, Long painterId) {
         Stall exist = requireExisting(id);
         if (!exist.getPainterId().equals(painterId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
-        stall.setId(id);
-        stall.setPainterId(painterId);
-        stall.setUpdatedAt(LocalDateTime.now());
-        stallMapper.updateById(stall);
+        Map<String, Object> params = readParams(exist.getParams());
+        LinkedHashSet<String> subjects = new LinkedHashSet<>(asSubjects(params.get("subject")));
+        for (String subject : request.getSubjects()) {
+            if (subject == null || !SUBJECT_OPTIONS.contains(subject.trim())) {
+                throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "题材风格必须从统一选项中选择");
+            }
+            subjects.add(subject.trim());
+        }
+        params.put("subject", new ArrayList<>(subjects));
+        exist.setStock(request.getStock());
+        exist.setParams(writeParams(params));
+        exist.setUpdatedAt(LocalDateTime.now());
+        stallMapper.updateById(exist);
         return requireExisting(id);
+    }
+
+    private Map<String, Object> readParams(String value) {
+        try {
+            return objectMapper.readValue(StringUtils.hasText(value) ? value : "{}", new TypeReference<>() {});
+        } catch (Exception exception) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "橱窗稿件参数格式错误");
+        }
+    }
+
+    private List<String> asSubjects(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream().map(String::valueOf).filter(StringUtils::hasText).toList();
+        }
+        if (value instanceof String text && StringUtils.hasText(text)) {
+            return List.of(text.split(","));
+        }
+        return List.of();
+    }
+
+    private String writeParams(Map<String, Object> params) {
+        try {
+            return objectMapper.writeValueAsString(params);
+        } catch (Exception exception) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "橱窗稿件参数保存失败");
+        }
     }
 
     @Override

@@ -8,7 +8,7 @@ import com.huiyue.entity.OrderInfo;
 
 public interface OrderService {
 
-    Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup);
+    Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup, String participantRole);
 
     OrderDetailResponse getDetail(Long id, Long userId);
 
