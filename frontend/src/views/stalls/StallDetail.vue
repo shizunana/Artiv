@@ -242,7 +242,7 @@ async function load() {
   loading.value = true
   try {
     stall.value = await getStall(route.params.id)
-    document.title = `${stall.value.title} - 绘约`
+    document.title = `${stall.value.title} - 艺绘`
     if (route.query.edit === '1' && Number(userStore.user?.id) === Number(stall.value.painterId)) {
       openEdit()
     }
@@ -355,7 +355,7 @@ onMounted(load)
   display: flex;
   gap: 28px;
   background: #fff;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 10px;
   padding: 0 24px;
   margin-bottom: 16px;
@@ -364,14 +364,14 @@ onMounted(load)
 .nav-item {
   padding: 14px 4px;
   font-size: 15px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   border-bottom: 2px solid transparent;
 }
 
 .nav-item:hover,
 .nav-item.is-active {
-  color: var(--huiyue-primary);
-  border-bottom-color: var(--huiyue-primary);
+  color: var(--artiv-primary);
+  border-bottom-color: var(--artiv-primary);
 }
 
 /* 主体两栏 */
@@ -391,7 +391,7 @@ onMounted(load)
 
 .stall-cover {
   background: #fff;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 12px;
   padding: 10px;
 }
@@ -416,12 +416,12 @@ onMounted(load)
   align-items: center;
   justify-content: center;
   font-size: 48px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .detail-section {
   background: #fff;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 12px;
   padding: 24px 28px;
   scroll-margin-top: 80px;
@@ -445,7 +445,7 @@ onMounted(load)
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 10px;
   border-radius: 10px;
-  background: var(--huiyue-section-alt);
+  background: var(--artiv-section-alt);
   margin-bottom: 16px;
   padding: 10px;
 }
@@ -465,7 +465,7 @@ onMounted(load)
 
 .detail-desc {
   margin: 0;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   line-height: 1.9;
   white-space: pre-wrap;
 }
@@ -473,7 +473,7 @@ onMounted(load)
 .section-tip {
   margin: 0 0 16px;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .phase-list {
@@ -497,7 +497,7 @@ onMounted(load)
   top: calc(100% + 2px);
   width: 1px;
   height: 10px;
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
 }
 
 .phase-item:last-child::after {
@@ -505,8 +505,8 @@ onMounted(load)
 }
 
 .phase-badge {
-  color: var(--huiyue-primary);
-  border: 1px solid var(--huiyue-primary);
+  color: var(--artiv-primary);
+  border: 1px solid var(--artiv-primary);
   border-radius: 12px;
   font-size: 12px;
   padding: 3px 10px;
@@ -515,7 +515,7 @@ onMounted(load)
 
 .phase-name {
   font-size: 15px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .param-grid {
@@ -528,14 +528,14 @@ onMounted(load)
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  background: var(--huiyue-section-alt);
+  background: var(--artiv-section-alt);
   border-radius: 8px;
   padding: 12px 16px;
   font-size: 14px;
 }
 
 .param-label {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   flex-shrink: 0;
 }
 
@@ -553,14 +553,14 @@ onMounted(load)
 .painter-card,
 .stall-info-card {
   background: #fff;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 12px;
   padding: 20px;
 }
 
 .stall-name {
   background: #fff;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 12px;
   padding: 18px 20px;
   display: flex;
@@ -572,7 +572,7 @@ onMounted(load)
   margin: 0;
   font-size: 17px;
   font-weight: 600;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -585,7 +585,7 @@ onMounted(load)
 }
 
 .painter-avatar {
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
   font-size: 22px;
 }
@@ -599,13 +599,13 @@ onMounted(load)
 .painter-name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .painter-role {
   font-size: 12px;
-  color: var(--huiyue-primary);
-  background: var(--huiyue-primary-light);
+  color: var(--artiv-primary);
+  background: var(--artiv-primary-light);
   padding: 1px 8px;
   border-radius: 8px;
   align-self: flex-start;
@@ -621,8 +621,8 @@ onMounted(load)
   justify-content: space-between;
   padding: 9px 0;
   font-size: 14px;
-  color: var(--huiyue-text);
-  border-bottom: 1px solid var(--huiyue-border);
+  color: var(--artiv-text);
+  border-bottom: 1px solid var(--artiv-border);
 }
 
 .info-row:last-of-type {
@@ -630,7 +630,7 @@ onMounted(load)
 }
 
 .info-row > span:first-child {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .price-row {
@@ -638,7 +638,7 @@ onMounted(load)
 }
 
 .price {
-  color: var(--huiyue-accent);
+  color: var(--artiv-accent);
   font-size: 24px;
   font-weight: 800;
 }
@@ -652,19 +652,19 @@ onMounted(load)
   text-align: center;
   margin: 0;
   font-size: 12px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
-.stock-empty { color: var(--huiyue-accent); font-weight: 600; }
-.edit-tip { margin-left: 10px; color: var(--huiyue-text-secondary); font-size: 12px; }
+.stock-empty { color: var(--artiv-accent); font-weight: 600; }
+.edit-tip { margin-left: 10px; color: var(--artiv-text-secondary); font-size: 12px; }
 .edit-subjects { width: 100%; }
 .edit-footer { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .edit-footer__danger-zone { display: flex; align-items: center; gap: 8px; }
-.confirm-order { display:flex; gap:14px; padding-bottom:16px; border-bottom:1px solid var(--huiyue-border); }
+.confirm-order { display:flex; gap:14px; padding-bottom:16px; border-bottom:1px solid var(--artiv-border); }
 .confirm-order img { width:96px; height:76px; border-radius:7px; object-fit:cover; }
 .confirm-order h3 { margin:3px 0 10px; }
-.confirm-order p { margin:5px 0; color:var(--huiyue-text-secondary); }
+.confirm-order p { margin:5px 0; color:var(--artiv-text-secondary); }
 .confirm-amount { display:flex; justify-content:space-between; align-items:center; padding:20px 0 12px; }
-.confirm-amount strong { color:var(--huiyue-accent); font-size:23px; }
+.confirm-amount strong { color:var(--artiv-accent); font-size:23px; }
 .confirm-tip { margin:0; padding:10px 12px; border-radius:6px; background:#fff7e8; color:#8a6226; font-size:13px; line-height:1.6; }
 
 @media (max-width: 900px) {

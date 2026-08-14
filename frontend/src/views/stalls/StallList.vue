@@ -151,28 +151,28 @@ onMounted(load)
   justify-content: space-between;
   flex-wrap: wrap;
   padding: 14px 0;
-  border-bottom: 1px solid var(--huiyue-border);
+  border-bottom: 1px solid var(--artiv-border);
 }
 
 .category-tab {
   padding: 7px 18px;
   border-radius: 18px;
   background: #fff;
-  border: 1px solid var(--huiyue-border);
-  color: var(--huiyue-text-secondary);
+  border: 1px solid var(--artiv-border);
+  color: var(--artiv-text-secondary);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
 }
 
 .category-tab:hover {
-  color: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
+  color: var(--artiv-primary);
+  border-color: var(--artiv-primary);
 }
 
 .category-tab.is-active {
-  background: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
+  background: var(--artiv-primary);
+  border-color: var(--artiv-primary);
   color: #fff;
 }
 
@@ -228,7 +228,7 @@ onMounted(load)
   aspect-ratio: 1 / 1;
   border-radius: 10px;
   overflow: hidden;
-  background: var(--huiyue-section-alt);
+  background: var(--artiv-section-alt);
 }
 
 .cover-image {
@@ -244,7 +244,7 @@ onMounted(load)
   align-items: center;
   justify-content: center;
   font-size: 44px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .stall-cell__title {
@@ -277,7 +277,7 @@ onMounted(load)
 }
 
 .painter-name {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -286,13 +286,13 @@ onMounted(load)
 }
 
 .sales {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 12px;
   flex-shrink: 0;
 }
 
 .stall-cell__price {
-  color: var(--huiyue-accent);
+  color: var(--artiv-accent);
   font-weight: 700;
   font-size: 15px;
   flex-shrink: 0;

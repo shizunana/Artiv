@@ -3,7 +3,7 @@
     <!-- 认证引导（参考站 dashboard_artist-verified） -->
     <section v-if="certStatus !== 2" class="wb-card cert-card">
       <h2>您尚未完成画师认证</h2>
-      <p>暂时无法使用画师身份的全部功能。在绘约，您可以通过应征企划、售卖橱窗与个人或企业合作，完成约稿需求。</p>
+      <p>暂时无法使用画师身份的全部功能。在艺绘，您可以通过应征企划、售卖橱窗与个人或企业合作，完成约稿需求。</p>
       <div class="cert-steps">
         <div class="cert-step">
           <span class="cert-step__icon">1</span>
@@ -106,7 +106,7 @@ onMounted(async () => {
 }
 
 .cert-card > p {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   line-height: 1.8;
   margin: 0 0 20px;
 }
@@ -120,7 +120,7 @@ onMounted(async () => {
 .cert-step {
   display: flex;
   gap: 14px;
-  background: var(--huiyue-section-alt);
+  background: var(--artiv-section-alt);
   border-radius: 8px;
   padding: 18px;
 }
@@ -129,7 +129,7 @@ onMounted(async () => {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -145,7 +145,7 @@ onMounted(async () => {
 .cert-step p {
   margin: 6px 0 0;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   line-height: 1.7;
 }
 
@@ -161,7 +161,7 @@ onMounted(async () => {
 }
 
 .welcome-card p {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   margin: 0 0 18px;
 }
 
@@ -183,12 +183,12 @@ onMounted(async () => {
 
 .stat-card strong {
   font-size: 24px;
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
 }
 
 .stat-card span {
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 @media (max-width: 900px) {

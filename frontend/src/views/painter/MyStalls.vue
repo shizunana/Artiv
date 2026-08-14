@@ -317,7 +317,7 @@ onMounted(load)
 
 .cover-none {
   font-size: 12px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .cover-upload {
@@ -330,22 +330,22 @@ onMounted(load)
 .cover-upload-placeholder {
   width: 110px;
   height: 110px;
-  border: 1px dashed var(--huiyue-border);
+  border: 1px dashed var(--artiv-border);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 13px;
   cursor: pointer;
   transition: border-color 0.2s;
 }
 
 .cover-upload-placeholder:hover {
-  border-color: var(--huiyue-primary);
-  color: var(--huiyue-primary);
+  border-color: var(--artiv-primary);
+  color: var(--artiv-primary);
 }
 
 .upload-icon {
@@ -354,7 +354,7 @@ onMounted(load)
 
 .form-tip {
   font-size: 12px;
-  color: var(--huiyue-accent);
+  color: var(--artiv-accent);
   margin-left: 12px;
 }
 
@@ -380,7 +380,7 @@ onMounted(load)
 }
 
 .phase-unit {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 13px;
 }
 
@@ -400,7 +400,7 @@ onMounted(load)
 .param-label {
   width: 70px;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   flex-shrink: 0;
 }
 

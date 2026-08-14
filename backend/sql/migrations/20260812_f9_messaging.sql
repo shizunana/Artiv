@@ -1,6 +1,6 @@
 -- F9 沟通与消息模块增量迁移。
--- 在已有 huiyue 数据库执行；不删除任何业务或演示数据。
-USE `huiyue`;
+-- 在已有 artiv 数据库执行；不删除任何业务或演示数据。
+USE `artiv`;
 
 ALTER TABLE `message`
   ADD COLUMN `project_id` BIGINT DEFAULT NULL COMMENT '关联企划ID（应征私聊可为空）' AFTER `order_id`,

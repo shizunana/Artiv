@@ -3,7 +3,7 @@
     <div class="auth-card">
       <div class="auth-brand">
         <span class="auth-logo">绘</span>
-        <h1>注册绘约</h1>
+        <h1>注册艺绘</h1>
         <p>仅需 3 分钟，开启高效的美术约稿体验</p>
       </div>
 
@@ -116,7 +116,7 @@ async function onRegister() {
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
   font-size: 28px;
   margin-bottom: 12px;
@@ -126,13 +126,13 @@ async function onRegister() {
   font-size: 24px;
   font-weight: 600;
   margin: 0 0 6px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .auth-brand p {
   margin: 0;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .role-picker {
@@ -144,8 +144,8 @@ async function onRegister() {
 
 .role-tip {
   font-size: 12px;
-  color: var(--huiyue-text-secondary);
-  background: var(--huiyue-section-alt);
+  color: var(--artiv-text-secondary);
+  background: var(--artiv-section-alt);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 10px;
@@ -153,7 +153,7 @@ async function onRegister() {
 }
 
 .role-option {
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 10px;
   padding: 16px 12px;
   text-align: center;
@@ -165,13 +165,13 @@ async function onRegister() {
 }
 
 .role-option:hover {
-  border-color: var(--huiyue-primary);
+  border-color: var(--artiv-primary);
 }
 
 .role-option.is-active {
-  border-color: var(--huiyue-primary);
-  background: var(--huiyue-primary-light);
-  box-shadow: 0 0 0 1px var(--huiyue-primary);
+  border-color: var(--artiv-primary);
+  background: var(--artiv-primary-light);
+  box-shadow: 0 0 0 1px var(--artiv-primary);
 }
 
 .role-icon {
@@ -179,12 +179,12 @@ async function onRegister() {
 }
 
 .role-option strong {
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   font-size: 15px;
 }
 
 .role-option small {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 12px;
 }
 
@@ -201,6 +201,6 @@ async function onRegister() {
   margin-top: 22px;
   text-align: center;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 </style>

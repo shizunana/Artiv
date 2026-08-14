@@ -1,15 +1,15 @@
 -- =====================================================
--- 绘约（HuiYue）数据库初始化脚本（v2.0）
+-- 艺绘（Artiv）数据库初始化脚本（v2.0）
 -- 依据《开发计划.md》重新校准：10 张核心表
 -- MySQL 8.0.41 ｜ 字符集 utf8mb4 ｜ 引擎 InnoDB
 -- 执行方式：mysql -u root -p < init.sql 或在 Workbench 中执行
 -- =====================================================
 
-CREATE DATABASE IF NOT EXISTS `huiyue`
+CREATE DATABASE IF NOT EXISTS `artiv`
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
-USE `huiyue`;
+USE `artiv`;
 
 -- -----------------------------------------------------
 -- 用户表
@@ -292,5 +292,5 @@ INSERT INTO `order_stage` (`id`, `order_id`, `name`, `percent`, `submitter`, `co
   (1, 1, '初稿', 40, 1, '初稿：整体构图与配色预览', 0);
 
 INSERT INTO `message` (`id`, `from_id`, `to_id`, `type`, `content`, `read_at`) VALUES
-  (1, NULL, 1, 0, '欢迎使用绘约，完善资料更容易接到订单哦！', NULL),
+  (1, NULL, 1, 0, '欢迎使用艺绘，完善资料更容易接到订单哦！', NULL),
   (2, 2, 1, 1, '画师「阿绘」应征了您的企划「国潮风节日海报插画」。', NULL);

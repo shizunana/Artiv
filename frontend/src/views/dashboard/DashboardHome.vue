@@ -121,7 +121,7 @@ onMounted(async () => {
 .wb-card__head h3 {
   margin: 0;
   font-size: 17px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .wb-card__head a {
@@ -138,11 +138,11 @@ onMounted(async () => {
 .welcome-main h2 {
   margin: 0 0 10px;
   font-size: 22px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .welcome-main p {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   margin: 0 0 18px;
 }
 
@@ -166,12 +166,12 @@ onMounted(async () => {
 
 .stat-box strong {
   font-size: 26px;
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
 }
 
 .stat-box span {
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .guide-card {
@@ -195,7 +195,7 @@ onMounted(async () => {
 
 .guide-text p {
   margin: 0;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 13px;
 }
 </style>

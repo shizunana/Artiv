@@ -1,21 +1,21 @@
 /* =====================================================
-   绘约（HuiYue）全局样式
+   艺绘（Artiv）全局样式
    主题参考：米画师（mihuashi.com）样式克隆
    主色 #00a8e9 ｜ 辅助橙 #f6a11d ｜ 深灰标题 #4a4a4a
    ===================================================== */
 
 :root {
-  --huiyue-primary: #00a8e9;
-  --huiyue-primary-dark: #0092cc;
-  --huiyue-primary-light: #d5f3ff;
-  --huiyue-accent: #f6a11d;
-  --huiyue-text: #4a4a4a;
-  --huiyue-text-secondary: #707070;
-  --huiyue-bg: #f5f6f8;
-  --huiyue-section-alt: #edf2fa;
-  --huiyue-border: #e5e6eb;
-  --huiyue-radius: 8px;
-  --huiyue-header-height: 60px;
+  --artiv-primary: #00a8e9;
+  --artiv-primary-dark: #0092cc;
+  --artiv-primary-light: #d5f3ff;
+  --artiv-accent: #f6a11d;
+  --artiv-text: #4a4a4a;
+  --artiv-text-secondary: #707070;
+  --artiv-bg: #f5f6f8;
+  --artiv-section-alt: #edf2fa;
+  --artiv-border: #e5e6eb;
+  --artiv-radius: 8px;
+  --artiv-header-height: 60px;
 }
 
 * {
@@ -26,14 +26,14 @@ html,
 body {
   margin: 0;
   padding: 0;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   background-color: #fff;
   font-family: 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   font-size: 14px;
 }
 
 a {
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
   text-decoration: none;
 }
 
@@ -81,7 +81,7 @@ a {
 }
 
 .pill-button--primary {
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
 }
 
@@ -102,7 +102,7 @@ a {
 
 .section-subtitle {
   text-align: center;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   margin: 0 0 40px;
   font-size: 15px;
 }

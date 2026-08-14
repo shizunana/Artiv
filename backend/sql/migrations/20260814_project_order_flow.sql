@@ -1,4 +1,4 @@
-USE `huiyue`;
+USE `artiv`;
 
 ALTER TABLE `order_info`
   ADD COLUMN `application_id` BIGINT DEFAULT NULL COMMENT '企划订单对应的应征记录ID' AFTER `project_id`,

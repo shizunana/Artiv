@@ -218,7 +218,7 @@ onMounted(load)
   display: flex;
   align-items: center;
   padding: 10px 0 0;
-  border-bottom: 1px solid var(--huiyue-border);
+  border-bottom: 1px solid var(--artiv-border);
 }
 
 .purpose-tabs {
@@ -235,8 +235,8 @@ onMounted(load)
   padding: 7px 16px;
   border-radius: 18px;
   background: #fff;
-  border: 1px solid var(--huiyue-border);
-  color: var(--huiyue-text-secondary);
+  border: 1px solid var(--artiv-border);
+  color: var(--artiv-text-secondary);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
@@ -244,13 +244,13 @@ onMounted(load)
 }
 
 .category-tab:hover {
-  color: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
+  color: var(--artiv-primary);
+  border-color: var(--artiv-primary);
 }
 
 .category-tab.is-active {
-  background: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
+  background: var(--artiv-primary);
+  border-color: var(--artiv-primary);
   color: #fff;
 }
 
@@ -276,7 +276,7 @@ onMounted(load)
 
 .switch-label {
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   margin-left: 8px;
   white-space: nowrap;
 }
@@ -300,7 +300,7 @@ onMounted(load)
 .project-card {
   background: #fff;
   border-radius: 12px;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   padding: 18px 24px;
   cursor: pointer;
   transition: box-shadow 0.3s, transform 0.3s;
@@ -337,7 +337,7 @@ onMounted(load)
   margin: 0;
   font-size: 17px;
   font-weight: 600;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -346,7 +346,7 @@ onMounted(load)
 .project-card__summary {
   margin: 0 0 10px;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -362,17 +362,17 @@ onMounted(load)
 
 .tag {
   font-size: 12px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   background: #f5f6f8;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 4px;
   padding: 2px 7px;
 }
 
 .tag-subject {
-  color: var(--huiyue-primary);
-  border-color: color-mix(in srgb, var(--huiyue-primary) 25%, #fff);
-  background: var(--huiyue-primary-light);
+  color: var(--artiv-primary);
+  border-color: color-mix(in srgb, var(--artiv-primary) 25%, #fff);
+  background: var(--artiv-primary-light);
 }
 
 .project-card__thumb {
@@ -398,7 +398,7 @@ onMounted(load)
 
 .project-card__divider {
   height: 1px;
-  background: var(--huiyue-border);
+  background: var(--artiv-border);
   margin: 14px 0;
 }
 
@@ -408,12 +408,12 @@ onMounted(load)
   gap: 26px;
   flex-wrap: wrap;
   font-size: 13px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .info-budget {
   margin-left: auto;
-  color: var(--huiyue-accent);
+  color: var(--artiv-accent);
   font-weight: 700;
   font-size: 15px;
 }

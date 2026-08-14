@@ -1,5 +1,5 @@
-const TOKEN_KEY = 'huiyue_token'
-const USER_KEY = 'huiyue_user'
+const TOKEN_KEY = 'artiv_token'
+const USER_KEY = 'artiv_user'
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)

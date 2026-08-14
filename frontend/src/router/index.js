@@ -82,7 +82,7 @@ const router = createRouter({
 
 // 登录守卫：未登录访问工作台跳登录；管理员页面校验角色
 router.beforeEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} - 绘约` : '绘约'
+  document.title = to.meta.title ? `${to.meta.title} - 艺绘` : '艺绘'
   const userStore = useUserStore()
   const token = userStore.token
 

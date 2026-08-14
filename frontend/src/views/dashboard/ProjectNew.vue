@@ -377,7 +377,7 @@ async function submit() {
 .page-title {
   margin: 0 0 24px;
   font-size: 18px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .wizard-steps {
@@ -392,7 +392,7 @@ async function submit() {
 .wizard-body h4 {
   margin: 24px 0 14px;
   font-size: 15px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .type-tabs {
@@ -411,8 +411,8 @@ async function submit() {
   padding: 8px 20px;
   border-radius: 18px;
   background: #fff;
-  border: 1px solid var(--huiyue-border);
-  color: var(--huiyue-text-secondary);
+  border: 1px solid var(--artiv-border);
+  color: var(--artiv-text-secondary);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
@@ -421,8 +421,8 @@ async function submit() {
 .category-tab:hover,
 .category-tab.is-active {
   color: #fff;
-  border-color: var(--huiyue-primary);
-  background: var(--huiyue-primary);
+  border-color: var(--artiv-primary);
+  background: var(--artiv-primary);
 }
 
 .usage-group {
@@ -433,22 +433,22 @@ async function submit() {
 
 .usage-card {
   text-align: left;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 8px;
   padding: 18px;
   background: #fff;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .usage-card:hover,
 .usage-card.is-active {
-  border-color: var(--huiyue-primary);
+  border-color: var(--artiv-primary);
 }
 
 .usage-card.is-active {
-  background: var(--huiyue-primary-light);
+  background: var(--artiv-primary-light);
 }
 
 .usage-card strong {
@@ -456,7 +456,7 @@ async function submit() {
 }
 
 .usage-card p {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -475,13 +475,13 @@ async function submit() {
 
 .range-sep {
   margin: 0 8px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .field-tip {
   width: 100%;
   margin: 8px 0 0;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -511,7 +511,7 @@ async function submit() {
   padding: 12px 16px;
   border-radius: 6px;
   background: #f5f8fc;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 13px;
 }
 
@@ -541,7 +541,7 @@ async function submit() {
   border: 1px solid #d9e0e8;
   border-radius: 6px;
   background: #fff;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.18s;
@@ -549,9 +549,9 @@ async function submit() {
 
 .option-card:hover,
 .option-card.is-active {
-  border-color: var(--huiyue-primary);
+  border-color: var(--artiv-primary);
   background: #eff9ff;
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
 }
 
 .preview-box {

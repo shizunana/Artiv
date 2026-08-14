@@ -1,4 +1,4 @@
-USE `huiyue`;
+USE `artiv`;
 
 ALTER TABLE `order_info`
   ADD COLUMN `stall_title` VARCHAR(100) DEFAULT NULL COMMENT '橱窗标题快照' AFTER `amount`,

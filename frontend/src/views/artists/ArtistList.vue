@@ -153,14 +153,14 @@ function goProfile(id) {
 
 .artist-hero h1 {
   margin: 0;
-  color: var(--huiyue-text-primary);
+  color: var(--artiv-text-primary);
   font-size: 30px;
   font-weight: 600;
 }
 
 .artist-hero p {
   margin: 10px 0 0;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 14px;
 }
 
@@ -176,7 +176,7 @@ function goProfile(id) {
   padding: 18px 20px;
   margin-bottom: 14px;
   background: #fff;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 8px;
   box-shadow: 0 4px 18px rgba(42, 63, 84, 0.04);
 }
@@ -190,7 +190,7 @@ function goProfile(id) {
 .artist-results {
   min-height: 220px;
   background: #fff;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -244,7 +244,7 @@ function goProfile(id) {
   margin: 2px 0 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--huiyue-text-primary);
+  color: var(--artiv-text-primary);
 }
 
 .artist-account {
@@ -257,7 +257,7 @@ function goProfile(id) {
   display: -webkit-box;
   margin: 10px 0 14px;
   overflow: hidden;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 13px;
   line-height: 1.7;
   -webkit-box-orient: vertical;

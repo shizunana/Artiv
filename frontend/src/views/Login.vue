@@ -3,7 +3,7 @@
     <div class="auth-card">
       <div class="auth-brand">
         <span class="auth-logo">绘</span>
-        <h1>绘约</h1>
+        <h1>艺绘</h1>
         <p>带给你自由、高效、专业的美术约稿体验</p>
       </div>
 
@@ -95,7 +95,7 @@ async function onLogin() {
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
   font-size: 28px;
   margin-bottom: 14px;
@@ -105,14 +105,14 @@ async function onLogin() {
   font-size: 24px;
   font-weight: 600;
   margin: 0 0 6px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   letter-spacing: 1px;
 }
 
 .auth-brand p {
   margin: 0;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 .auth-links {
@@ -123,7 +123,7 @@ async function onLogin() {
 }
 
 .forget {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   cursor: pointer;
 }
 
@@ -139,6 +139,6 @@ async function onLogin() {
   margin-top: 24px;
   text-align: center;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 </style>

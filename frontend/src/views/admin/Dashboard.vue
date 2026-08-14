@@ -51,7 +51,7 @@
 }
 
 .stat-card {
-  background: var(--huiyue-section-alt);
+  background: var(--artiv-section-alt);
   border-radius: 8px;
   padding: 22px;
   display: flex;
@@ -61,12 +61,12 @@
 
 .stat-card strong {
   font-size: 24px;
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
 }
 
 .stat-card span {
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 @media (max-width: 900px) {

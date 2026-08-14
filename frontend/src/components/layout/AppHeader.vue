@@ -2,8 +2,8 @@
   <header class="app-header">
     <div class="app-header__inner page-container">
       <router-link to="/" class="app-header__logo">
-        <span class="logo-mark">绘</span>
-        <span class="logo-text">绘约</span>
+        <span class="logo-mark">艺</span>
+        <span class="logo-text">艺绘</span>
       </router-link>
 
       <nav class="app-header__nav">
@@ -121,9 +121,9 @@ function onCommand(command) {
   left: 0;
   right: 0;
   z-index: 100;
-  height: var(--huiyue-header-height);
+  height: var(--artiv-header-height);
   background: rgba(255, 255, 255, 0.97);
-  border-bottom: 1px solid var(--huiyue-border);
+  border-bottom: 1px solid var(--artiv-border);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
@@ -140,7 +140,7 @@ function onCommand(command) {
   gap: 8px;
   font-size: 18px;
   font-weight: 700;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .logo-mark {
@@ -150,7 +150,7 @@ function onCommand(command) {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
   font-size: 17px;
 }
@@ -162,14 +162,14 @@ function onCommand(command) {
 }
 
 .app-header__nav a {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 15px;
   transition: color 0.2s;
 }
 
 .app-header__nav a:hover,
 .app-header__nav a.router-link-active {
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
 }
 
 .app-header__actions {
@@ -181,23 +181,23 @@ function onCommand(command) {
 .nav-btn {
   padding: 7px 22px;
   border-radius: 18px;
-  color: var(--huiyue-primary);
-  border: 1px solid var(--huiyue-primary);
+  color: var(--artiv-primary);
+  border: 1px solid var(--artiv-primary);
   font-size: 14px;
   transition: all 0.2s;
 }
 
 .nav-btn:hover {
-  background: var(--huiyue-primary-light);
+  background: var(--artiv-primary-light);
 }
 
 .nav-btn.is-primary {
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
 }
 
 .nav-btn.is-primary:hover {
-  background: var(--huiyue-primary-dark);
+  background: var(--artiv-primary-dark);
 }
 
 .msg-badge {
@@ -210,11 +210,11 @@ function onCommand(command) {
   gap: 8px;
   cursor: pointer;
   outline: none;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .header-avatar {
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
 }
 
@@ -227,17 +227,17 @@ function onCommand(command) {
 
 .header-caret {
   font-size: 12px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
 }
 
 :global(.account-menu) { min-width: 190px; padding: 0 0 6px; }
-:global(.account-menu__funds) { padding: 12px; border-bottom: 1px solid var(--huiyue-border); }
-:global(.account-menu__funds-title) { margin-bottom: 8px; color: var(--huiyue-text); font-size: 14px; font-weight: 600; }
-:global(.account-menu__balance) { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 4px 8px; padding: 9px 10px; border-radius: 8px; background: var(--huiyue-primary-light); }
-:global(.account-menu__balance span) { color: var(--huiyue-text-secondary); font-size: 12px; }
-:global(.account-menu__balance strong) { color: var(--huiyue-text); font-size: 18px; }
+:global(.account-menu__funds) { padding: 12px; border-bottom: 1px solid var(--artiv-border); }
+:global(.account-menu__funds-title) { margin-bottom: 8px; color: var(--artiv-text); font-size: 14px; font-weight: 600; }
+:global(.account-menu__balance) { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 4px 8px; padding: 9px 10px; border-radius: 8px; background: var(--artiv-primary-light); }
+:global(.account-menu__balance span) { color: var(--artiv-text-secondary); font-size: 12px; }
+:global(.account-menu__balance strong) { color: var(--artiv-text); font-size: 18px; }
 :global(.account-menu__balance div) { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 12px; }
-:global(.account-menu__balance button) { border: 0; padding: 0; color: var(--huiyue-primary); background: transparent; cursor: pointer; font-size: 12px; }
+:global(.account-menu__balance button) { border: 0; padding: 0; color: var(--artiv-primary); background: transparent; cursor: pointer; font-size: 12px; }
 
 @media (max-width: 900px) {
   .app-header__nav {

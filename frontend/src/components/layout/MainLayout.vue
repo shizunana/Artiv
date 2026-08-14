@@ -19,8 +19,8 @@
           <router-link to="/register">注册</router-link>
         </div>
         <div class="page-footer__copyright">
-          <p>绘约 · 带给你自由、高效、专业的美术约稿体验</p>
-          <p class="records">Copyright © 2026 绘约 保留所有权利 · 毕业设计作品</p>
+          <p>艺绘 · 带给你自由、高效、专业的美术约稿体验</p>
+          <p class="records">Copyright © 2026 艺绘 保留所有权利 · 毕业设计作品</p>
         </div>
       </div>
     </footer>
@@ -40,7 +40,7 @@ import AppHeader from './AppHeader.vue'
 
 .landing-layout__main {
   flex: 1;
-  padding-top: var(--huiyue-header-height);
+  padding-top: var(--artiv-header-height);
 }
 
 /* ---------- 页脚 ---------- */
@@ -64,7 +64,7 @@ import AppHeader from './AppHeader.vue'
 }
 
 .page-footer__nav-list a:hover {
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
 }
 
 .page-footer__copyright {

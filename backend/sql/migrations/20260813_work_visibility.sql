@@ -1,6 +1,6 @@
 -- Add public/private visibility and subject filters to works.
 -- Existing works remain public so historical demo data keeps appearing in the works square.
-USE `huiyue`;
+USE `artiv`;
 
 ALTER TABLE `work`
   ADD COLUMN `subject` VARCHAR(500) DEFAULT NULL COMMENT '题材风格，英文逗号分隔' AFTER `category`,

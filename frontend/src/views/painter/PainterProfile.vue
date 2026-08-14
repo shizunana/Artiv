@@ -141,7 +141,7 @@ async function applyCert() {
 }
 
 .cert-tip {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 13px;
 }
 

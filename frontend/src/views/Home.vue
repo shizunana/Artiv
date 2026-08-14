@@ -69,7 +69,7 @@
     <section class="landing-section is-white">
       <div class="page-container">
         <h2 class="section-title">告别传统美术外包，迎接全新的解决办法</h2>
-        <p class="section-subtitle">流畅的约稿体验，绘约全面保证您的交易安全与质量</p>
+        <p class="section-subtitle">流畅的约稿体验，艺绘全面保证您的交易安全与质量</p>
         <div class="solution-grid">
           <div v-for="s in solutions" :key="s.title" class="solution-card">
             <div class="solution-icon">{{ s.icon }}</div>
@@ -83,7 +83,7 @@
     <!-- T01 用户评价 -->
     <section class="landing-section is-alt">
       <div class="page-container">
-        <h2 class="section-title">使用过绘约的人怎么说？</h2>
+        <h2 class="section-title">使用过艺绘的人怎么说？</h2>
         <p class="section-subtitle">发现并敢于尝试一个新事物确实非常困难，您可以先看看我们的用户怎么说。</p>
         <div class="comment-grid">
           <div v-for="(c, i) in comments" :key="i" class="comment-cell">
@@ -257,7 +257,7 @@ onMounted(async () => {
 .stat strong {
   font-size: 26px;
   font-weight: 600;
-  color: var(--huiyue-primary-light);
+  color: var(--artiv-primary-light);
 }
 
 .stat span {
@@ -275,7 +275,7 @@ onMounted(async () => {
 }
 
 .landing-section.is-alt {
-  background: var(--huiyue-section-alt);
+  background: var(--artiv-section-alt);
 }
 
 /* ---------- 特性区 ---------- */
@@ -288,7 +288,7 @@ onMounted(async () => {
 
 .feature-card {
   background: #fff;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   border-radius: 12px;
   padding: 32px 28px;
   text-align: center;
@@ -313,13 +313,13 @@ onMounted(async () => {
 
 .feature-card h3 {
   margin: 0 0 10px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   font-size: 18px;
 }
 
 .feature-card p {
   margin: 0;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   line-height: 1.8;
 }
 
@@ -336,22 +336,22 @@ onMounted(async () => {
   padding: 8px 22px;
   border-radius: 20px;
   background: #fff;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   cursor: pointer;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
   font-size: 14px;
   transition: all 0.2s;
 }
 
 .category-tab:hover {
-  color: var(--huiyue-primary);
-  border-color: var(--huiyue-primary);
+  color: var(--artiv-primary);
+  border-color: var(--artiv-primary);
 }
 
 .category-tab.is-active {
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
-  border-color: var(--huiyue-primary);
+  border-color: var(--artiv-primary);
 }
 
 .artwork-grid {
@@ -393,7 +393,7 @@ onMounted(async () => {
 .artwork-info h4 {
   margin: 0;
   font-size: 15px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -402,8 +402,8 @@ onMounted(async () => {
 
 .artwork-category {
   font-size: 12px;
-  color: var(--huiyue-primary);
-  background: var(--huiyue-primary-light);
+  color: var(--artiv-primary);
+  background: var(--artiv-primary-light);
   padding: 2px 10px;
   border-radius: 10px;
   flex-shrink: 0;
@@ -423,7 +423,7 @@ onMounted(async () => {
 }
 
 .solution-card {
-  background: var(--huiyue-section-alt);
+  background: var(--artiv-section-alt);
   border-radius: 12px;
   padding: 28px 22px;
   text-align: center;
@@ -437,13 +437,13 @@ onMounted(async () => {
 .solution-card h3 {
   margin: 0 0 10px;
   font-size: 17px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
 }
 
 .solution-card p {
   margin: 0;
   font-size: 13px;
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   line-height: 1.8;
 }
 
@@ -459,19 +459,19 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 28px 24px;
   position: relative;
-  border: 1px solid var(--huiyue-border);
+  border: 1px solid var(--artiv-border);
 }
 
 .comment-cell__quote {
   font-size: 48px;
   line-height: 1;
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
   font-family: Georgia, serif;
   margin-bottom: 6px;
 }
 
 .comment-cell__content {
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   line-height: 1.9;
   font-size: 14px;
   min-height: 84px;
@@ -482,17 +482,17 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid var(--huiyue-border);
+  border-top: 1px solid var(--artiv-border);
   padding-top: 14px;
 }
 
 .comment-cell__role {
-  color: var(--huiyue-accent);
+  color: var(--artiv-accent);
   font-size: 13px;
 }
 
 .comment-cell__author {
-  color: var(--huiyue-text-secondary);
+  color: var(--artiv-text-secondary);
   font-size: 13px;
 }
 

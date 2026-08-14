@@ -107,7 +107,7 @@ function switchRole() {
 .workbench-page {
   min-height: 100vh;
   background: #f5f6f8;
-  padding-top: var(--huiyue-header-height);
+  padding-top: var(--artiv-header-height);
   padding-bottom: 48px;
 }
 
@@ -142,7 +142,7 @@ function switchRole() {
 }
 
 .wb-sidebar-avatar {
-  background: var(--huiyue-primary);
+  background: var(--artiv-primary);
   color: #fff;
   flex-shrink: 0;
 }
@@ -155,7 +155,7 @@ function switchRole() {
 }
 
 .wb-sidebar__role {
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
   font-size: 12px;
 }
 
@@ -180,19 +180,19 @@ function switchRole() {
   align-items: center;
   padding: 12px 10px;
   border-radius: 4px;
-  color: var(--huiyue-text);
+  color: var(--artiv-text);
   font-size: 14px;
   transition: background 0.2s, color 0.2s;
 }
 
 .wb-sidebar__tab:hover {
-  background: var(--huiyue-primary-light);
-  color: var(--huiyue-primary);
+  background: var(--artiv-primary-light);
+  color: var(--artiv-primary);
 }
 
 .wb-sidebar__tab.is-active {
-  background: var(--huiyue-primary-light);
-  color: var(--huiyue-primary);
+  background: var(--artiv-primary-light);
+  color: var(--artiv-primary);
   font-weight: 600;
 }
 
@@ -209,17 +209,17 @@ function switchRole() {
 .wb-switch {
   width: 100%;
   padding: 9px 0;
-  border: 1px solid var(--huiyue-primary);
+  border: 1px solid var(--artiv-primary);
   border-radius: 18px;
   background: #fff;
-  color: var(--huiyue-primary);
+  color: var(--artiv-primary);
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s;
 }
 
 .wb-switch:hover {
-  background: var(--huiyue-primary-light);
+  background: var(--artiv-primary-light);
 }
 
 /* ---------- 主内容区 ---------- */

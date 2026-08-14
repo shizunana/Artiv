@@ -183,16 +183,16 @@ onMounted(load)
 .wb-card { background: #fff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); padding: 24px; }
 .wb-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
 .wb-card__head h3 { margin: 0; font-size: 17px; }
-.wb-card__head p { margin: 7px 0 0; color: var(--huiyue-text-secondary); font-size: 13px; }
+.wb-card__head p { margin: 7px 0 0; color: var(--artiv-text-secondary); font-size: 13px; }
 .my-work-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; min-height: 120px; }
-.work-card { border: 1px solid var(--huiyue-border); border-radius: 8px; overflow: hidden; background: #fff; }
-.work-cover { position: relative; aspect-ratio: 4 / 3; background: var(--huiyue-section-alt); }
+.work-card { border: 1px solid var(--artiv-border); border-radius: 8px; overflow: hidden; background: #fff; }
+.work-cover { position: relative; aspect-ratio: 4 / 3; background: var(--artiv-section-alt); }
 .work-image { width: 100%; height: 100%; display: block; }
 .work-placeholder { width: 100%; height: 100%; display: grid; place-items: center; font-size: 42px; }
 .visibility-tag { position: absolute; top: 10px; right: 10px; }
 .work-info { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 5px 10px; padding: 12px; align-items: center; }
 .work-info h4 { margin: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.work-info p { grid-column: 1 / 2; margin: 0; color: var(--huiyue-text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work-info p { grid-column: 1 / 2; margin: 0; color: var(--artiv-text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .work-info .el-button { grid-row: 1 / 3; }
 .visibility-action { grid-column: 2; }
 .delete-action { grid-column: 3; }
@@ -201,10 +201,10 @@ onMounted(load)
 .form-two-columns :deep(.el-select) { width: 100%; }
 .visibility-options { display: flex; flex-wrap: nowrap; }
 .work-upload-placeholder, .work-upload-preview { width: 180px; height: 135px; border-radius: 8px; }
-.work-upload-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--huiyue-border); color: var(--huiyue-text-secondary); }
+.work-upload-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--artiv-border); color: var(--artiv-text-secondary); }
 .work-upload-placeholder small { font-size: 11px; color: #a8abb2; }
 .upload-icon { font-size: 32px; }
-.form-tip { margin-left: 12px; color: var(--huiyue-danger, #f56c6c); font-size: 12px; }
+.form-tip { margin-left: 12px; color: var(--artiv-danger, #f56c6c); font-size: 12px; }
 @media (max-width: 820px) { .my-work-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .form-two-columns { grid-template-columns: 1fr; gap: 0; } }
 @media (max-width: 520px) { .my-work-grid { grid-template-columns: 1fr; } .wb-card__head { align-items: stretch; flex-direction: column; } }
 </style>

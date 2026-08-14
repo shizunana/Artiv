@@ -1,0 +1,152 @@
+package com.artiv.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.artiv.common.BusinessException;
+import com.artiv.common.ResultCode;
+import com.artiv.dto.PublisherSummary;
+import com.artiv.dto.ProjectRequest;
+import com.artiv.entity.Project;
+import com.artiv.entity.Invitation;
+import com.artiv.entity.User;
+import com.artiv.mapper.InvitationMapper;
+import com.artiv.mapper.ProjectMapper;
+import com.artiv.mapper.UserMapper;
+import com.artiv.service.ProjectService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.math.BigDecimal;
+
+@Service
+@RequiredArgsConstructor
+public class ProjectServiceImpl implements ProjectService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private final ProjectMapper projectMapper;
+    private final UserMapper userMapper;
+    private final InvitationMapper invitationMapper;
+
+    @Override
+    public Page<Project> listProjects(long page, long size, String keyword, Integer status,
+                                      String sort, BigDecimal budgetMin, BigDecimal budgetMax,
+                                      Integer deadlineWithin, Integer deadlineAfter, String tag,
+                                      String category, String subject) {
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
+                .eq(Project::getDeleted, 0)
+                .eq(Project::getMode, 0)
+                .eq(status != null, Project::getStatus, status)
+                .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
+                .like(StringUtils.hasText(tag), Project::getTags, tag)
+                .eq(StringUtils.hasText(category), Project::getCategory, category)
+                .like(StringUtils.hasText(subject), Project::getSubject, subject)
+                .ge(budgetMin != null, Project::getBudget, budgetMin)
+                .le(budgetMax != null, Project::getBudget, budgetMax);
+        if (deadlineWithin != null) {
+            wrapper.le(Project::getDeadline, LocalDate.now().plusDays(deadlineWithin));
+        }
+        if (deadlineAfter != null) {
+            wrapper.ge(Project::getDeadline, LocalDate.now().plusDays(deadlineAfter));
+        }
+        if ("budget".equals(sort)) {
+            wrapper.orderByDesc(Project::getBudget);
+        } else {
+            wrapper.orderByDesc(Project::getCreatedAt);
+        }
+        return projectMapper.selectPage(new Page<>(page, size), wrapper);
+    }
+
+    @Override
+    public Page<Project> listMine(long page, long size, Long employerId) {
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
+                .eq(Project::getDeleted, 0)
+                .eq(Project::getEmployerId, employerId)
+                .orderByDesc(Project::getCreatedAt);
+        return projectMapper.selectPage(new Page<>(page, size), wrapper);
+    }
+
+    @Override
+    public Project create(ProjectRequest request, Long employerId) {
+        // 截稿日期不能早于发布后 7 天
+        LocalDate minDeadline = LocalDate.now().plusDays(7);
+        if (request.getDeadline().isBefore(minDeadline)) {
+            throw new BusinessException(2001, "截稿日期不能早于发布后 7 天");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        Project project = new Project();
+        project.setEmployerId(employerId);
+        project.setTitle(request.getTitle().trim());
+        project.setDescription(request.getDescription().trim());
+        project.setBudget(request.getBudget());
+        project.setDeadline(request.getDeadline());
+        project.setTags(request.getTags() == null || request.getTags().isEmpty()
+                ? null : String.join(",", request.getTags()));
+        project.setCategory(request.getCategory());
+        project.setSubject(request.getSubject() == null || request.getSubject().isEmpty()
+                ? null : String.join(",", request.getSubject()));
+        project.setImages(request.getImages());
+        project.setRequirements(serializeRequirements(request));
+        project.setMode(request.getMode() == null ? 0 : request.getMode());
+        // 招募期默认发布后 10 日
+        project.setRecruitDeadline(now.plusDays(10));
+        project.setStatus(0);
+        project.setDeleted(0);
+        project.setCreatedAt(now);
+        project.setUpdatedAt(now);
+        projectMapper.insert(project);
+
+        // 定向邀请：创建邀请记录
+        if (project.getMode() == 1 && request.getInvitePainterId() != null) {
+            Invitation invitation = new Invitation();
+            invitation.setProjectId(project.getId());
+            invitation.setPainterId(request.getInvitePainterId());
+            invitation.setMessage("企划方邀请您参与「" + project.getTitle() + "」");
+            invitation.setStatus(0);
+            invitation.setDeleted(0);
+            invitation.setCreatedAt(now);
+            invitation.setUpdatedAt(now);
+            invitationMapper.insert(invitation);
+        }
+        return project;
+    }
+
+    private String serializeRequirements(ProjectRequest request) {
+        if (request.getRequirements() == null) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(request.getRequirements());
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Unable to serialize project requirements", e);
+        }
+    }
+
+    @Override
+    public Project getById(Long id) {
+        Project project = projectMapper.selectById(id);
+        if (project == null || project.getDeleted() == 1) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));
+        return project;
+    }
+
+    private PublisherSummary toPublisherSummary(User user) {
+        if (user == null) {
+            return null;
+        }
+        return new PublisherSummary(
+                user.getId(),
+                user.getNickname(),
+                user.getAvatar(),
+                user.getBio(),
+                user.getTags()
+        );
+    }
+}

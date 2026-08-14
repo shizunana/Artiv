@@ -11,11 +11,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.huiyue</groupId>
-    <artifactId>huiyue</artifactId>
+    <groupId>com.artiv</groupId>
+    <artifactId>artiv</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>huiyue</name>
-    <description>绘约（HuiYue）美术约稿交易平台后端</description>
+    <name>Artiv</name>
+    <description>艺绘（Artiv）美术约稿交易平台后端</description>
 
     <properties>
         <java.version>21</java.version>
