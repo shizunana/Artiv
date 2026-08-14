@@ -27,6 +27,7 @@
           >
             {{ applyButtonText }}
           </el-button>
+          <el-button v-if="isOwner" class="manage-button" @click="manageDialogVisible = true">变更企划</el-button>
           <el-button class="back-button" @click="router.push({ name: 'Projects' })">返回企划列表</el-button>
         </section>
       </aside>
@@ -71,6 +72,14 @@
                 <dd>{{ item.value }}</dd>
               </div>
             </dl>
+          </section>
+
+          <section class="detail-section phase-section">
+            <h2>创作阶段</h2>
+            <p class="phase-tip">订单建立后，画师按以下顺序提交稿件；最后一个阶段确认后完成交易并开放原图。</p>
+            <el-steps :active="0" align-center class="phase-steps">
+              <el-step v-for="(phase, index) in projectPhases" :key="`${phase.name}-${index}`" :title="phase.name" />
+            </el-steps>
           </section>
         </article>
 
@@ -164,7 +173,7 @@
           <h3>{{ project?.title }}</h3>
           <p>接单画师：{{ painterName(orderingApplication) }}</p>
           <p>订单来源：该画师对本企划的有效应征</p>
-          <p>交付流程：初稿 → 修改 → 终稿 → 交付</p>
+          <p>创作阶段：{{ phaseSummary }}</p>
         </div>
       </div>
       <div class="confirm-amount">
@@ -177,6 +186,14 @@
         <el-button type="primary" :loading="creatingOrder" @click="confirmProjectOrder">确认发送订单</el-button>
       </template>
     </el-dialog>
+
+    <ProjectManageDialog
+      v-if="project"
+      v-model="manageDialogVisible"
+      :project="project"
+      @changed="handleProjectChanged"
+      @deleted="handleProjectDeleted"
+    />
   </div>
 </template>
 
@@ -195,6 +212,7 @@ import {
 import { startProjectConversation } from '@/api/message'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/date'
+import ProjectManageDialog from '@/components/projects/ProjectManageDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -210,6 +228,7 @@ const orderingPainterId = ref(null)
 const orderingApplication = ref(null)
 const orderConfirmVisible = ref(false)
 const creatingOrder = ref(false)
+const manageDialogVisible = ref(false)
 const withdrawingApplicationId = ref(null)
 const applicationDialogVisible = ref(false)
 const applicationFormRef = ref()
@@ -248,6 +267,16 @@ const applyButtonText = computed(() => {
 })
 const projectImages = computed(() => String(project.value?.images || '').split(',').map((item) => item.trim()).filter(Boolean))
 const projectSubjects = computed(() => String(project.value?.subject || '').split(',').map((item) => item.trim()).filter(Boolean))
+const projectPhases = computed(() => {
+  try {
+    const parsed = JSON.parse(project.value?.phases || '[]')
+    if (Array.isArray(parsed) && parsed.length) {
+      return parsed.map((phase) => ({ name: String(phase?.name || '').trim() })).filter((phase) => phase.name)
+    }
+  } catch { /* 使用默认阶段 */ }
+  return [{ name: '初稿' }, { name: '修改' }, { name: '终稿' }]
+})
+const phaseSummary = computed(() => projectPhases.value.map((phase) => phase.name).join(' → '))
 const recruitExpired = computed(() => project.value?.recruitDeadline && new Date(project.value.recruitDeadline).getTime() <= Date.now())
 const recruitCountdown = computed(() => {
   if (!project.value?.recruitDeadline) return '招募进行中'
@@ -421,6 +450,14 @@ async function loadProject() {
   }
 }
 
+function handleProjectChanged(updated) {
+  project.value = { ...project.value, ...updated, employer: employer.value }
+}
+
+function handleProjectDeleted() {
+  router.push({ name: 'DashboardProjects' })
+}
+
 onMounted(loadProject)
 </script>
 
@@ -439,9 +476,9 @@ onMounted(loadProject)
 .summary-item strong { color: #444; font-size: 18px; font-weight: 500; }
 .summary-item .budget { color: #09a3df; font-size: 21px; font-weight: 600; }
 .recruit-countdown { margin: 22px 0 10px; color: #8b939b; font-size: 12px; text-align: center; }
-.apply-button, .back-button { width: 100%; }
+.apply-button, .manage-button, .back-button { width: 100%; }
 .apply-button { height: 42px; font-size: 15px; }
-.back-button { margin-top: 12px; margin-left: 0 !important; }
+.manage-button, .back-button { margin-top: 12px; margin-left: 0 !important; }
 .project-main-card { min-height: 650px; padding: 32px; }
 .project-heading { padding-bottom: 24px; border-bottom: 1px solid #edf0f3; }
 .project-title { margin: 0; color: #333; font-size: 29px; line-height: 1.45; }
@@ -456,6 +493,8 @@ onMounted(loadProject)
 .requirement-item dt, .requirement-item dd { margin: 0; padding: 3px 10px; font-size: 13px; line-height: 1.6; }
 .requirement-item dt { color: #8a929b; }
 .requirement-item dd { color: #555; }
+.phase-tip { margin: -4px 0 22px; color: #7f8994; font-size: 13px; line-height: 1.7; }
+.phase-steps { padding: 18px 10px 6px; border-radius: 6px; background: #f7fafc; }
 .applicant-panel { margin-top: 20px; }
 .confirm-order { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: center; }
 .confirm-cover { width: 104px; height: 104px; overflow: hidden; border-radius: 8px; background: #f2f4f6; }

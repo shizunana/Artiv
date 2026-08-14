@@ -43,6 +43,9 @@ public class Project {
 
     private String requirements;
 
+    /** 创作阶段 JSON：[{"name":"初稿"},{"name":"修改"},{"name":"终稿"}] */
+    private String phases;
+
     @TableField(exist = false)
     private PublisherSummary employer;
 
@@ -52,7 +55,7 @@ public class Project {
     /** 招募截止时间 */
     private LocalDateTime recruitDeadline;
 
-    /** 状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已关闭 */
+    /** 状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已下架 */
     private Integer status;
 
     private Integer deleted;

@@ -35,9 +35,9 @@
       </section>
 
       <section class="wb-card phase-card">
-        <h3>阶段交付</h3>
+        <h3>创作阶段</h3>
         <el-steps :active="stepActive" finish-status="success" align-center>
-          <el-step v-for="(phase,index) in phases" :key="index" :title="phase.name" :description="`${phase.percent || 0}%`" />
+          <el-step v-for="(phase,index) in phases" :key="index" :title="phase.name" />
         </el-steps>
         <div v-if="currentSubmission" class="submission-panel">
           <div class="submission-head"><b>{{ currentSubmission.name }} · 第 {{ currentSubmission.submissionNo }} 版</b><el-tag :type="stageTag(currentSubmission.status)">{{ stageText(currentSubmission.status) }}</el-tag></div>

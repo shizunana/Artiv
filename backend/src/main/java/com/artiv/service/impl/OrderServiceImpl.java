@@ -48,7 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private static final int COMPLETED = 3;
     private static final int CANCELLED = 4;
     private static final int AFTER_SALE = 5;
-    private static final String DEFAULT_PHASES = "[{\"name\":\"初稿\",\"percent\":30},{\"name\":\"修改\",\"percent\":30},{\"name\":\"终稿\",\"percent\":30},{\"name\":\"交付\",\"percent\":10}]";
+    private static final String DEFAULT_PHASES = "[{\"name\":\"初稿\"},{\"name\":\"修改\"},{\"name\":\"终稿\"}]";
 
     private final OrderInfoMapper orderInfoMapper;
     private final OrderStageMapper orderStageMapper;
@@ -170,6 +170,7 @@ public class OrderServiceImpl implements OrderService {
         Project project = projectMapper.selectById(projectId);
         if (project == null || !Integer.valueOf(0).equals(project.getDeleted())
                 || !employerId.equals(project.getEmployerId())
+                || !Integer.valueOf(0).equals(project.getStatus())
                 || employerId.equals(application.getPainterId())) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
@@ -210,7 +211,7 @@ public class OrderServiceImpl implements OrderService {
         order.setProjectTitle(project.getTitle());
         order.setProjectCover(firstProjectImage(project.getImages()));
         order.setProjectSnapshot(projectSnapshot(project, application));
-        order.setPhaseSnapshot(DEFAULT_PHASES);
+        order.setPhaseSnapshot(StringUtils.hasText(project.getPhases()) ? project.getPhases() : DEFAULT_PHASES);
         order.setStatus(PENDING);
         order.setCurrentStage(0);
         order.setDeleted(0);
@@ -387,6 +388,7 @@ public class OrderServiceImpl implements OrderService {
         snapshot.put("category", project.getCategory());
         snapshot.put("subject", project.getSubject());
         snapshot.put("requirements", project.getRequirements());
+        snapshot.put("phases", project.getPhases());
         snapshot.put("deadline", project.getDeadline());
         snapshot.put("applicationId", application.getId());
         snapshot.put("applicationIntro", application.getIntro());

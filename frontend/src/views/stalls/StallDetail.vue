@@ -48,11 +48,11 @@
             <h2 class="detail-title"><span class="title-icon">🎨</span>创作阶段</h2>
             <p class="section-tip">
               画师承诺按以下阶段提供阶段性稿件供企划方审核确认。<br />
-              同时约定，如因企划方的原因导致合作中断，企划方需按照已确认的阶段支付对应比例的稿酬给画师。
+              每个阶段均可根据沟通结果再次提交；最后一个阶段确认后完成交易并开放原图。
             </p>
             <ul class="phase-list">
               <li v-for="(p, i) in phaseList" :key="i" class="phase-item">
-                <span class="phase-badge">{{ p.percent }}%</span>
+                <span class="phase-badge">{{ i + 1 }}</span>
                 <span class="phase-name">{{ p.name }}</span>
               </li>
             </ul>

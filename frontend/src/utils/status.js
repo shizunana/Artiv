@@ -5,7 +5,7 @@ export const PROJECT_STATUS = {
   1: { text: '已选定', type: 'primary' },
   2: { text: '进行中', type: 'warning' },
   3: { text: '已完成', type: 'info' },
-  4: { text: '已关闭', type: 'danger' },
+  4: { text: '已下架', type: 'info' },
 }
 
 export const ORDER_STATUS = {

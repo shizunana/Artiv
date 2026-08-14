@@ -99,6 +99,11 @@
             <p class="field-tip">可上传多张参考图，第一张会作为企划大厅的封面。</p>
           </el-form-item>
 
+          <el-form-item label="创作阶段" required>
+            <CreativePhaseEditor v-model="form.phases" />
+            <p class="field-tip">画师按顺序提交阶段稿件；最后一个阶段确认后即完成订单并交付原图。</p>
+          </el-form-item>
+
           <section class="collaboration-section">
             <h4>合作方式</h4>
             <el-radio-group v-model="form.mode" @change="handleModeChange">
@@ -178,6 +183,7 @@
           <el-descriptions-item label="标题">{{ form.title || '-' }}</el-descriptions-item>
           <el-descriptions-item label="需求描述">{{ form.description || '-' }}</el-descriptions-item>
           <el-descriptions-item label="参考图">{{ form.images.length ? `已上传 ${form.images.length} 张` : '未上传' }}</el-descriptions-item>
+          <el-descriptions-item label="创作阶段">{{ phaseSummary }}</el-descriptions-item>
           <el-descriptions-item label="合作方式">{{ form.mode === 1 ? '定向邀请' : '公开招募' }}</el-descriptions-item>
           <el-descriptions-item v-if="form.mode === 1" label="受邀画师">画师阿绘（已认证）</el-descriptions-item>
           <el-descriptions-item label="题材风格">{{ subjectSummary }}</el-descriptions-item>
@@ -203,6 +209,7 @@ import { Plus } from '@element-plus/icons-vue'
 import { createProject } from '@/api/project'
 import { uploadFile } from '@/api/upload'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
+import CreativePhaseEditor from '@/components/common/CreativePhaseEditor.vue'
 
 const router = useRouter()
 const step = ref(0)
@@ -231,12 +238,14 @@ const form = reactive({
   mode: 0,
   invitePainterId: null,
   images: [],
+  phases: [{ name: '初稿' }, { name: '修改' }, { name: '终稿' }],
 })
 
 const imageFileList = ref([])
 const uploadedImageByUid = new Map()
 const subjectSummary = computed(() => form.subjects.length ? form.subjects.join(' / ') : '不限')
 const formatSummary = computed(() => form.requirements.formats.length ? form.requirements.formats.join(' / ') : '-')
+const phaseSummary = computed(() => form.phases.map((phase) => phase.name.trim()).filter(Boolean).join(' → '))
 
 function uploadedImageUrl(file) {
   const response = file?.response
@@ -334,6 +343,10 @@ function next() {
       ElMessage.warning('请选择被邀请的画师')
       return
     }
+    if (!form.phases.length || form.phases.some((phase) => !phase.name.trim())) {
+      ElMessage.warning('请填写完整的创作阶段名称')
+      return
+    }
   }
   if (step.value === 2 && (!form.requirements.formats.length || !form.requirements.publishPermission)) {
     ElMessage.warning('请至少选择一种稿件格式和公开权限')
@@ -355,6 +368,7 @@ async function submit() {
       category: form.category,
       subject: form.subjects,
       requirements: form.requirements,
+      phases: JSON.stringify(form.phases.map((phase) => ({ name: phase.name.trim() }))),
       mode: form.mode,
       invitePainterId: form.mode === 1 ? form.invitePainterId : null,
     })

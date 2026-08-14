@@ -95,8 +95,6 @@
           <div class="phase-editor">
             <div v-for="(p, i) in form.phases" :key="i" class="phase-row">
               <el-input v-model="p.name" placeholder="阶段名称" class="phase-name" />
-              <el-input-number v-model="p.percent" :min="0" :max="100" class="phase-percent" />
-              <span class="phase-unit">%</span>
               <el-button link type="danger" @click="removePhase(i)">删除</el-button>
             </div>
             <el-button size="small" @click="addPhase">+ 添加阶段</el-button>
@@ -166,9 +164,9 @@ const form = reactive({
   cover: '',
   images: [],
   phases: [
-    { name: '初稿', percent: 40 },
-    { name: '修改', percent: 30 },
-    { name: '终稿', percent: 30 },
+    { name: '初稿' },
+    { name: '修改' },
+    { name: '终稿' },
   ],
   params: { colorMode: 'RGB', spec: '', format: [], subject: [] },
   description: '',
@@ -266,7 +264,7 @@ async function save() {
 }
 
 function addPhase() {
-  form.phases.push({ name: '', percent: 0 })
+  form.phases.push({ name: '' })
 }
 
 function removePhase(i) {
@@ -373,15 +371,6 @@ onMounted(load)
 
 .phase-name {
   width: 200px;
-}
-
-.phase-percent {
-  width: 120px;
-}
-
-.phase-unit {
-  color: var(--artiv-text-secondary);
-  font-size: 13px;
 }
 
 .param-editor {

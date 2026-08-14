@@ -9,8 +9,10 @@ import com.artiv.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -58,6 +60,19 @@ public class ProjectController {
     /** 企划详情 */
     @GetMapping("/{id}")
     public Result<Project> detail(@PathVariable Long id) {
-        return Result.ok(projectService.getById(id));
+        return Result.ok(projectService.getById(id, UserContext.getUserId()));
+    }
+
+    /** 发布者上架/下架企划：0 招募中，4 已下架。 */
+    @PutMapping("/{id}/status")
+    public Result<Project> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
+        return Result.ok(projectService.changeStatus(id, status, UserContext.getUserId()));
+    }
+
+    /** 仅无任何关联订单的企划允许删除。 */
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        projectService.delete(id, UserContext.getUserId());
+        return Result.ok();
     }
 }

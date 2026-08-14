@@ -10,8 +10,10 @@ import com.artiv.dto.PublisherSummary;
 import com.artiv.dto.ProjectRequest;
 import com.artiv.entity.Project;
 import com.artiv.entity.Invitation;
+import com.artiv.entity.OrderInfo;
 import com.artiv.entity.User;
 import com.artiv.mapper.InvitationMapper;
+import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.ProjectService;
@@ -22,16 +24,21 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String DEFAULT_PHASES = "[{\"name\":\"初稿\"},{\"name\":\"修改\"},{\"name\":\"终稿\"}]";
 
     private final ProjectMapper projectMapper;
     private final UserMapper userMapper;
     private final InvitationMapper invitationMapper;
+    private final OrderInfoMapper orderInfoMapper;
 
     @Override
     public Page<Project> listProjects(long page, long size, String keyword, Integer status,
@@ -41,7 +48,7 @@ public class ProjectServiceImpl implements ProjectService {
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
                 .eq(Project::getDeleted, 0)
                 .eq(Project::getMode, 0)
-                .eq(status != null, Project::getStatus, status)
+                .eq(Project::getStatus, 0)
                 .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
                 .like(StringUtils.hasText(tag), Project::getTags, tag)
                 .eq(StringUtils.hasText(category), Project::getCategory, category)
@@ -92,6 +99,7 @@ public class ProjectServiceImpl implements ProjectService {
                 ? null : String.join(",", request.getSubject()));
         project.setImages(request.getImages());
         project.setRequirements(serializeRequirements(request));
+        project.setPhases(normalizePhases(request.getPhases()));
         project.setMode(request.getMode() == null ? 0 : request.getMode());
         // 招募期默认发布后 10 日
         project.setRecruitDeadline(now.plusDays(10));
@@ -128,13 +136,91 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public Project getById(Long id) {
+    public Project getById(Long id, Long viewerId) {
         Project project = projectMapper.selectById(id);
         if (project == null || project.getDeleted() == 1) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
+        boolean active = Integer.valueOf(0).equals(project.getStatus());
+        boolean owner = viewerId != null && viewerId.equals(project.getEmployerId());
+        boolean participant = viewerId != null && orderInfoMapper.selectCount(
+                new LambdaQueryWrapper<OrderInfo>()
+                        .eq(OrderInfo::getProjectId, id)
+                        .and(wrapper -> wrapper.eq(OrderInfo::getEmployerId, viewerId)
+                                .or().eq(OrderInfo::getPainterId, viewerId))) > 0;
+        if (!active && !owner && !participant) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
         project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));
         return project;
+    }
+
+    @Override
+    public Project changeStatus(Long id, Integer status, Long employerId) {
+        if (status == null || (status != 0 && status != 4)) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        Project project = requireOwned(id, employerId);
+        project.setStatus(status);
+        if (status == 0 && (project.getRecruitDeadline() == null
+                || project.getRecruitDeadline().isBefore(LocalDateTime.now()))) {
+            project.setRecruitDeadline(LocalDateTime.now().plusDays(10));
+        }
+        project.setUpdatedAt(LocalDateTime.now());
+        projectMapper.updateById(project);
+        return project;
+    }
+
+    @Override
+    public void delete(Long id, Long employerId) {
+        Project project = requireOwned(id, employerId);
+        long relatedOrders = orderInfoMapper.selectCount(
+                new LambdaQueryWrapper<OrderInfo>().eq(OrderInfo::getProjectId, id));
+        if (relatedOrders > 0) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(),
+                    "该企划存在关联订单，不能删除；可以先下架企划");
+        }
+        project.setStatus(4);
+        project.setUpdatedAt(LocalDateTime.now());
+        projectMapper.updateById(project);
+        projectMapper.deleteById(id);
+    }
+
+    private Project requireOwned(Long id, Long employerId) {
+        Project project = projectMapper.selectById(id);
+        if (project == null || Integer.valueOf(1).equals(project.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (employerId == null || !employerId.equals(project.getEmployerId())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION);
+        }
+        return project;
+    }
+
+    private String normalizePhases(String value) {
+        if (!StringUtils.hasText(value)) {
+            return DEFAULT_PHASES;
+        }
+        try {
+            List<Map<String, Object>> source = OBJECT_MAPPER.readValue(value,
+                    new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            if (source == null || source.isEmpty() || source.size() > 10) {
+                throw new IllegalArgumentException();
+            }
+            List<Map<String, String>> normalized = source.stream().map(item -> {
+                String name = String.valueOf(item.getOrDefault("name", "")).trim();
+                if (!StringUtils.hasText(name) || name.length() > 20) {
+                    throw new IllegalArgumentException();
+                }
+                Map<String, String> phase = new LinkedHashMap<>();
+                phase.put("name", name);
+                return phase;
+            }).toList();
+            return OBJECT_MAPPER.writeValueAsString(normalized);
+        } catch (Exception exception) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(),
+                    "创作阶段格式错误，请设置 1 至 10 个有效阶段");
+        }
     }
 
     private PublisherSummary toPublisherSummary(User user) {

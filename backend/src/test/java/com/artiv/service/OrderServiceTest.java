@@ -95,6 +95,7 @@ class OrderServiceTest {
         project.setImages("/uploads/project.png,/uploads/other.png");
         project.setStatus(0);
         project.setDeleted(0);
+        project.setPhases("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]");
         User employer = activeUser(15L, new BigDecimal("1000.00"));
         User painter = activeUser(2L, BigDecimal.ZERO);
         painter.setCertStatus(2);
@@ -115,6 +116,7 @@ class OrderServiceTest {
         assertEquals(31L, result.getApplicationId());
         assertEquals("企划测试", result.getProjectTitle());
         assertEquals("/uploads/project.png", result.getProjectCover());
+        assertEquals("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]", result.getPhaseSnapshot());
         assertEquals(0, project.getStatus());
         verify(projectMapper, never()).updateById(any(Project.class));
         verify(messageService).createProjectOrderCommunication(result, project);
@@ -132,6 +134,7 @@ class OrderServiceTest {
         Project project = new Project();
         project.setId(8L);
         project.setEmployerId(15L);
+        project.setStatus(0);
         project.setDeleted(0);
         when(applicationMapper.selectByIdForUpdate(31L)).thenReturn(application);
         when(projectMapper.selectById(8L)).thenReturn(project);
@@ -211,6 +214,33 @@ class OrderServiceTest {
         assertEquals(new BigDecimal("298.00"), painter.getBalance());
         assertEquals(1, stage.getStatus());
         verify(userMapper).updateById(painter);
+        verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"), any());
+    }
+
+    @Test
+    void approvingFinalConfiguredStageCompletesOrderAndPaysPainter() {
+        OrderInfo order = activeOrder(2);
+        order.setAmount(new BigDecimal("300.00"));
+        order.setCurrentStage(2);
+        order.setPhaseSnapshot("[{\"name\":\"初稿\"},{\"name\":\"修改\"},{\"name\":\"终稿\"}]");
+        OrderStage stage = new OrderStage();
+        stage.setId(9L);
+        stage.setOrderId(77L);
+        stage.setStageIndex(2);
+        stage.setSubmissionNo(1);
+        stage.setName("终稿");
+        stage.setStatus(0);
+        User painter = activeUser(2L, BigDecimal.ZERO);
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
+        when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(painter);
+        OrderStageReviewRequest request = new OrderStageReviewRequest();
+        request.setAction("approve");
+
+        OrderInfo result = orderService.reviewStage(77L, 15L, request);
+
+        assertEquals(3, result.getStatus());
+        assertEquals(new BigDecimal("300.00"), painter.getBalance());
         verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"), any());
     }
 

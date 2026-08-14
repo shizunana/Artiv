@@ -7,6 +7,7 @@ import com.artiv.dto.ProjectRequirements;
 import com.artiv.entity.Project;
 import com.artiv.entity.User;
 import com.artiv.mapper.InvitationMapper;
+import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.impl.ProjectServiceImpl;
@@ -24,6 +25,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +41,9 @@ class ProjectServiceTest {
     @Mock
     private InvitationMapper invitationMapper;
 
+    @Mock
+    private OrderInfoMapper orderInfoMapper;
+
     @InjectMocks
     private ProjectServiceImpl projectService;
 
@@ -50,6 +55,7 @@ class ProjectServiceTest {
         request.setBudget(new BigDecimal("1200.00"));
         request.setDeadline(LocalDate.now().plusDays(7));
         request.setRequirements(new ProjectRequirements("3000×4000 px", "RGB", List.of("PNG", "PSD"), "可自由发挥"));
+        request.setPhases("[{\"name\":\"草图\",\"percent\":40},{\"name\":\"终稿\",\"percent\":60}]");
 
         projectService.create(request, 1L);
 
@@ -59,6 +65,7 @@ class ProjectServiceTest {
                 "{\"size\":\"3000×4000 px\",\"colorMode\":\"RGB\",\"formats\":[\"PNG\",\"PSD\"],\"publishPermission\":\"可自由发挥\"}",
                 projectCaptor.getValue().getRequirements()
         );
+        assertEquals("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]", projectCaptor.getValue().getPhases());
     }
 
     @Test
@@ -67,6 +74,7 @@ class ProjectServiceTest {
         project.setId(7L);
         project.setEmployerId(12L);
         project.setDeleted(0);
+        project.setStatus(0);
         when(projectMapper.selectById(7L)).thenReturn(project);
 
         User publisher = new User();
@@ -82,7 +90,7 @@ class ProjectServiceTest {
         publisher.setStatus(1);
         when(userMapper.selectById(12L)).thenReturn(publisher);
 
-        JsonNode response = new ObjectMapper().readTree(new ObjectMapper().writeValueAsString(projectService.getById(7L)));
+        JsonNode response = new ObjectMapper().readTree(new ObjectMapper().writeValueAsString(projectService.getById(7L, null)));
 
         assertEquals(12L, response.path("employer").path("id").asLong());
         assertEquals("Public publisher", response.path("employer").path("nickname").asText());
@@ -102,12 +110,38 @@ class ProjectServiceTest {
         project.setId(7L);
         project.setEmployerId(12L);
         project.setDeleted(0);
+        project.setStatus(0);
         when(projectMapper.selectById(7L)).thenReturn(project);
         when(userMapper.selectById(12L)).thenReturn(null);
 
-        JsonNode response = new ObjectMapper().readTree(new ObjectMapper().writeValueAsString(projectService.getById(7L)));
+        JsonNode response = new ObjectMapper().readTree(new ObjectMapper().writeValueAsString(projectService.getById(7L, null)));
 
         assertTrue(response.has("employer"));
         assertTrue(response.path("employer").isNull());
+    }
+
+    @Test
+    void deleteRejectsProjectThatHasAnyHistoricalOrder() {
+        Project project = new Project();
+        project.setId(9L);
+        project.setEmployerId(12L);
+        project.setDeleted(0);
+        when(projectMapper.selectById(9L)).thenReturn(project);
+        when(orderInfoMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(1L);
+
+        assertThrows(com.artiv.common.BusinessException.class, () -> projectService.delete(9L, 12L));
+    }
+
+    @Test
+    void downlistedProjectRemainsVisibleToOrderParticipant() {
+        Project project = new Project();
+        project.setId(9L);
+        project.setEmployerId(12L);
+        project.setStatus(4);
+        project.setDeleted(0);
+        when(projectMapper.selectById(9L)).thenReturn(project);
+        when(orderInfoMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(1L);
+
+        assertEquals(9L, projectService.getById(9L, 33L).getId());
     }
 }

@@ -145,6 +145,7 @@ public class StallServiceImpl implements StallService {
         if (!CATEGORY_OPTIONS.contains(stall.getCategory())) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "橱窗类型必须从统一选项中选择");
         }
+        stall.setPhases(normalizePhases(stall.getPhases()));
         stall.setId(null);
         stall.setPainterId(painterId);
         stall.setStatus(1);
@@ -201,6 +202,26 @@ public class StallServiceImpl implements StallService {
             return objectMapper.writeValueAsString(params);
         } catch (Exception exception) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "橱窗稿件参数保存失败");
+        }
+    }
+
+    private String normalizePhases(String value) {
+        try {
+            List<Map<String, Object>> source = objectMapper.readValue(value, new TypeReference<>() {});
+            if (source == null || source.isEmpty() || source.size() > 10) {
+                throw new IllegalArgumentException();
+            }
+            List<Map<String, String>> normalized = source.stream().map(item -> {
+                String name = String.valueOf(item.getOrDefault("name", "")).trim();
+                if (!StringUtils.hasText(name) || name.length() > 20) {
+                    throw new IllegalArgumentException();
+                }
+                return Map.of("name", name);
+            }).toList();
+            return objectMapper.writeValueAsString(normalized);
+        } catch (Exception exception) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(),
+                    "创作阶段格式错误，请设置 1 至 10 个有效阶段");
         }
     }
 

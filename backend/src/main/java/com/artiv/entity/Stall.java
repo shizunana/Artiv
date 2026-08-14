@@ -39,7 +39,7 @@ public class Stall {
     /** 截稿时间 / 交付周期 */
     private String deliverTime;
 
-    /** 创作阶段 JSON：[{"name":"初稿","percent":40},...] */
+    /** 创作阶段 JSON：[{"name":"初稿"},{"name":"修改"},{"name":"终稿"}] */
     private String phases;
 
     /** 稿件参数 JSON */

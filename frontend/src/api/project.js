@@ -28,6 +28,10 @@ export function deleteProject(id) {
   return request.delete(`/projects/${id}`)
 }
 
+export function changeProjectStatus(id, status) {
+  return request.put(`/projects/${id}/status`, null, { params: { status } })
+}
+
 export function getApplications(projectId, params) {
   return request.get(`/projects/${projectId}/applications`, { params })
 }

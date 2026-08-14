@@ -17,5 +17,9 @@ public interface ProjectService {
 
     Project create(ProjectRequest request, Long employerId);
 
-    Project getById(Long id);
+    Project getById(Long id, Long viewerId);
+
+    Project changeStatus(Long id, Integer status, Long employerId);
+
+    void delete(Long id, Long employerId);
 }

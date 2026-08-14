@@ -42,6 +42,9 @@ public class ProjectRequest {
 
     private ProjectRequirements requirements;
 
+    /** 创作阶段 JSON；服务端会忽略旧版 percent 字段并统一保存名称。 */
+    private String phases;
+
     /** 合作方式：0 公开招募、1 定向邀请 */
     private Integer mode;
 

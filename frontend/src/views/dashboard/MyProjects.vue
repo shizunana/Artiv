@@ -9,15 +9,19 @@
       </div>
 
       <el-table :data="projects" v-loading="loading" empty-text="还没有发布企划">
-        <el-table-column prop="title" label="标题" min-width="180" />
-        <el-table-column label="预算" width="100">
+        <el-table-column label="封面" width="76">
+          <template #default="{ row }">
+            <el-image v-if="firstImage(row.images)" class="project-cover" :src="firstImage(row.images)" fit="cover" />
+            <div v-else class="project-cover project-cover--empty">企</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="title" label="企划名" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="category" label="类型" width="100" show-overflow-tooltip />
+        <el-table-column label="预算" width="110">
           <template #default="{ row }">¥{{ row.budget }}</template>
         </el-table-column>
-        <el-table-column label="截稿日期" width="120">
-          <template #default="{ row }">{{ row.deadline || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="合作方式" width="100">
-          <template #default="{ row }">{{ row.mode === 1 ? '定向邀请' : '公开招募' }}</template>
+        <el-table-column prop="description" label="企划详情" min-width="210" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.description || '-' }}</template>
         </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
@@ -26,14 +30,12 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="110" fixed="right">
+        <el-table-column label="操作" width="130" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="router.push({ name: 'ProjectDetail', params: { id: row.id } })">
               详情
             </el-button>
+            <el-button link type="primary" size="small" @click="openManage(row)">编辑</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -42,6 +44,12 @@
         <Pagination v-model:page="page" v-model:size="size" :total="total" @change="load" />
       </div>
     </div>
+    <ProjectManageDialog
+      v-model="manageVisible"
+      :project="managingProject"
+      @changed="load"
+      @deleted="load"
+    />
   </div>
 </template>
 
@@ -49,9 +57,9 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMyProjects } from '@/api/project'
-import { formatDateTime } from '@/utils/date'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import Pagination from '@/components/common/Pagination.vue'
+import ProjectManageDialog from '@/components/projects/ProjectManageDialog.vue'
 
 const router = useRouter()
 const projects = ref([])
@@ -59,6 +67,22 @@ const loading = ref(false)
 const page = ref(1)
 const size = ref(10)
 const total = ref(0)
+const manageVisible = ref(false)
+const managingProject = ref(null)
+
+function firstImage(images) {
+  if (!images) return ''
+  try {
+    const parsed = JSON.parse(images)
+    if (Array.isArray(parsed)) return parsed[0] || ''
+  } catch { /* 兼容历史逗号分隔数据 */ }
+  return String(images).split(',').map((item) => item.trim()).find(Boolean) || ''
+}
+
+function openManage(project) {
+  managingProject.value = project
+  manageVisible.value = true
+}
 
 async function load() {
   loading.value = true
@@ -99,4 +123,7 @@ onMounted(load)
   justify-content: flex-end;
   margin-top: 16px;
 }
+
+.project-cover { width: 46px; height: 46px; border-radius: 4px; background: #f1f4f7; }
+.project-cover--empty { display: grid; place-items: center; color: #9da6af; font-size: 12px; }
 </style>
