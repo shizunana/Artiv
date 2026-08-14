@@ -7,10 +7,12 @@ import com.artiv.common.ResultCode;
 import com.artiv.dto.ApplicantPainterSummary;
 import com.artiv.dto.ApplicationDetail;
 import com.artiv.entity.Application;
+import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Project;
 import com.artiv.entity.User;
 import com.artiv.entity.Work;
 import com.artiv.mapper.ApplicationMapper;
+import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
@@ -28,6 +30,7 @@ import java.util.List;
 public class ApplicationServiceImpl implements ApplicationService {
 
     private final ApplicationMapper applicationMapper;
+    private final OrderInfoMapper orderInfoMapper;
     private final ProjectMapper projectMapper;
     private final UserMapper userMapper;
     private final WorkMapper workMapper;
@@ -57,6 +60,13 @@ public class ApplicationServiceImpl implements ApplicationService {
                     .orderByDesc(Work::getCreatedAt)
                     .last("LIMIT 4"));
             detail.setWorks(works);
+            OrderInfo activeOrder = orderInfoMapper.selectOne(new LambdaQueryWrapper<OrderInfo>()
+                    .eq(OrderInfo::getApplicationId, application.getId())
+                    .eq(OrderInfo::getDeleted, 0)
+                    .in(OrderInfo::getStatus, 0, 1, 2, 5)
+                    .orderByDesc(OrderInfo::getCreatedAt)
+                    .last("LIMIT 1"));
+            detail.setHasActiveOrder(activeOrder != null);
             return detail;
         }).toList());
         return result;

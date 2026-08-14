@@ -8,29 +8,29 @@
         </el-button>
       </div>
 
-      <el-table :data="projects" v-loading="loading" empty-text="还没有发布企划">
-        <el-table-column label="封面" width="76">
+      <el-table class="project-table" :data="projects" v-loading="loading" empty-text="还没有发布企划" table-layout="fixed">
+        <el-table-column label="封面" width="64">
           <template #default="{ row }">
             <el-image v-if="firstImage(row.images)" class="project-cover" :src="firstImage(row.images)" fit="cover" />
             <div v-else class="project-cover project-cover--empty">企</div>
           </template>
         </el-table-column>
-        <el-table-column prop="title" label="企划名" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="category" label="类型" width="100" show-overflow-tooltip />
-        <el-table-column label="预算" width="110">
+        <el-table-column prop="title" label="企划名" min-width="105" show-overflow-tooltip />
+        <el-table-column prop="category" label="类型" width="72" show-overflow-tooltip />
+        <el-table-column label="预算" width="80">
           <template #default="{ row }">¥{{ row.budget }}</template>
         </el-table-column>
-        <el-table-column prop="description" label="企划详情" min-width="210" show-overflow-tooltip>
+        <el-table-column prop="description" label="企划详情" min-width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.description || '-' }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="90">
+        <el-table-column label="状态" width="76">
           <template #default="{ row }">
             <el-tag :type="statusType(PROJECT_STATUS, row.status)" size="small">
               {{ statusText(PROJECT_STATUS, row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" fixed="right">
+        <el-table-column label="操作" width="106">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="router.push({ name: 'ProjectDetail', params: { id: row.id } })">
               详情
@@ -126,4 +126,6 @@ onMounted(load)
 
 .project-cover { width: 46px; height: 46px; border-radius: 4px; background: #f1f4f7; }
 .project-cover--empty { display: grid; place-items: center; color: #9da6af; font-size: 12px; }
+.project-table { width: 100%; }
+.project-table :deep(.el-table__cell) { padding-left: 6px; padding-right: 6px; }
 </style>

@@ -218,6 +218,37 @@ class OrderServiceTest {
     }
 
     @Test
+    void completingProjectOrderWithdrawsItsApplication() {
+        OrderInfo order = activeOrder(2);
+        order.setProjectId(8L);
+        order.setApplicationId(31L);
+        order.setAmount(new BigDecimal("288.00"));
+        OrderStage stage = new OrderStage();
+        stage.setId(8L);
+        stage.setOrderId(77L);
+        stage.setStageIndex(0);
+        stage.setSubmissionNo(1);
+        stage.setName("final");
+        stage.setStatus(0);
+        User painter = activeUser(2L, BigDecimal.ZERO);
+        Application application = new Application();
+        application.setId(31L);
+        application.setStatus(0);
+        application.setDeleted(0);
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
+        when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(painter);
+        when(applicationMapper.selectByIdForUpdate(31L)).thenReturn(application);
+        OrderStageReviewRequest request = new OrderStageReviewRequest();
+        request.setAction("complete");
+
+        orderService.reviewStage(77L, 15L, request);
+
+        assertEquals(3, application.getStatus());
+        verify(applicationMapper).updateById(application);
+    }
+
+    @Test
     void approvingFinalConfiguredStageCompletesOrderAndPaysPainter() {
         OrderInfo order = activeOrder(2);
         order.setAmount(new BigDecimal("300.00"));

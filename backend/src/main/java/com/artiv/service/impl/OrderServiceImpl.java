@@ -408,6 +408,16 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(COMPLETED);
         order.setCompletedAt(LocalDateTime.now());
         save(order);
+        if (order.getProjectId() != null && order.getApplicationId() != null) {
+            Application application = applicationMapper.selectByIdForUpdate(order.getApplicationId());
+            if (application != null && Integer.valueOf(0).equals(application.getDeleted())
+                    && (Integer.valueOf(0).equals(application.getStatus())
+                    || Integer.valueOf(1).equals(application.getStatus()))) {
+                application.setStatus(3);
+                application.setUpdatedAt(LocalDateTime.now());
+                applicationMapper.updateById(application);
+            }
+        }
     }
 
     private OrderInfo requireParticipant(Long id, Long userId, boolean lock) {

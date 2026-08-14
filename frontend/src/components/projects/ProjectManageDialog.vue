@@ -1,5 +1,13 @@
 <template>
-  <el-dialog :model-value="modelValue" title="变更企划" width="480px" @update:model-value="emit('update:modelValue', $event)">
+  <el-dialog
+    :model-value="modelValue"
+    title="变更企划"
+    width="min(480px, calc(100vw - 32px))"
+    append-to-body
+    align-center
+    destroy-on-close
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <div v-if="project" class="manage-content">
       <div class="project-summary">
         <el-image v-if="cover" :src="cover" fit="cover" class="project-cover" />

@@ -2,10 +2,12 @@ package com.artiv.service;
 
 import com.artiv.common.BusinessException;
 import com.artiv.entity.Application;
+import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Project;
 import com.artiv.entity.User;
 import com.artiv.entity.Work;
 import com.artiv.mapper.ApplicationMapper;
+import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
@@ -28,6 +30,9 @@ class ApplicationServiceTest {
 
     @Mock
     private ApplicationMapper applicationMapper;
+
+    @Mock
+    private OrderInfoMapper orderInfoMapper;
 
     @Mock
     private ProjectMapper projectMapper;
@@ -91,6 +96,31 @@ class ApplicationServiceTest {
 
         assertEquals(painter.getId(), result.getRecords().getFirst().getPainter().getId());
         assertEquals(4, result.getRecords().getFirst().getWorks().size());
+    }
+
+    @Test
+    void listApplicantDetailsIncludesActiveProjectOrderState() {
+        Project project = new Project();
+        project.setId(8L);
+        project.setDeleted(0);
+        when(projectMapper.selectById(8L)).thenReturn(project);
+        Application application = new Application();
+        application.setId(12L);
+        application.setPainterId(2L);
+        var applications = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<Application>(1, 10);
+        applications.setRecords(java.util.List.of(application));
+        applications.setTotal(1);
+        when(applicationMapper.selectPage(any(), any())).thenReturn(applications);
+        when(userMapper.selectById(2L)).thenReturn(new User());
+        when(workMapper.selectList(any())).thenReturn(java.util.List.of());
+        OrderInfo activeOrder = new OrderInfo();
+        activeOrder.setId(88L);
+        activeOrder.setStatus(1);
+        when(orderInfoMapper.selectOne(any())).thenReturn(activeOrder);
+
+        var result = applicationService.listApplicantDetails(1, 10, 8L);
+
+        assertEquals(true, result.getRecords().getFirst().getHasActiveOrder());
     }
 
     @Test

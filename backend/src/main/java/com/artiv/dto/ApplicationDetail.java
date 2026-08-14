@@ -14,4 +14,6 @@ public class ApplicationDetail {
     private ApplicantPainterSummary painter;
 
     private List<Work> works;
+
+    private Boolean hasActiveOrder;
 }

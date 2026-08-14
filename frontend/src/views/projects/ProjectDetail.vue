@@ -93,8 +93,14 @@
             <article v-for="item in applicants" :key="item.application.id" class="applicant-card">
               <div v-if="showOwnerActions(item)" class="applicant-actions">
                 <el-button size="small" :loading="startingChatId === item.painter.id" @click="openChat(item)">私信</el-button>
-                <el-button size="small" type="primary" :loading="orderingPainterId === item.painter.id" @click="openOrderConfirm(item)">
-                  发送企划订单
+                <el-button
+                  size="small"
+                  type="primary"
+                  :disabled="hasActiveProjectOrder(item)"
+                  :loading="orderingPainterId === item.painter.id"
+                  @click="openOrderConfirm(item)"
+                >
+                  {{ hasActiveProjectOrder(item) ? '已发送' : '发送企划订单' }}
                 </el-button>
               </div>
 
@@ -308,6 +314,7 @@ const painterBio = (item) => {
 }
 const painterTags = (item) => String(item.painter?.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean)
 const showOwnerActions = () => isOwner.value
+const hasActiveProjectOrder = (item) => item?.hasActiveOrder === true
 
 function handleApplyButton() {
   if (currentApplication.value) {
@@ -413,6 +420,7 @@ async function openChat(item) {
 }
 
 function openOrderConfirm(item) {
+  if (hasActiveProjectOrder(item)) return
   orderingApplication.value = item
   orderConfirmVisible.value = true
 }
