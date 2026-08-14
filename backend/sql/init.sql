@@ -1,6 +1,6 @@
 -- =====================================================
 -- 艺绘（Artiv）数据库初始化脚本（v2.0）
--- 依据《开发计划.md》重新校准：10 张核心表
+-- 依据当前运行数据库重新校准：11 张核心表
 -- MySQL 8.0.41 ｜ 字符集 utf8mb4 ｜ 引擎 InnoDB
 -- 执行方式：mysql -u root -p < init.sql 或在 Workbench 中执行
 -- =====================================================
@@ -91,6 +91,8 @@ CREATE TABLE `project` (
   `budget`          DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '预算（元）',
   `deadline`        DATE          DEFAULT NULL COMMENT '截稿日期',
   `tags`            VARCHAR(255)  DEFAULT NULL COMMENT '标签，逗号分隔',
+  `category`        VARCHAR(50)   DEFAULT NULL COMMENT '稿件类型（与橱窗分类一致）',
+  `subject`         VARCHAR(255)  DEFAULT NULL COMMENT '题材风格，逗号分隔',
   `images`          TEXT          DEFAULT NULL COMMENT '参考图，逗号分隔',
   `requirements`    TEXT          DEFAULT NULL COMMENT '结构化项目要求 JSON',
   `phases`          VARCHAR(1000) DEFAULT NULL COMMENT '创作阶段 JSON',
@@ -200,7 +202,8 @@ CREATE TABLE `order_stage` (
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  KEY `idx_order` (`order_id`)
+  KEY `idx_order` (`order_id`),
+  KEY `idx_order_stage_version` (`order_id`, `stage_index`, `submission_no`)
 ) ENGINE = InnoDB COMMENT = '订单阶段表';
 
 DROP TABLE IF EXISTS `order_event`;
