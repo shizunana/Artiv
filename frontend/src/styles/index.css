@@ -48,15 +48,45 @@ a {
   --el-color-primary-dark-2: #0092cc;
 }
 
-/* 图片查看器（el-image-viewer）修正：半透明遮罩 + 图片自适应限制 */
+/* 图片查看器（el-image-viewer）修正：始终以视口为基准，避免窗口缩放后关闭按钮被裁切 */
+.el-image-viewer__wrapper {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 4000 !important;
+}
+
 .el-image-viewer__mask {
   background: rgba(0, 0, 0, 0.5) !important;
 }
 
 .el-image-viewer__img {
-  max-width: 90vw !important;
-  max-height: 90vh !important;
+  max-width: calc(100vw - 48px) !important;
+  max-height: calc(100vh - 128px) !important;
   object-fit: contain;
+}
+
+.el-image-viewer__close {
+  position: fixed !important;
+  top: max(76px, env(safe-area-inset-top)) !important;
+  right: max(20px, env(safe-area-inset-right)) !important;
+  width: 48px !important;
+  height: 48px !important;
+  z-index: 4002 !important;
+  background: rgba(36, 43, 53, 0.78) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.24);
+}
+
+@media (max-width: 760px) {
+  .el-image-viewer__img {
+    max-width: calc(100vw - 20px) !important;
+    max-height: calc(100vh - 116px) !important;
+  }
+
+  .el-image-viewer__close {
+    top: 70px !important;
+    right: 10px !important;
+  }
 }
 
 .page-container {

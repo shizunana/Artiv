@@ -116,6 +116,26 @@ class MessageServiceTest {
         assertEquals("PROJECT_ORDER_CONVERSATION_STARTED", captor.getAllValues().get(2).getSubtype());
         assertEquals(8L, captor.getAllValues().get(2).getProjectId());
         assertEquals(78L, captor.getAllValues().get(2).getOrderId());
+        org.junit.jupiter.api.Assertions.assertNotNull(captor.getAllValues().get(0).getReadAt());
+        org.junit.jupiter.api.Assertions.assertNull(captor.getAllValues().get(1).getReadAt());
+    }
+
+    @Test
+    void orderEventMarksActorsOwnNotificationReadAndLeavesCounterpartyUnread() {
+        OrderInfo order = new OrderInfo();
+        order.setId(78L);
+        order.setEmployerId(15L);
+        order.setPainterId(2L);
+
+        messageService.createOrderEventMessage(order, 15L, "ORDER_CANCELLED", "订单已取消");
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(messageMapper, org.mockito.Mockito.times(3)).insert(captor.capture());
+        assertEquals(15L, captor.getAllValues().get(0).getToId());
+        org.junit.jupiter.api.Assertions.assertNotNull(captor.getAllValues().get(0).getReadAt());
+        assertEquals(2L, captor.getAllValues().get(1).getToId());
+        org.junit.jupiter.api.Assertions.assertNull(captor.getAllValues().get(1).getReadAt());
+        assertEquals(2L, captor.getAllValues().get(2).getToId());
     }
 
     @Test

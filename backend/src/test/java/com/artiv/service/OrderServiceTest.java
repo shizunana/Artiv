@@ -189,6 +189,41 @@ class OrderServiceTest {
     }
 
     @Test
+    void employerCancelsPendingProjectOrderWithClearProjectMessage() {
+        OrderInfo order = activeOrder(0);
+        order.setProjectId(8L);
+        order.setProjectTitle("企划测试");
+        order.setAmount(new BigDecimal("500.00"));
+        User employer = activeUser(15L, BigDecimal.ZERO);
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
+        when(userMapper.selectByIdForUpdate(15L)).thenReturn(employer);
+
+        orderService.cancel(77L, 15L, "需求调整");
+
+        verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_CANCELLED"),
+                eq("企划方已取消企划订单「企划测试」，托管金额 ¥500.00 已退回。原因：需求调整"));
+    }
+
+    @Test
+    void employerCancelsPendingStallOrderWithClearStockRestoreMessage() {
+        OrderInfo order = activeOrder(0);
+        order.setStallId(9L);
+        order.setStallTitle("头像橱窗");
+        order.setAmount(new BigDecimal("288.00"));
+        User employer = activeUser(15L, BigDecimal.ZERO);
+        Stall stall = activeStall();
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
+        when(userMapper.selectByIdForUpdate(15L)).thenReturn(employer);
+        when(stallMapper.selectByIdForUpdate(9L)).thenReturn(stall);
+
+        orderService.cancel(77L, 15L, "不再需要");
+
+        assertEquals(4, stall.getStock());
+        verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_CANCELLED"),
+                eq("企划方已取消橱窗订单「头像橱窗」，托管金额 ¥288.00 已退回，库存已恢复 1 件。原因：不再需要"));
+    }
+
+    @Test
     void employerCanCompleteFromFirstSubmittedStageAndPainterIsPaidImmediately() {
         OrderInfo order = activeOrder(2);
         order.setAmount(new BigDecimal("288.00"));
@@ -205,6 +240,7 @@ class OrderServiceTest {
         when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
         when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
         when(userMapper.selectByIdForUpdate(2L)).thenReturn(painter);
+        when(userMapper.incrementBalance(2L, new BigDecimal("288.00"))).thenReturn(1);
         OrderStageReviewRequest request = new OrderStageReviewRequest();
         request.setAction("complete");
 
@@ -213,7 +249,7 @@ class OrderServiceTest {
         assertEquals(3, result.getStatus());
         assertEquals(new BigDecimal("298.00"), painter.getBalance());
         assertEquals(1, stage.getStatus());
-        verify(userMapper).updateById(painter);
+        verify(userMapper).incrementBalance(2L, new BigDecimal("288.00"));
         verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"), any());
     }
 
@@ -238,6 +274,7 @@ class OrderServiceTest {
         when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
         when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
         when(userMapper.selectByIdForUpdate(2L)).thenReturn(painter);
+        when(userMapper.incrementBalance(2L, new BigDecimal("288.00"))).thenReturn(1);
         when(applicationMapper.selectByIdForUpdate(31L)).thenReturn(application);
         OrderStageReviewRequest request = new OrderStageReviewRequest();
         request.setAction("complete");
@@ -265,6 +302,7 @@ class OrderServiceTest {
         when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
         when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
         when(userMapper.selectByIdForUpdate(2L)).thenReturn(painter);
+        when(userMapper.incrementBalance(2L, new BigDecimal("300.00"))).thenReturn(1);
         OrderStageReviewRequest request = new OrderStageReviewRequest();
         request.setAction("approve");
 

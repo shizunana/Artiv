@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -110,8 +112,13 @@ public class MessageServiceImpl implements MessageService {
                 .eq(Message::getDeleted, 0)
                 .eq(Message::getType, TYPE_PRIVATE)
                 .eq(Message::getConversationKey, conversationKey(userId, withUserId))
-                .orderByAsc(Message::getCreatedAt);
-        return messageMapper.selectPage(new Page<>(page, size), wrapper);
+                .orderByDesc(Message::getCreatedAt)
+                .orderByDesc(Message::getId);
+        Page<Message> result = messageMapper.selectPage(new Page<>(page, size), wrapper);
+        result.getRecords().sort(Comparator
+                .comparing(Message::getCreatedAt)
+                .thenComparing(Message::getId));
+        return result;
     }
 
     @Override
@@ -232,7 +239,7 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public void createStallPurchaseCommunication(OrderInfo order, Stall stall) {
         createOrderNotification(order.getEmployerId(), order.getId(), "STALL_PURCHASED",
-                "已购买橱窗「" + stall.getTitle() + "」，订单已创建，可进入我的消息与画师沟通。");
+                "已购买橱窗「" + stall.getTitle() + "」，订单已创建，可进入我的消息与画师沟通。", true);
         createOrderNotification(order.getPainterId(), order.getId(), "STALL_PURCHASE_RECEIVED",
                 "企划方已购买你的橱窗「" + stall.getTitle() + "」，请进入我的消息与对方沟通。");
         Message message = new Message();
@@ -249,7 +256,7 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public void createProjectOrderCommunication(OrderInfo order, Project project) {
         createOrderNotification(order.getEmployerId(), order.getId(), "PROJECT_ORDER_CREATED",
-                "已向画师发送企划订单「" + project.getTitle() + "」，金额已托管，等待画师接单。");
+                "已向画师发送企划订单「" + project.getTitle() + "」，金额已托管，等待画师接单。", true);
         createOrderNotification(order.getPainterId(), order.getId(), "PROJECT_ORDER_RECEIVED",
                 "你收到企划「" + project.getTitle() + "」的新订单，请确认是否接单。");
         Message message = new Message();
@@ -266,8 +273,10 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public void createOrderEventMessage(OrderInfo order, Long actorId, String subtype, String content) {
-        createOrderNotification(order.getEmployerId(), order.getId(), subtype, content);
-        createOrderNotification(order.getPainterId(), order.getId(), subtype, content);
+        createOrderNotification(order.getEmployerId(), order.getId(), subtype, content,
+                actorId != null && actorId.equals(order.getEmployerId()));
+        createOrderNotification(order.getPainterId(), order.getId(), subtype, content,
+                actorId != null && actorId.equals(order.getPainterId()));
         Message message = new Message();
         message.setFromId(actorId);
         message.setToId(actorId != null && actorId.equals(order.getEmployerId())
@@ -281,12 +290,19 @@ public class MessageServiceImpl implements MessageService {
     }
 
     private void createOrderNotification(Long toUserId, Long orderId, String subtype, String content) {
+        createOrderNotification(toUserId, orderId, subtype, content, false);
+    }
+
+    private void createOrderNotification(Long toUserId, Long orderId, String subtype, String content, boolean read) {
         Message message = new Message();
         message.setToId(toUserId);
         message.setOrderId(orderId);
         message.setType(TYPE_ORDER);
         message.setSubtype(subtype);
         message.setContent(content);
+        if (read) {
+            message.setReadAt(LocalDateTime.now());
+        }
         saveAndPush(message, "SYSTEM");
     }
 
@@ -414,6 +430,21 @@ public class MessageServiceImpl implements MessageService {
     }
 
     private void push(Message message, String eventType) {
+        Runnable action = () -> pushImmediately(message, eventType);
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+            return;
+        }
+        action.run();
+    }
+
+    private void pushImmediately(Message message, String eventType) {
         try {
             Map<String, Object> event = Map.of("type", eventType, "data", message);
             messageWebSocketHandler.pushToUser(message.getToId(), objectMapper.writeValueAsString(event));

@@ -21,7 +21,7 @@
               <el-icon><Bell /></el-icon>
             </el-button>
           </el-badge>
-          <el-dropdown @command="onCommand">
+          <el-dropdown @command="onCommand" @visible-change="onAccountMenuVisible">
             <span class="app-header__user">
               <el-avatar :size="30" :src="userStore.user?.avatar" class="header-avatar">
                 {{ avatarText }}
@@ -98,6 +98,15 @@ function goPublish() {
 function goMessages() {
   const base = userStore.workbenchRole === 2 ? '/painter' : '/dashboard'
   router.push(`${base}/messages`)
+}
+
+async function onAccountMenuVisible(visible) {
+  if (!visible) return
+  try {
+    await userStore.fetchMe()
+  } catch (_) {
+    // Keep the cached account summary when the refresh request is temporarily unavailable.
+  }
 }
 
 function onCommand(command) {

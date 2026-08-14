@@ -44,7 +44,7 @@
           <p>{{ currentSubmission.content || '画师未填写交稿说明' }}</p>
           <div v-if="currentSubmission.status === 2 && currentSubmission.reviewRemark" class="revision-note"><b>企划方修改意见</b><p>{{ currentSubmission.reviewRemark }}</p></div>
           <h4>水印预览图</h4>
-          <div class="image-grid"><el-image v-for="url in splitFiles(currentSubmission.attachments)" :key="url" :src="url" :preview-src-list="splitFiles(currentSubmission.attachments)" fit="cover" /></div>
+          <div class="image-grid"><el-image v-for="url in splitFiles(currentSubmission.attachments)" :key="url" :src="url" :preview-src-list="splitFiles(currentSubmission.attachments)" preview-teleported fit="cover" /></div>
           <template v-if="order.status === 3 && splitFiles(currentSubmission.originals).length"><h4>高清原图</h4><div class="original-list"><a v-for="url in splitFiles(currentSubmission.originals)" :key="url" :href="url" target="_blank" download>下载原图</a></div></template>
           <div v-if="isEmployer && order.status === 2" class="review-actions">
             <el-button v-if="!finalStage" type="primary" @click="review('approve')">通过并进入下一阶段</el-button>

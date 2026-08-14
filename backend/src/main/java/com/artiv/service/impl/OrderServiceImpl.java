@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -363,11 +364,20 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelReason(reason);
         order.setCancelledAt(LocalDateTime.now());
         save(order);
+        String amount = order.getAmount() == null ? "0.00"
+                : order.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString();
+        String action = "ORDER_REJECTED".equals(subtype) ? "画师已拒绝" : "企划方已取消";
         String content = order.getStallId() == null
-                ? "订单已取消，托管金额已退回：" + reason
-                : "订单已取消，托管金额已退回、库存已恢复：" + reason;
+                ? action + "企划订单「" + displayOrderTitle(order.getProjectTitle(), order.getId())
+                    + "」，托管金额 ¥" + amount + " 已退回。原因：" + reason
+                : action + "橱窗订单「" + displayOrderTitle(order.getStallTitle(), order.getId())
+                    + "」，托管金额 ¥" + amount + " 已退回，库存已恢复 1 件。原因：" + reason;
         record(order, actorId, "CANCELLED", content, subtype);
         return order;
+    }
+
+    private String displayOrderTitle(String title, Long orderId) {
+        return StringUtils.hasText(title) ? title : "订单 #" + orderId;
     }
 
     private String firstProjectImage(String images) {
@@ -402,9 +412,13 @@ public class OrderServiceImpl implements OrderService {
 
     private void settle(OrderInfo order) {
         User painter = userMapper.selectByIdForUpdate(order.getPainterId());
+        if (painter == null) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
         painter.setBalance((painter.getBalance() == null ? BigDecimal.ZERO : painter.getBalance()).add(order.getAmount()));
-        painter.setUpdatedAt(LocalDateTime.now());
-        userMapper.updateById(painter);
+        if (userMapper.incrementBalance(painter.getId(), order.getAmount()) != 1) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
         order.setStatus(COMPLETED);
         order.setCompletedAt(LocalDateTime.now());
         save(order);

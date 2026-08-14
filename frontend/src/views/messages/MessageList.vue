@@ -179,13 +179,39 @@ async function openConversation(item) {
   try {
     const data = await getConversation({ withUserId: item.withUserId, page: 1, size: 100 })
     messages.value = data.records || []
-    await Promise.all(messages.value.filter((msg) => msg.toId === userStore.user?.id && !msg.readAt).map((msg) => markRead(msg.id)))
-    await messageStore.fetchUnreadCount()
-    await loadConversations()
+    await markActiveConversationRead()
+    await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
     await scrollHistoryToBottom()
   } finally {
     loadingMessages.value = false
   }
+}
+
+async function markActiveConversationRead(extraMessage = null) {
+  if (!active.value) return
+  const activeUserId = String(active.value.withUserId)
+  const visibleOrderIds = new Set(
+    messages.value.map((message) => message.orderId).filter(Boolean).map(String),
+  )
+  if (extraMessage?.orderId && extraMessage.type === 3) {
+    visibleOrderIds.add(String(extraMessage.orderId))
+  }
+  const candidates = [
+    ...messages.value.filter((message) => String(message.fromId) === activeUserId && !message.readAt),
+    ...notifications.value.filter((notice) => !notice.readAt
+      && notice.orderId
+      && visibleOrderIds.has(String(notice.orderId))),
+  ]
+  if (extraMessage && !extraMessage.readAt
+      && (String(extraMessage.fromId) === activeUserId
+        || (extraMessage.orderId && visibleOrderIds.has(String(extraMessage.orderId))))) {
+    candidates.push(extraMessage)
+  }
+  const unique = [...new Map(candidates.map((message) => [message.id, message])).values()]
+  if (!unique.length) return
+  await Promise.all(unique.map((message) => markRead(message.id)))
+  const readAt = new Date().toISOString()
+  unique.forEach((message) => { message.readAt = readAt })
 }
 
 async function send() {
@@ -371,9 +397,11 @@ onMounted(async () => {
     await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
     if (event.type === 'NEW_MESSAGE' && active.value
       && event.data.fromId === active.value.withUserId) {
-      messages.value.push(event.data)
-      await markRead(event.data.id)
-      await messageStore.fetchUnreadCount()
+      if (!messages.value.some((message) => message.id === event.data.id)) {
+        messages.value.push(event.data)
+      }
+      await markActiveConversationRead(event.data)
+      await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
       await scrollHistoryToBottom()
     }
   })
