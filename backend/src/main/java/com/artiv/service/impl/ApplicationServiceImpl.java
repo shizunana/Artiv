@@ -67,6 +67,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                     .orderByDesc(OrderInfo::getCreatedAt)
                     .last("LIMIT 1"));
             detail.setHasActiveOrder(activeOrder != null);
+            detail.setActiveOrderId(activeOrder == null ? null : activeOrder.getId());
             return detail;
         }).toList());
         return result;

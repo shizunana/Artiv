@@ -16,4 +16,6 @@ public class ApplicationDetail {
     private List<Work> works;
 
     private Boolean hasActiveOrder;
+
+    private Long activeOrderId;
 }

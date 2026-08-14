@@ -23,19 +23,21 @@
         <el-table-column prop="description" label="企划详情" min-width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.description || '-' }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="76">
+        <el-table-column label="状态" width="76" align="center" header-align="center">
           <template #default="{ row }">
-            <el-tag :type="statusType(PROJECT_STATUS, row.status)" size="small">
+            <el-tag class="project-status" :type="statusType(PROJECT_STATUS, row.status)" size="small">
               {{ statusText(PROJECT_STATUS, row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="106">
+        <el-table-column label="操作" width="106" align="center" header-align="center">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="router.push({ name: 'ProjectDetail', params: { id: row.id } })">
-              详情
-            </el-button>
-            <el-button link type="primary" size="small" @click="openManage(row)">编辑</el-button>
+            <div class="project-actions">
+              <el-button link type="primary" size="small" @click="router.push({ name: 'ProjectDetail', params: { id: row.id } })">
+                详情
+              </el-button>
+              <el-button link type="primary" size="small" @click="openManage(row)">编辑</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -128,4 +130,7 @@ onMounted(load)
 .project-cover--empty { display: grid; place-items: center; color: #9da6af; font-size: 12px; }
 .project-table { width: 100%; }
 .project-table :deep(.el-table__cell) { padding-left: 6px; padding-right: 6px; }
+.project-status { min-width: 48px; justify-content: center; }
+.project-actions { display: flex; align-items: center; justify-content: center; gap: 10px; white-space: nowrap; }
+.project-actions :deep(.el-button + .el-button) { margin-left: 0; }
 </style>

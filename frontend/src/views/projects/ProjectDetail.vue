@@ -96,11 +96,10 @@
                 <el-button
                   size="small"
                   type="primary"
-                  :disabled="hasActiveProjectOrder(item)"
                   :loading="orderingPainterId === item.painter.id"
-                  @click="openOrderConfirm(item)"
+                  @click="hasActiveProjectOrder(item) ? openProjectOrderDetail(item) : openOrderConfirm(item)"
                 >
-                  {{ hasActiveProjectOrder(item) ? '已发送' : '发送企划订单' }}
+                  {{ hasActiveProjectOrder(item) ? '订单详情' : '发送企划订单' }}
                 </el-button>
               </div>
 
@@ -423,6 +422,15 @@ function openOrderConfirm(item) {
   if (hasActiveProjectOrder(item)) return
   orderingApplication.value = item
   orderConfirmVisible.value = true
+}
+
+function openProjectOrderDetail(item) {
+  const orderId = Number(item?.activeOrderId || 0)
+  if (!orderId) {
+    ElMessage.warning('暂未找到对应的企划订单')
+    return
+  }
+  router.push({ name: 'DashboardOrderDetail', params: { id: orderId } })
 }
 
 async function confirmProjectOrder() {
