@@ -45,6 +45,8 @@ import AppHeader from './AppHeader.vue'
 
 /* ---------- 页脚 ---------- */
 .page-footer {
+  /* 暂时隐藏，保留完整页脚结构以便后续恢复。 */
+  display: none;
   background: #23262b;
   color: #9b9b9b;
   padding: 40px 0 28px;

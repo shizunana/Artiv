@@ -1,10 +1,5 @@
 <template>
   <div class="artist-page">
-    <header class="artist-hero page-container">
-      <h1>画师大厅</h1>
-      <p>发现适合企划与委托需求的认证画师</p>
-    </header>
-
     <main class="artist-main page-container">
       <section class="artist-toolbar" aria-label="画师筛选">
         <el-select
@@ -180,26 +175,8 @@ function goProfile(id) {
 <style scoped>
 .artist-page {
   min-height: calc(100vh - 56px);
-  padding: 42px 0 64px;
+  padding: 28px 0 64px;
   background: #f5f7fa;
-}
-
-.artist-hero {
-  text-align: center;
-  margin-bottom: 28px;
-}
-
-.artist-hero h1 {
-  margin: 0;
-  color: var(--artiv-text-primary);
-  font-size: 30px;
-  font-weight: 600;
-}
-
-.artist-hero p {
-  margin: 10px 0 0;
-  color: var(--artiv-text-secondary);
-  font-size: 14px;
 }
 
 .artist-main {

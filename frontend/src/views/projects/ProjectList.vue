@@ -1,10 +1,5 @@
 <template>
   <div class="list-page">
-    <div class="list-header page-container">
-      <h1 class="section-title">约稿大厅</h1>
-      <p class="section-subtitle">发布需求，寻找合适的画师</p>
-    </div>
-
     <div class="page-container">
       <!-- 分类 Tab：类型 -->
       <div class="category-bar type-bar">
@@ -47,8 +42,6 @@
         <div class="filter-switches">
           <span class="switch-label">仅看未选定</span>
           <el-switch v-model="unselectedOnly" size="small" @change="load" />
-          <span class="switch-label">仅看人设卡</span>
-          <el-switch v-model="characterCardOnly" size="small" disabled />
         </div>
         <el-input v-model="keyword" placeholder="搜索企划标题、需求关键词" clearable class="search-input" @keyup.enter="load" @clear="load">
           <template #prefix><el-icon><Search /></el-icon></template>
@@ -129,7 +122,6 @@ const subject = ref('all')
 const budgetRange = ref('all')
 const deadlineRange = ref('all')
 const unselectedOnly = ref(false)
-const characterCardOnly = ref(false)
 
 // 类型选项与橱窗分类同步
 const subjectOptions = SUBJECT_OPTIONS
@@ -201,8 +193,8 @@ onMounted(load)
   padding-bottom: 48px;
 }
 
-.list-header {
-  padding-top: 48px;
+.list-page > .page-container {
+  padding-top: 26px;
 }
 
 .category-bar {

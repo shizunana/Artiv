@@ -17,7 +17,7 @@
             <span v-if="isPainter" class="rating-placeholder" title="评分功能预留">★ 5.0</span>
           </div>
           <div class="identity-badges">
-            <el-tag v-if="isPainter" size="small" type="success" effect="light">实名认证</el-tag>
+            <el-tag v-if="isPainter" size="small" type="success" effect="light">认证画师</el-tag>
             <el-tag v-else size="small" type="info" effect="light">企划方</el-tag>
             <el-tag v-for="tag in profile.tags" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
           </div>
