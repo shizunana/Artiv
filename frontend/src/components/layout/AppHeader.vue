@@ -42,7 +42,7 @@
                     </div>
                   </div>
                 </div>
-                <el-dropdown-item command="home">首页</el-dropdown-item>
+                <el-dropdown-item command="home">主页</el-dropdown-item>
                 <el-dropdown-item command="profile">个人中心</el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>

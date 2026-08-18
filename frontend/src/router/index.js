@@ -19,7 +19,7 @@ const routes = [
     path: '/',
     component: () => import('@/components/layout/MainLayout.vue'),
     children: [
-      { path: '', name: 'Home', component: () => import('@/views/Home.vue'), meta: { title: '首页' } },
+      { path: '', name: 'Home', component: () => import('@/views/Home.vue'), meta: { title: '主页' } },
       { path: 'artists', name: 'Artists', component: () => import('@/views/artists/ArtistList.vue'), meta: { title: '画师列表' } },
       { path: 'profiles/:id', name: 'ArtistProfile', component: () => import('@/views/artists/ArtistProfile.vue'), meta: { title: '用户主页' } },
       { path: 'works', name: 'Works', component: () => import('@/views/works/WorkList.vue'), meta: { title: '作品广场' } },
@@ -35,7 +35,7 @@ const routes = [
     component: () => import('@/components/layout/WorkbenchLayout.vue'),
     meta: { requiresAuth: true, workbench: 'dashboard' },
     children: [
-      { path: '', name: 'DashboardHome', component: () => import('@/views/dashboard/DashboardHome.vue'), meta: { title: '工作台首页' } },
+      { path: '', name: 'DashboardHome', component: () => import('@/views/dashboard/DashboardHome.vue'), meta: { title: '工作台主页' } },
       { path: 'projects', name: 'DashboardProjects', component: () => import('@/views/dashboard/MyProjects.vue'), meta: { title: '我的企划' } },
       { path: 'projects/new', name: 'ProjectNew', component: () => import('@/views/dashboard/ProjectNew.vue'), meta: { title: '发布企划' } },
       { path: 'projects/:id/applications', name: 'ProjectApplications', component: () => import('@/views/dashboard/Applications.vue'), meta: { title: '应征管理' } },

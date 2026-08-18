@@ -8,16 +8,6 @@
     <main class="artist-main page-container">
       <section class="artist-toolbar" aria-label="画师筛选">
         <el-select
-          v-model="filters.category"
-          class="type-select"
-          clearable
-          placeholder="类型"
-          @change="reloadArtists"
-        >
-          <el-option v-for="item in categoryOptions" :key="item" :label="item" :value="item" />
-        </el-select>
-
-        <el-select
           v-model="filters.subjects"
           class="subject-select"
           multiple
@@ -105,7 +95,7 @@ import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { getArtists } from '@/api/user'
-import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
+import { SUBJECT_OPTIONS } from '@/constants/subjects'
 
 const router = useRouter()
 const loading = ref(false)
@@ -116,10 +106,8 @@ const size = 10
 const total = ref(0)
 const hasMore = ref(true)
 const loadSentinel = ref(null)
-const categoryOptions = CATEGORY_OPTIONS
 const subjectOptions = SUBJECT_OPTIONS
 const filters = reactive({
-  category: '',
   subjects: [],
   keyword: '',
 })
@@ -157,7 +145,6 @@ async function loadArtists(reset = false) {
     const data = await getArtists({
       page: targetPage,
       size,
-      category: filters.category || undefined,
       subjects: filters.subjects.length ? filters.subjects.join(',') : undefined,
       keyword: filters.keyword.trim() || undefined,
     })
@@ -221,7 +208,7 @@ function goProfile(id) {
 
 .artist-toolbar {
   display: grid;
-  grid-template-columns: 180px minmax(260px, 340px) minmax(280px, 1fr) auto;
+  grid-template-columns: minmax(280px, 360px) minmax(320px, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 18px 20px;
@@ -232,7 +219,6 @@ function goProfile(id) {
   box-shadow: 0 4px 18px rgba(42, 63, 84, 0.04);
 }
 
-.type-select,
 .subject-select,
 .artist-search {
   width: 100%;

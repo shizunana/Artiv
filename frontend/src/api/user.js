@@ -20,6 +20,10 @@ export function updateMyPainterProfile(data) {
   return request.put('/users/me/profile', data)
 }
 
+export function updateMyAvatar(data) {
+  return request.put('/users/me/avatar', data)
+}
+
 export function getUsers(params) {
   return request.get('/admin/users', { params })
 }

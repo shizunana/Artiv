@@ -6,15 +6,7 @@
     </div>
 
     <div class="page-container">
-      <!-- 状态 Tab（参考站橱窗列表同款布局） -->
-      <div class="category-bar">
-        <el-tabs v-model="activeTab" class="purpose-tabs" @tab-change="load">
-          <el-tab-pane label="全部" name="all" />
-          <el-tab-pane label="招募中" name="recruiting" />
-        </el-tabs>
-      </div>
-
-      <!-- 分类 Tab：类型（注释1 同款，位于状态 Tab 下方、筛选行上方） -->
+      <!-- 分类 Tab：类型 -->
       <div class="category-bar type-bar">
         <span
           v-for="c in categoryTabs"
@@ -131,7 +123,6 @@ const total = ref(0)
 const keyword = ref('')
 
 // 筛选状态（参考站筛选区）
-const activeTab = ref('all')
 const activeCategory = ref('全部')
 const sort = ref('newest')
 const subject = ref('all')
@@ -168,7 +159,7 @@ async function load() {
     if (activeCategory.value !== '全部') {
       params.category = activeCategory.value
     }
-    if (activeTab.value === 'recruiting' || unselectedOnly.value) {
+    if (unselectedOnly.value) {
       params.status = 0
     }
     if (sort.value === 'budget') {
@@ -219,10 +210,6 @@ onMounted(load)
   align-items: center;
   padding: 10px 0 0;
   border-bottom: 1px solid var(--artiv-border);
-}
-
-.purpose-tabs {
-  width: 100%;
 }
 
 .type-bar {

@@ -55,14 +55,14 @@ const userStore = useUserStore()
 
 const menus = {
   dashboard: [
-    { path: '/dashboard', title: '工作台首页' },
+    { path: '/dashboard', title: '工作台主页' },
     { path: '/dashboard/projects', title: '我的企划' },
     { path: '/dashboard/projects/new', title: '发布企划' },
     { path: '/dashboard/orders', title: '订单管理' },
     { path: '/dashboard/messages', title: '消息中心' },
   ],
   painter: [
-    { path: '/painter', title: '工作台首页' },
+    { path: '/painter', title: '工作台主页' },
     { path: '/painter/profile', title: '资料与认证' },
     { path: '/painter/works', title: '我的作品' },
     { path: '/painter/stalls', title: '我的橱窗' },

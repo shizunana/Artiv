@@ -6,6 +6,7 @@ import com.artiv.common.Result;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.PainterProfileUpdateRequest;
+import com.artiv.dto.AvatarUpdateRequest;
 import com.artiv.dto.ArtistSummary;
 import com.artiv.dto.PublicProfileResponse;
 import com.artiv.entity.User;
@@ -149,6 +150,27 @@ public class UserController {
                 .eq(User::getId, userId)
                 .set(User::getBio, request.getBio() == null ? "" : request.getBio().trim())
                 .set(User::getTags, String.join(",", uniqueTags))
+                .set(User::getUpdatedAt, LocalDateTime.now()));
+        User user = userMapper.selectById(userId);
+        user.setPassword(null);
+        return Result.ok(user);
+    }
+
+    /** 当前登录用户更新头像；头像必须来自本站上传目录。 */
+    @PutMapping("/me/avatar")
+    public Result<User> updateMyAvatar(@Valid @RequestBody AvatarUpdateRequest request) {
+        Long userId = UserContext.getUserId();
+        User current = userMapper.selectById(userId);
+        if (current == null || Integer.valueOf(1).equals(current.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        String avatar = request.getAvatar().trim();
+        if (!avatar.startsWith("/uploads/") || avatar.contains("..")) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "头像必须使用本站上传文件");
+        }
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, userId)
+                .set(User::getAvatar, avatar)
                 .set(User::getUpdatedAt, LocalDateTime.now()));
         User user = userMapper.selectById(userId);
         user.setPassword(null);
