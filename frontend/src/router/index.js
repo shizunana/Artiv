@@ -21,7 +21,7 @@ const routes = [
     children: [
       { path: '', name: 'Home', component: () => import('@/views/Home.vue'), meta: { title: '首页' } },
       { path: 'artists', name: 'Artists', component: () => import('@/views/artists/ArtistList.vue'), meta: { title: '画师列表' } },
-      { path: 'profiles/:id', name: 'ArtistProfile', component: () => import('@/views/artists/ArtistProfile.vue'), meta: { title: '画师主页' } },
+      { path: 'profiles/:id', name: 'ArtistProfile', component: () => import('@/views/artists/ArtistProfile.vue'), meta: { title: '用户主页' } },
       { path: 'works', name: 'Works', component: () => import('@/views/works/WorkList.vue'), meta: { title: '作品广场' } },
       { path: 'projects', name: 'Projects', component: () => import('@/views/projects/ProjectList.vue'), meta: { title: '约稿大厅' } },
       { path: 'projects/:id', name: 'ProjectDetail', component: () => import('@/views/projects/ProjectDetail.vue'), meta: { title: '企划详情' } },

@@ -86,11 +86,12 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Search } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { getWorkDetail, getWorks } from '@/api/work'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
 
+const router = useRouter()
 const works = ref([])
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -192,7 +193,9 @@ async function openWork(id) {
 }
 
 function openProfilePlaceholder() {
-  ElMessage.info('画师主页正在开发中')
+  if (!detail.userId) return
+  detailVisible.value = false
+  router.push({ name: 'ArtistProfile', params: { id: detail.userId }, query: { role: 'painter' } })
 }
 
 function formatDate(value) {

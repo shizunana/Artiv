@@ -185,7 +185,7 @@ function splitTags(value) {
 }
 
 function goProfile(id) {
-  router.push({ name: 'ArtistProfile', params: { id } })
+  router.push({ name: 'ArtistProfile', params: { id }, query: { role: 'painter' } })
 }
 
 </script>

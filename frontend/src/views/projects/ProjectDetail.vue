@@ -2,7 +2,7 @@
   <div class="project-detail-page" v-loading="loading">
     <div v-if="project" class="project-detail-shell">
       <aside class="project-sidebar">
-        <section class="sidebar-card owner-card">
+        <section class="sidebar-card owner-card" role="button" tabindex="0" @click="openEmployerProfile" @keyup.enter="openEmployerProfile">
           <el-avatar :size="76" :src="employer?.avatar">{{ employerName.slice(0, 1) }}</el-avatar>
           <h2>{{ employerName }}</h2>
           <p>{{ employer?.bio || '正在寻找合适的创作者。' }}</p>
@@ -328,7 +328,13 @@ function resetApplicationForm() {
 }
 
 function openPainterProfile(id) {
-  if (id) router.push({ name: 'ArtistProfile', params: { id } })
+  if (id) router.push({ name: 'ArtistProfile', params: { id }, query: { role: 'painter' } })
+}
+
+function openEmployerProfile() {
+  if (project.value?.employerId) {
+    router.push({ name: 'ArtistProfile', params: { id: project.value.employerId }, query: { role: 'employer' } })
+  }
 }
 
 async function submitApplication() {

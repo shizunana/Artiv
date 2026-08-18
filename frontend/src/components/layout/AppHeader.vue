@@ -111,7 +111,11 @@ async function onAccountMenuVisible(visible) {
 
 function onCommand(command) {
   if (command === 'home') {
-    ElMessage.info('首页正在开发中')
+    router.push({
+      name: 'ArtistProfile',
+      params: { id: userStore.user.id },
+      query: { role: userStore.workbenchRole === 2 ? 'painter' : 'employer' },
+    })
   } else if (command === 'recharge' || command === 'withdraw') {
     ElMessage.info('资金管理功能正在开发中')
   } else if (command === 'profile') {

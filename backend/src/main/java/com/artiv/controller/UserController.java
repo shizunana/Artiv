@@ -7,12 +7,16 @@ import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.PainterProfileUpdateRequest;
 import com.artiv.dto.ArtistSummary;
+import com.artiv.dto.PublicProfileResponse;
 import com.artiv.entity.User;
 import com.artiv.entity.Work;
+import com.artiv.entity.Stall;
+import com.artiv.entity.Project;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.security.UserContext;
 import com.artiv.service.ArtistService;
+import com.artiv.service.PublicProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,6 +50,7 @@ public class UserController {
     private final UserMapper userMapper;
     private final WorkMapper workMapper;
     private final ArtistService artistService;
+    private final PublicProfileService publicProfileService;
 
     /** 画师大厅：仅展示账号正常的已认证画师，并携带公开作品预览。 */
     @GetMapping("/artists")
@@ -56,6 +61,41 @@ public class UserController {
             @RequestParam(required = false) String subjects,
             @RequestParam(required = false) String keyword) {
         return Result.ok(artistService.listArtists(page, size, category, subjects, keyword));
+    }
+
+    /** 公开主页资料：只返回可公开展示字段。 */
+    @GetMapping("/{id}/public-profile")
+    public Result<PublicProfileResponse> publicProfile(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @RequestParam(defaultValue = "painter") String role) {
+        return Result.ok(publicProfileService.getProfile(id, role));
+    }
+
+    /** 指定用户的公开作品。 */
+    @GetMapping("/{id}/works")
+    public Result<Page<Work>> publicWorks(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "20") long size) {
+        return Result.ok(publicProfileService.listWorks(id, page, size));
+    }
+
+    /** 指定画师当前可公开访问的橱窗。 */
+    @GetMapping("/{id}/stalls")
+    public Result<Page<Stall>> publicStalls(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "20") long size) {
+        return Result.ok(publicProfileService.listStalls(id, page, size));
+    }
+
+    /** 指定企划方公开发布或已完成的企划。 */
+    @GetMapping("/{id}/projects")
+    public Result<Page<Project>> publicProjects(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "12") long size) {
+        return Result.ok(publicProfileService.listProjects(id, page, size));
     }
 
     /** 申请画师认证：提交后进入审核中（cert_status=1） */

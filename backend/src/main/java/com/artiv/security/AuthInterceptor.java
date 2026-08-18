@@ -58,6 +58,9 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (uri.startsWith("/api/v1/reviews")) {
             return true;
         }
+        if (uri.equals("/api/v1/users/artists")) {
+            return true;
+        }
         String[] segments = uri.split("/");
         // /api/v1/{module} 或 /api/v1/{module}/{数字ID}
         if (segments.length == 4) {
@@ -71,9 +74,17 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         // 企划详情中的应征画师为公开展示信息。
         if (segments.length == 6) {
-            return segments[3].equals("projects")
+            if (segments[3].equals("projects")
                     && segments[4].matches("\\d+")
-                    && segments[5].equals("applications");
+                    && segments[5].equals("applications")) {
+                return true;
+            }
+            return segments[3].equals("users")
+                    && segments[4].matches("\\d+")
+                    && (segments[5].equals("public-profile")
+                    || segments[5].equals("works")
+                    || segments[5].equals("stalls")
+                    || segments[5].equals("projects"));
         }
         return false;
     }

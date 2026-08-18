@@ -35,3 +35,19 @@ export function applyCert() {
 export function getArtists(params) {
   return request.get('/users/artists', { params })
 }
+
+export function getPublicProfile(id, role) {
+  return request.get(`/users/${id}/public-profile`, { params: { role } })
+}
+
+export function getPublicProfileWorks(id, params) {
+  return request.get(`/users/${id}/works`, { params })
+}
+
+export function getPublicProfileStalls(id, params) {
+  return request.get(`/users/${id}/stalls`, { params })
+}
+
+export function getPublicProfileProjects(id, params) {
+  return request.get(`/users/${id}/projects`, { params })
+}
