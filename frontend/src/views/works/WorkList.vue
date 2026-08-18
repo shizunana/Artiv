@@ -42,8 +42,9 @@
     </div>
 
     <EmptyState v-if="!loading && works.length === 0" description="暂无符合筛选条件的公开作品" />
-    <div v-if="total > size" class="pager">
-      <Pagination v-model:page="page" v-model:size="size" :total="total" @change="load" />
+    <div ref="loadSentinel" class="load-sentinel" aria-live="polite">
+      <span v-if="loadingMore">正在加载更多作品…</span>
+      <span v-else-if="works.length && !hasMore">已加载全部 {{ total }} 件作品</span>
     </div>
 
     <el-dialog v-model="detailVisible" width="900px" top="7vh" append-to-body class="work-detail-dialog" :show-close="false">
@@ -89,13 +90,15 @@ import { ElMessage } from 'element-plus'
 import { getWorkDetail, getWorks } from '@/api/work'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
-import Pagination from '@/components/common/Pagination.vue'
 
 const works = ref([])
 const loading = ref(false)
+const loadingMore = ref(false)
 const page = ref(1)
-const size = ref(20)
+const size = 25
 const total = ref(0)
+const hasMore = ref(true)
+const loadSentinel = ref(null)
 const activeCategory = ref('全部')
 const selectedSubjects = ref([])
 const keyword = ref('')
@@ -109,6 +112,10 @@ const detailLoading = ref(false)
 const detail = reactive({})
 const detailTags = computed(() => (detail.subject || '').split(',').map(tag => tag.trim()).filter(Boolean))
 const authorInitial = computed(() => (detail.authorName || '画').slice(0, 1))
+const imageRatioCache = new Map()
+let loadObserver = null
+let loadVersion = 0
+let arrangeVersion = 0
 
 function getColumnCount() {
   if (window.innerWidth <= 560) return 2
@@ -118,16 +125,26 @@ function getColumnCount() {
 
 function getImageRatio(src) {
   if (!src) return Promise.resolve(1)
+  if (imageRatioCache.has(src)) return Promise.resolve(imageRatioCache.get(src))
   return new Promise(resolve => {
     const image = new Image()
-    image.onload = () => resolve(image.naturalWidth && image.naturalHeight ? image.naturalWidth / image.naturalHeight : 1)
-    image.onerror = () => resolve(1)
+    image.onload = () => {
+      const ratio = image.naturalWidth && image.naturalHeight ? image.naturalWidth / image.naturalHeight : 1
+      imageRatioCache.set(src, ratio)
+      resolve(ratio)
+    }
+    image.onerror = () => {
+      imageRatioCache.set(src, 1)
+      resolve(1)
+    }
     image.src = src
   })
 }
 
 async function arrangeWorks() {
+  const version = ++arrangeVersion
   const ratios = await Promise.all(works.value.map(work => getImageRatio(work.image)))
+  if (version !== arrangeVersion) return
   const columnHeights = Array(columnCount.value).fill(0)
   const columns = Array.from({ length: columnCount.value }, () => [])
 
@@ -158,8 +175,7 @@ function setSort(value) {
 }
 
 function reload() {
-  page.value = 1
-  load()
+  load(true)
 }
 
 async function openWork(id) {
@@ -184,28 +200,59 @@ function formatDate(value) {
   return `上传时间：${String(value).replace('T', ' ').slice(0, 16)}`
 }
 
-async function load() {
-  loading.value = true
+async function load(reset = false) {
+  if (!reset && (loading.value || loadingMore.value || !hasMore.value)) return
+  const version = reset ? ++loadVersion : loadVersion
+  const targetPage = reset ? 1 : page.value + 1
+  if (reset) {
+    page.value = 1
+    works.value = []
+    waterfallColumns.value = Array.from({ length: columnCount.value }, () => [])
+    total.value = 0
+    hasMore.value = true
+    loading.value = true
+  } else {
+    loadingMore.value = true
+  }
   try {
-    const params = { page: page.value, size: size.value, sort: sort.value }
+    const params = { page: targetPage, size, sort: sort.value }
     if (activeCategory.value !== '全部') params.category = activeCategory.value
     if (selectedSubjects.value.length > 0) params.subject = selectedSubjects.value.join(',')
     if (keyword.value.trim()) params.keyword = keyword.value.trim()
     const data = await getWorks(params)
-    works.value = data.records || []
+    if (version !== loadVersion) return
+    const records = data.records || []
+    if (reset) {
+      works.value = records
+    } else {
+      const knownIds = new Set(works.value.map(work => work.id))
+      works.value = [...works.value, ...records.filter(work => !knownIds.has(work.id))]
+    }
+    page.value = targetPage
     total.value = data.total || 0
+    hasMore.value = works.value.length < total.value && records.length === size
     await arrangeWorks()
   } finally {
-    loading.value = false
+    if (version === loadVersion) {
+      loading.value = false
+      loadingMore.value = false
+    }
   }
 }
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
-  load()
+  reload()
+  loadObserver = new IntersectionObserver((entries) => {
+    if (entries.some(entry => entry.isIntersecting)) load(false)
+  }, { rootMargin: '500px 0px' })
+  if (loadSentinel.value) loadObserver.observe(loadSentinel.value)
 })
 
-onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  loadObserver?.disconnect()
+})
 </script>
 
 <style scoped>
@@ -219,7 +266,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 .work-card:hover .work-image { transform: scale(1.015); }
 .work-image { display: block; width: 100%; height: auto; min-height: 110px; transition: transform .25s ease; }
 .work-placeholder { display: grid; place-items: center; aspect-ratio: 1 / 1; background: linear-gradient(135deg, #e2f4fd, #efe8ff); color: #6d9db4; font-size: 42px; }
-.pager { display: flex; justify-content: center; margin-top: 32px; }
+.load-sentinel { display: flex; min-height: 48px; align-items: center; justify-content: center; color: var(--artiv-text-secondary); font-size: 13px; }
 .detail-author { display: flex; align-items: center; gap: 13px; padding-right: 38px; }.detail-author__copy { min-width: 0; flex: 1; }.detail-author__copy strong { color: var(--artiv-text); font-size: 17px; }.detail-author__copy p { overflow: hidden; margin: 5px 0 0; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.cert-label { margin-left: 8px; color: #2ca46e; font-size: 12px; }.profile-button { flex-shrink: 0; }.work-detail-content { min-height: 240px; }.work-detail-image { display: block; width: 100%; max-height: 62vh; object-fit: contain; background: #f4f7fa; }.work-detail-empty { display: grid; min-height: 300px; place-items: center; color: var(--artiv-text-secondary); background: #f4f7fa; }.work-detail-info { padding: 18px 22px 22px; }.work-detail-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--artiv-border); padding-bottom: 14px; }.work-detail-heading h2 { margin: 0; color: var(--artiv-text); font-size: 19px; }.work-detail-heading p { margin: 7px 0 0; color: var(--artiv-text-secondary); font-size: 12px; }.work-description { margin: 16px 0; color: var(--artiv-text); line-height: 1.8; white-space: pre-wrap; }.work-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }.tag-title { margin-right: 4px; color: var(--artiv-text-secondary); font-size: 13px; }.tag-empty { color: var(--artiv-text-secondary); font-size: 13px; }
 @media (max-width: 1100px) { .list-page { width: 96vw; } }
 @media (max-width: 900px) { .list-page { width: 100%; }.waterfall-column { width: 33.333%; } }

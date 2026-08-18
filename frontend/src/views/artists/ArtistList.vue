@@ -12,7 +12,7 @@
           class="type-select"
           clearable
           placeholder="类型"
-          @change="loadArtists"
+          @change="reloadArtists"
         >
           <el-option v-for="item in categoryOptions" :key="item" :label="item" :value="item" />
         </el-select>
@@ -25,7 +25,7 @@
           collapse-tags-tooltip
           clearable
           placeholder="题材风格（可多选）"
-          @change="loadArtists"
+          @change="reloadArtists"
         >
           <el-option v-for="item in subjectOptions" :key="item" :label="item" :value="item" />
         </el-select>
@@ -35,12 +35,12 @@
           class="artist-search"
           clearable
           placeholder="搜索画师昵称、账号、简介或题材风格"
-          @keyup.enter="loadArtists"
-          @clear="loadArtists"
+          @keyup.enter="reloadArtists"
+          @clear="reloadArtists"
         >
           <template #prefix>⌕</template>
         </el-input>
-        <el-button type="primary" @click="loadArtists">搜索</el-button>
+        <el-button type="primary" @click="reloadArtists">搜索</el-button>
       </section>
 
       <div v-loading="loading" class="artist-results">
@@ -91,13 +91,17 @@
           v-if="!loading && artists.length === 0"
           description="没有找到符合条件的认证画师，请调整筛选条件"
         />
+        <div ref="loadSentinel" class="artist-load-sentinel" aria-live="polite">
+          <span v-if="loadingMore">正在加载更多画师…</span>
+          <span v-else-if="artists.length && !hasMore">已加载全部 {{ total }} 名画师</span>
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { getArtists } from '@/api/user'
@@ -105,7 +109,13 @@ import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 
 const router = useRouter()
 const loading = ref(false)
+const loadingMore = ref(false)
 const artists = ref([])
+const page = ref(1)
+const size = 10
+const total = ref(0)
+const hasMore = ref(true)
+const loadSentinel = ref(null)
 const categoryOptions = CATEGORY_OPTIONS
 const subjectOptions = SUBJECT_OPTIONS
 const filters = reactive({
@@ -113,19 +123,60 @@ const filters = reactive({
   subjects: [],
   keyword: '',
 })
+let loadObserver = null
+let loadVersion = 0
 
-onMounted(loadArtists)
+onMounted(() => {
+  reloadArtists()
+  loadObserver = new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) loadArtists(false)
+  }, { rootMargin: '500px 0px' })
+  if (loadSentinel.value) loadObserver.observe(loadSentinel.value)
+})
 
-async function loadArtists() {
-  loading.value = true
+onBeforeUnmount(() => loadObserver?.disconnect())
+
+function reloadArtists() {
+  loadArtists(true)
+}
+
+async function loadArtists(reset = false) {
+  if (!reset && (loading.value || loadingMore.value || !hasMore.value)) return
+  const version = reset ? ++loadVersion : loadVersion
+  const targetPage = reset ? 1 : page.value + 1
+  if (reset) {
+    page.value = 1
+    artists.value = []
+    total.value = 0
+    hasMore.value = true
+    loading.value = true
+  } else {
+    loadingMore.value = true
+  }
   try {
-    artists.value = await getArtists({
+    const data = await getArtists({
+      page: targetPage,
+      size,
       category: filters.category || undefined,
       subjects: filters.subjects.length ? filters.subjects.join(',') : undefined,
       keyword: filters.keyword.trim() || undefined,
     })
+    if (version !== loadVersion) return
+    const records = data.records || []
+    if (reset) {
+      artists.value = records
+    } else {
+      const knownIds = new Set(artists.value.map((artist) => artist.id))
+      artists.value = [...artists.value, ...records.filter((artist) => !knownIds.has(artist.id))]
+    }
+    page.value = targetPage
+    total.value = data.total || 0
+    hasMore.value = artists.value.length < total.value && records.length === size
   } finally {
-    loading.value = false
+    if (version === loadVersion) {
+      loading.value = false
+      loadingMore.value = false
+    }
   }
 }
 
@@ -193,6 +244,15 @@ function goProfile(id) {
   border: 1px solid var(--artiv-border);
   border-radius: 8px;
   overflow: hidden;
+}
+
+.artist-load-sentinel {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  color: var(--artiv-text-secondary);
+  font-size: 13px;
 }
 
 .artist-row {

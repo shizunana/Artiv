@@ -1,6 +1,7 @@
 package com.artiv.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.dto.ArtistSummary;
 import com.artiv.entity.User;
 import com.artiv.entity.Work;
@@ -31,7 +32,9 @@ public class ArtistServiceImpl implements ArtistService {
     private final WorkMapper workMapper;
 
     @Override
-    public List<ArtistSummary> listArtists(String category, String subjects, String keyword) {
+    public Page<ArtistSummary> listArtists(long page, long size, String category, String subjects, String keyword) {
+        long safePage = Math.max(page, 1);
+        long safeSize = Math.min(Math.max(size, 1), 50);
         List<User> painters = userMapper.selectList(new LambdaQueryWrapper<User>()
                 .eq(User::getRole, 2)
                 .eq(User::getCertStatus, 2)
@@ -39,7 +42,7 @@ public class ArtistServiceImpl implements ArtistService {
                 .eq(User::getDeleted, 0)
                 .orderByAsc(User::getId));
         if (painters.isEmpty()) {
-            return List.of();
+            return new Page<>(safePage, safeSize, 0);
         }
 
         List<Long> painterIds = painters.stream().map(User::getId).toList();
@@ -56,12 +59,23 @@ public class ArtistServiceImpl implements ArtistService {
                 ? keyword.trim().toLowerCase(Locale.ROOT)
                 : null;
 
-        return painters.stream()
+        List<ArtistSummary> filtered = painters.stream()
                 .map(painter -> toSummary(painter, worksByPainter.getOrDefault(painter.getId(), List.of())))
                 .filter(summary -> !StringUtils.hasText(category) || summary.getCategories().contains(category.trim()))
                 .filter(summary -> requestedSubjects.isEmpty() || containsAllTags(summary.getTags(), requestedSubjects))
                 .filter(summary -> normalizedKeyword == null || matchesKeyword(summary, normalizedKeyword))
                 .toList();
+        long requestedOffset;
+        try {
+            requestedOffset = Math.multiplyExact(safePage - 1, safeSize);
+        } catch (ArithmeticException ignored) {
+            requestedOffset = filtered.size();
+        }
+        int from = (int) Math.min(requestedOffset, filtered.size());
+        int to = (int) Math.min(from + safeSize, filtered.size());
+        Page<ArtistSummary> result = new Page<>(safePage, safeSize, filtered.size());
+        result.setRecords(new ArrayList<>(filtered.subList(from, to)));
+        return result;
     }
 
     private ArtistSummary toSummary(User painter, List<Work> works) {

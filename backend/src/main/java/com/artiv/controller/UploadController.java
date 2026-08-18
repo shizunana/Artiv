@@ -15,8 +15,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * 文件上传：返回可访问的相对路径（/uploads/xxx）
@@ -57,12 +60,29 @@ public class UploadController {
         try {
             Path dir = Paths.get(uploadDir).toAbsolutePath();
             Files.createDirectories(dir);
-            String filename = UUID.randomUUID().toString().replace("-", "") + "." + ext;
-            file.transferTo(dir.resolve(filename).toFile());
+            byte[] content = file.getBytes();
+            String normalizedExt = "jpeg".equals(ext) ? "jpg" : ext;
+            String filename = sha256(content) + "." + normalizedExt;
+            Path target = dir.resolve(filename);
+            if (Files.notExists(target)) {
+                try {
+                    Files.write(target, content, StandardOpenOption.CREATE_NEW);
+                } catch (java.nio.file.FileAlreadyExistsException ignored) {
+                    // 并发上传相同内容时复用另一请求已写入的文件。
+                }
+            }
             return Result.ok(uploadUrlPrefix + "/" + filename);
         } catch (IOException e) {
             log.error("文件上传失败", e);
             throw new BusinessException(ResultCode.ERROR);
+        }
+    }
+
+    private String sha256(byte[] content) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 unavailable", exception);
         }
     }
 }

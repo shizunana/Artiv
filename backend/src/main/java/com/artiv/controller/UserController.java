@@ -1,6 +1,7 @@
 package com.artiv.controller;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.Result;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
@@ -48,11 +49,13 @@ public class UserController {
 
     /** 画师大厅：仅展示账号正常的已认证画师，并携带公开作品预览。 */
     @GetMapping("/artists")
-    public Result<List<ArtistSummary>> artists(
+    public Result<Page<ArtistSummary>> artists(
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String subjects,
             @RequestParam(required = false) String keyword) {
-        return Result.ok(artistService.listArtists(category, subjects, keyword));
+        return Result.ok(artistService.listArtists(page, size, category, subjects, keyword));
     }
 
     /** 申请画师认证：提交后进入审核中（cert_status=1） */

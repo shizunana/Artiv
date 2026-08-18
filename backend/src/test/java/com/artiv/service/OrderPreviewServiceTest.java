@@ -36,5 +36,7 @@ class OrderPreviewServiceTest {
         assertEquals(1080, preview.getWidth());
         assertEquals(720, preview.getHeight());
         assertTrue(target.toFile().length() > 0);
+        assertTrue(service.isGeneratedPreview(result));
+        assertEquals(result, service.ensureWatermarkedPreview(result, "/uploads/original.png"));
     }
 }

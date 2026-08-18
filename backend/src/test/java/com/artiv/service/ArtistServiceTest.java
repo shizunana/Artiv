@@ -1,6 +1,7 @@
 package com.artiv.service;
 
 import com.artiv.dto.ArtistSummary;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.entity.User;
 import com.artiv.entity.Work;
 import com.artiv.mapper.UserMapper;
@@ -38,9 +39,11 @@ class ArtistServiceTest {
         ));
         when(workMapper.selectList(any())).thenReturn(List.of());
 
-        List<ArtistSummary> artists = artistService.listArtists(null, null, null);
+        Page<ArtistSummary> page = artistService.listArtists(1, 10, null, null, null);
+        List<ArtistSummary> artists = page.getRecords();
 
         assertEquals(2, artists.size());
+        assertEquals(2, page.getTotal());
         assertEquals("测试画师1", artists.get(0).getNickname());
         assertEquals(List.of(), artists.get(0).getWorks());
     }
@@ -58,12 +61,40 @@ class ArtistServiceTest {
         work.setImage("/uploads/test.png");
         when(workMapper.selectList(any())).thenReturn(List.of(work));
 
-        List<ArtistSummary> artists = artistService.listArtists("立绘", "日系,女性", "测试画师");
+        List<ArtistSummary> artists = artistService
+                .listArtists(1, 10, "立绘", "日系,女性", "测试画师")
+                .getRecords();
 
         assertEquals(1, artists.size());
         assertEquals(14L, artists.get(0).getId());
         assertEquals(List.of("立绘"), artists.get(0).getCategories());
         assertEquals(1, artists.get(0).getWorks().size());
+    }
+
+    @Test
+    void artistResultsAreReturnedInTenItemPages() {
+        List<User> painters = java.util.stream.LongStream.rangeClosed(1, 12)
+                .mapToObj(id -> painter(id, "测试画师" + id, "日系"))
+                .toList();
+        when(userMapper.selectList(any())).thenReturn(painters);
+        when(workMapper.selectList(any())).thenReturn(List.of());
+
+        Page<ArtistSummary> secondPage = artistService.listArtists(2, 10, null, null, null);
+
+        assertEquals(12, secondPage.getTotal());
+        assertEquals(2, secondPage.getRecords().size());
+        assertEquals("测试画师11", secondPage.getRecords().get(0).getNickname());
+    }
+
+    @Test
+    void extremePageNumberReturnsAnEmptyPageInsteadOfOverflowing() {
+        when(userMapper.selectList(any())).thenReturn(List.of(painter(1L, "测试画师1", "日系")));
+        when(workMapper.selectList(any())).thenReturn(List.of());
+
+        Page<ArtistSummary> page = artistService.listArtists(Long.MAX_VALUE, 50, null, null, null);
+
+        assertEquals(1, page.getTotal());
+        assertEquals(List.of(), page.getRecords());
     }
 
     private User painter(Long id, String nickname, String tags) {

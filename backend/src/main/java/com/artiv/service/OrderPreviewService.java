@@ -75,6 +75,27 @@ public class OrderPreviewService {
         }
     }
 
+    /**
+     * 兼容早期订单数据：旧记录可能把原图地址直接写进 attachments。
+     * 已存在且可读取的标准预览图直接复用，否则从原图补生成一次。
+     */
+    public synchronized String ensureWatermarkedPreview(String currentPreviewUrl, String originalUrl) {
+        if (isGeneratedPreview(currentPreviewUrl)) {
+            return currentPreviewUrl;
+        }
+        return createWatermarkedPreview(originalUrl);
+    }
+
+    public boolean isGeneratedPreview(String previewUrl) {
+        String previewPrefix = uploadUrlPrefix + "/" + PREVIEW_DIR + "/";
+        if (previewUrl == null || !previewUrl.startsWith(previewPrefix)) {
+            return false;
+        }
+        String relative = previewUrl.substring(uploadUrlPrefix.length() + 1);
+        Path preview = uploadRoot.resolve(relative).normalize();
+        return preview.startsWith(uploadRoot.resolve(PREVIEW_DIR)) && Files.isRegularFile(preview);
+    }
+
     private Path resolveSource(String originalUrl) {
         if (originalUrl == null || !originalUrl.startsWith(uploadUrlPrefix + "/")) {
             throw new BusinessException(ResultCode.PARAM_INVALID);

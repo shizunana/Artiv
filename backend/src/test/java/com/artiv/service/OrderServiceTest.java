@@ -3,6 +3,7 @@ package com.artiv.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.common.BusinessException;
 import com.artiv.dto.OrderStageReviewRequest;
+import com.artiv.dto.OrderStageSubmitRequest;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.OrderStage;
 import com.artiv.entity.Application;
@@ -29,6 +30,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -157,6 +159,62 @@ class OrderServiceTest {
 
         assertThrows(com.artiv.common.BusinessException.class,
                 () -> orderService.getDetail(77L, 99L));
+    }
+
+    @Test
+    void getDetailBackfillsLegacyStallPreviewAndHidesOriginalFromEmployer() {
+        OrderInfo order = activeOrder(1);
+        order.setStallId(9L);
+        OrderStage legacy = new OrderStage();
+        legacy.setId(12L);
+        legacy.setOrderId(77L);
+        legacy.setStageIndex(0);
+        legacy.setSubmissionNo(1);
+        legacy.setAttachments("/uploads/legacy-preview.png");
+        legacy.setOriginals("/uploads/original.png");
+        legacy.setDeleted(0);
+        when(orderInfoMapper.selectById(77L)).thenReturn(order);
+        when(orderStageMapper.selectList(any())).thenReturn(List.of(legacy));
+        when(orderPreviewService.isGeneratedPreview("/uploads/legacy-preview.png")).thenReturn(false);
+        when(orderPreviewService.ensureWatermarkedPreview(
+                "/uploads/legacy-preview.png", "/uploads/original.png"))
+                .thenReturn("/uploads/order-previews/fixed.jpg");
+
+        var detail = orderService.getDetail(77L, 15L);
+
+        assertEquals("/uploads/order-previews/fixed.jpg", detail.getSubmissions().get(0).getAttachments());
+        assertNull(detail.getSubmissions().get(0).getOriginals());
+        verify(orderStageMapper).updateById(legacy);
+    }
+
+    @Test
+    void submitStageSeparatesPreviewAndOriginalForStallAndProjectOrders() {
+        OrderInfo stallOrder = activeOrder(1);
+        stallOrder.setId(77L);
+        stallOrder.setStallId(9L);
+        stallOrder.setPhaseSnapshot("[{\"name\":\"初稿\"}]");
+        OrderInfo projectOrder = activeOrder(1);
+        projectOrder.setId(78L);
+        projectOrder.setProjectId(8L);
+        projectOrder.setPhaseSnapshot("[{\"name\":\"初稿\"}]");
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(stallOrder);
+        when(orderInfoMapper.selectByIdForUpdate(78L)).thenReturn(projectOrder);
+        when(orderStageMapper.selectCount(any())).thenReturn(0L);
+        when(orderPreviewService.createWatermarkedPreview("/uploads/original.png"))
+                .thenReturn("/uploads/order-previews/preview.jpg");
+        OrderStageSubmitRequest request = new OrderStageSubmitRequest();
+        request.setImage("/uploads/original.png");
+        request.setContent("阶段交付");
+
+        orderService.submitStage(77L, 2L, request);
+        orderService.submitStage(78L, 2L, request);
+
+        ArgumentCaptor<OrderStage> captor = ArgumentCaptor.forClass(OrderStage.class);
+        verify(orderStageMapper, org.mockito.Mockito.times(2)).insert(captor.capture());
+        captor.getAllValues().forEach(stage -> {
+            assertEquals("/uploads/order-previews/preview.jpg", stage.getAttachments());
+            assertEquals("/uploads/original.png", stage.getOriginals());
+        });
     }
 
     @Test

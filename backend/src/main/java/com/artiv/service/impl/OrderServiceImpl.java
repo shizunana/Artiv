@@ -27,6 +27,7 @@ import com.artiv.service.MessageService;
 import com.artiv.service.OrderPreviewService;
 import com.artiv.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderServiceImpl implements OrderService {
 
     private static final int PENDING = 0;
@@ -91,6 +93,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public OrderDetailResponse getDetail(Long id, Long userId) {
         OrderInfo order = requireParticipant(id, userId, false);
         OrderDetailResponse response = new OrderDetailResponse();
@@ -103,6 +106,7 @@ public class OrderServiceImpl implements OrderService {
         List<OrderStage> stages = orderStageMapper.selectList(new LambdaQueryWrapper<OrderStage>()
                 .eq(OrderStage::getOrderId, id).eq(OrderStage::getDeleted, 0)
                 .orderByAsc(OrderStage::getStageIndex).orderByAsc(OrderStage::getSubmissionNo));
+        stages.forEach(this::repairLegacyPreview);
         if (userId.equals(order.getEmployerId()) && order.getStatus() != COMPLETED) {
             stages = stages.stream().map(this::withoutOriginals).toList();
         }
@@ -498,6 +502,24 @@ public class OrderServiceImpl implements OrderService {
         BeanUtils.copyProperties(source, copy);
         copy.setOriginals(null);
         return copy;
+    }
+
+    private void repairLegacyPreview(OrderStage stage) {
+        if (!StringUtils.hasText(stage.getOriginals())
+                || orderPreviewService.isGeneratedPreview(stage.getAttachments())) {
+            return;
+        }
+        try {
+            String preview = orderPreviewService.ensureWatermarkedPreview(stage.getAttachments(), stage.getOriginals());
+            if (!preview.equals(stage.getAttachments())) {
+                stage.setAttachments(preview);
+                stage.setUpdatedAt(LocalDateTime.now());
+                orderStageMapper.updateById(stage);
+            }
+        } catch (BusinessException exception) {
+            // 历史原图若已被人工清理，订单详情仍应可打开；保留旧附件并记录待维护信息。
+            log.warn("无法补生成订单阶段预览图，stageId={}, original={}", stage.getId(), stage.getOriginals());
+        }
     }
 
     private String displayName(User user) {
