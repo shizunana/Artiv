@@ -14,7 +14,7 @@ class UploadControllerTest {
     @TempDir Path uploadRoot;
 
     @Test
-    void identicalUploadsReuseContentAddressedFile() throws Exception {
+    void identicalUploadsKeepIndependentBusinessFiles() throws Exception {
         UploadController controller = new UploadController(uploadRoot.toString(), "/uploads");
         byte[] content = "same-image-content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
@@ -23,9 +23,9 @@ class UploadControllerTest {
         String second = controller.upload(new MockMultipartFile(
                 "file", "second.png", "image/png", content)).getData();
 
-        assertEquals(first, second);
+        org.junit.jupiter.api.Assertions.assertNotEquals(first, second);
         try (var files = Files.list(uploadRoot)) {
-            assertEquals(1, files.count());
+            assertEquals(2, files.count());
         }
     }
 }
