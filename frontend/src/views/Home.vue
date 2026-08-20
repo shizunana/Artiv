@@ -478,10 +478,12 @@ button { font: inherit; }
 .hero-work { position: absolute; overflow: hidden; margin: 0; padding: 0; border: 5px solid rgba(255,255,255,.96); border-radius: 18px; background: #e6edf1; box-shadow: 0 18px 45px rgba(37,64,77,.16); pointer-events: none; }
 .hero-work img { width: 100%; height: 100%; object-fit: cover; }
 .hero-work--1 { top: 8px; left: 5%; z-index: 3; width: 47%; height: 288px; transform: rotate(-2.5deg); }
+.hero-work--1 img { object-position: center 18%; }
 .hero-work--2 { top: 34px; right: 0; z-index: 2; width: 42%; height: 218px; transform: rotate(2.5deg); }
 .hero-work--3 { bottom: 0; left: 10%; z-index: 4; width: 34%; height: 188px; transform: rotate(1.7deg); }
 .hero-work--4 { right: 4%; bottom: 18px; z-index: 3; width: 43%; height: 210px; transform: rotate(-2deg); }
 .hero-work--5 { top: 205px; left: 43%; z-index: 5; width: 28%; height: 158px; transform: rotate(3.5deg); }
+.hero-work--5 img { object-position: center 24%; }
 .content-section { padding: 88px 0; }
 .projects-section, .works-section { background: #fff; }
 .stalls-section, .artists-section { background: #f5f7f9; }
