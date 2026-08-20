@@ -15,7 +15,7 @@
       <el-pagination v-model:current-page="query.page" :page-size="query.size" :total="total" layout="total, prev, pager, next" @current-change="load"/>
     </section>
 
-    <el-drawer v-model="detailVisible" title="争议仲裁详情" size="780px">
+    <el-drawer v-model="detailVisible" title="争议仲裁详情" size="780px" append-to-body destroy-on-close>
       <div v-loading="detailLoading" class="detail-body" v-if="detail.dispute">
         <el-alert :title="detail.dispute.reason" type="warning" :closable="false" show-icon/>
         <el-descriptions :column="2" border class="summary"><el-descriptions-item label="订单">#{{ detail.order.id }}</el-descriptions-item><el-descriptions-item label="托管金额">¥{{ detail.order.amount }}</el-descriptions-item><el-descriptions-item label="企划方">{{ detail.employer?.nickname }}</el-descriptions-item><el-descriptions-item label="画师">{{ detail.painter?.nickname }}</el-descriptions-item></el-descriptions>

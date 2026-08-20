@@ -151,4 +151,27 @@ class ProjectServiceTest {
 
         assertEquals(9L, projectService.getById(9L, 33L).getId());
     }
+
+    @Test
+    void downlistedProjectRemainsVisibleToActiveAdministrator() {
+        Project project = new Project();
+        project.setId(9L);
+        project.setEmployerId(12L);
+        project.setStatus(0);
+        project.setModerationStatus(1);
+        project.setDeleted(0);
+        when(projectMapper.selectById(9L)).thenReturn(project);
+        User administrator = new User();
+        administrator.setId(3L);
+        administrator.setRole(3);
+        administrator.setStatus(0);
+        administrator.setDeleted(0);
+        User publisher = new User();
+        publisher.setId(12L);
+        publisher.setDeleted(0);
+        when(userMapper.selectById(3L)).thenReturn(administrator);
+        when(userMapper.selectById(12L)).thenReturn(publisher);
+
+        assertEquals(9L, projectService.getById(9L, 3L).getId());
+    }
 }

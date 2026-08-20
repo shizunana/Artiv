@@ -14,7 +14,7 @@
       <el-pagination v-model:current-page="query.page" :page-size="query.size" :total="total" layout="total, prev, pager, next" @current-change="load"/>
     </section>
 
-    <el-drawer v-model="detailVisible" title="认证申请详情" size="720px">
+    <el-drawer v-model="detailVisible" title="认证申请详情" size="720px" append-to-body destroy-on-close>
       <div v-loading="detailLoading" class="detail-body">
         <template v-if="detail.certification">
           <el-descriptions :column="2" border><el-descriptions-item label="画师">{{ detail.user?.nickname }}（@{{ detail.user?.username }}）</el-descriptions-item><el-descriptions-item label="常用ID">{{ detail.certification.commonId }}</el-descriptions-item><el-descriptions-item label="个人简介" :span="2">{{ detail.user?.bio || '未填写' }}</el-descriptions-item><el-descriptions-item label="风格标签" :span="2">{{ detail.user?.tags || '-' }}</el-descriptions-item><el-descriptions-item label="常用站" :span="2"><a v-if="detail.certification.commonSite" :href="detail.certification.commonSite" target="_blank" rel="noopener">{{ detail.certification.commonSite }}</a><span v-else>-</span></el-descriptions-item></el-descriptions>

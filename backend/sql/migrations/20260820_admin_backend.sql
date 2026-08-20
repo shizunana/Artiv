@@ -97,14 +97,37 @@ CREATE TABLE IF NOT EXISTS `order_dispute_evidence` (
 
 -- 兼容迁移前的审核中认证与旧售后记录，避免后台出现“状态存在但队列为空”。
 INSERT INTO `artist_certification`
-  (`user_id`, `common_id`, `common_site`, `public_work_count`, `status`, `deleted`, `created_at`, `updated_at`)
+  (`user_id`, `common_id`, `common_site`, `public_work_count`, `status`, `review_reason`, `reviewed_at`, `deleted`, `created_at`, `updated_at`)
 SELECT u.`id`, u.`nickname`, NULL,
        (SELECT COUNT(*) FROM `work` w WHERE w.`user_id` = u.`id` AND w.`visibility` = 1 AND w.`deleted` = 0),
-       0, 0, COALESCE(u.`updated_at`, NOW()), COALESCE(u.`updated_at`, NOW())
+       CASE WHEN (SELECT COUNT(*) FROM `work` w WHERE w.`user_id` = u.`id` AND w.`visibility` = 1 AND w.`deleted` = 0) >= 4 THEN 0 ELSE 2 END,
+       CASE WHEN (SELECT COUNT(*) FROM `work` w WHERE w.`user_id` = u.`id` AND w.`visibility` = 1 AND w.`deleted` = 0) >= 4 THEN NULL ELSE '历史申请公开作品不足4件，系统未进入审核队列' END,
+       CASE WHEN (SELECT COUNT(*) FROM `work` w WHERE w.`user_id` = u.`id` AND w.`visibility` = 1 AND w.`deleted` = 0) >= 4 THEN NULL ELSE NOW() END,
+       0, COALESCE(u.`updated_at`, NOW()), COALESCE(u.`updated_at`, NOW())
 FROM `user` u
 WHERE u.`role` = 2 AND u.`cert_status` = 1 AND u.`deleted` = 0
   AND NOT EXISTS (
     SELECT 1 FROM `artist_certification` c WHERE c.`user_id` = u.`id` AND c.`deleted` = 0
+  );
+
+-- 早期版本曾允许不足 4 件作品的申请进入审核中。保留历史记录，但退出待审队列。
+UPDATE `artist_certification`
+SET `status` = 2,
+    `review_reason` = COALESCE(`review_reason`, '历史申请公开作品不足4件，系统未进入审核队列'),
+    `reviewed_at` = COALESCE(`reviewed_at`, NOW()),
+    `updated_at` = NOW()
+WHERE `status` = 0 AND `deleted` = 0 AND `public_work_count` < 4;
+
+UPDATE `user` u
+SET u.`cert_status` = 3, u.`updated_at` = NOW()
+WHERE u.`cert_status` = 1 AND u.`deleted` = 0
+  AND EXISTS (
+    SELECT 1 FROM `artist_certification` c
+    WHERE c.`user_id` = u.`id` AND c.`status` = 2 AND c.`public_work_count` < 4 AND c.`deleted` = 0
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM `artist_certification` c
+    WHERE c.`user_id` = u.`id` AND c.`status` = 0 AND c.`deleted` = 0
   );
 
 INSERT INTO `order_dispute`

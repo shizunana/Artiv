@@ -30,7 +30,7 @@
       <template #footer><el-button @click="statusVisible=false">取消</el-button><el-button :type="statusForm.status===1?'danger':'primary'" :loading="saving" @click="submitStatus">确认</el-button></template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="用户详情" size="620px">
+    <el-drawer v-model="detailVisible" title="用户详情" size="620px" append-to-body destroy-on-close>
       <div v-loading="detailLoading">
         <el-descriptions v-if="detail.user" :column="1" border>
           <el-descriptions-item label="账号">{{ detail.user.username }}</el-descriptions-item><el-descriptions-item label="昵称">{{ detail.user.nickname }}</el-descriptions-item>

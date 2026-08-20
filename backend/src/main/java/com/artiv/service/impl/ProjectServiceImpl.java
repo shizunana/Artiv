@@ -162,7 +162,14 @@ public class ProjectServiceImpl implements ProjectService {
                 .eq(Application::getProjectId, id)
                 .eq(Application::getPainterId, viewerId)
                 .eq(Application::getDeleted, 0)) > 0;
-        if (!active && !owner && !participant && !existingApplicant) {
+        boolean administrator = false;
+        if (!active && viewerId != null) {
+            User viewer = userMapper.selectById(viewerId);
+            administrator = viewer != null && Integer.valueOf(3).equals(viewer.getRole())
+                    && Integer.valueOf(0).equals(viewer.getStatus())
+                    && Integer.valueOf(0).equals(viewer.getDeleted());
+        }
+        if (!active && !owner && !participant && !existingApplicant && !administrator) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
         project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));

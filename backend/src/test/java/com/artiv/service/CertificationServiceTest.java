@@ -15,8 +15,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @ExtendWith(MockitoExtension.class)
 class CertificationServiceTest {
@@ -47,5 +49,24 @@ class CertificationServiceTest {
         assertEquals(1, painter.getCertStatus());
         verify(certificationMapper).insert(result);
         verify(userMapper).updateById(painter);
+    }
+
+    @Test
+    void submitRejectsPainterWithFewerThanFourPublicWorks() {
+        User painter = new User();
+        painter.setId(8L);
+        painter.setRole(2);
+        painter.setCertStatus(0);
+        painter.setBio("擅长人物与场景插画");
+        when(userMapper.selectByIdForUpdate(8L)).thenReturn(painter);
+        when(workMapper.selectCount(any())).thenReturn(3L);
+        CertificationSubmitRequest request = new CertificationSubmitRequest();
+        request.setCommonId("Artist-8");
+
+        assertThrows(com.artiv.common.BusinessException.class,
+                () -> certificationService.submit(8L, request));
+
+        verify(certificationMapper, never()).insert(any(ArtistCertification.class));
+        verify(userMapper, never()).updateById(any(User.class));
     }
 }

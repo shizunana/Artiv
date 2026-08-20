@@ -46,15 +46,16 @@
 
       <div class="cert-actions">
         <template v-if="certStatus === 0">
-          <el-button type="primary" round @click="openCertification">申请画师认证</el-button>
-          <span class="cert-tip">需要填写主页简介，并公开至少 4 件作品。</span>
+          <el-button type="primary" round :loading="eligibilityLoading" :disabled="!canApplyCertification" @click="openCertification">申请画师认证</el-button>
+          <span class="cert-tip">{{ certificationRequirementText }}</span>
         </template>
         <template v-else-if="certStatus === 1">
           <el-alert title="认证审核中，请耐心等待管理员审核" type="warning" :closable="false" show-icon />
         </template>
         <template v-else-if="certStatus === 3">
           <el-alert title="认证被驳回，请完善资料后重新申请" type="error" :closable="false" show-icon />
-          <el-button type="primary" round class="mt16" @click="openCertification">重新申请</el-button>
+          <el-button type="primary" round class="mt16" :loading="eligibilityLoading" :disabled="!canApplyCertification" @click="openCertification">重新申请</el-button>
+          <span class="cert-tip mt16">{{ certificationRequirementText }}</span>
         </template>
         <template v-else>
           <el-alert title="您已通过画师认证，可以应征企划、开设橱窗" type="success" :closable="false" show-icon />
@@ -121,11 +122,12 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { submitCertification, updateMyAvatar, updateMyPainterProfile } from '@/api/user'
 import { uploadFile } from '@/api/upload'
+import { getMyWorks } from '@/api/work'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
 import { CERT_STATUS, statusText, statusType } from '@/utils/status'
 
@@ -141,6 +143,8 @@ const form = reactive({ bio: '', tags: [] })
 const certVisible = ref(false)
 const certSubmitting = ref(false)
 const certForm = reactive({ commonId: '', commonSite: '' })
+const publicWorkCount = ref(0)
+const eligibilityLoading = ref(true)
 const avatarFileInput = ref(null)
 const cropStage = ref(null)
 const cropImageElement = ref(null)
@@ -156,6 +160,13 @@ const cropBaseScale = ref(1)
 const avatarText = computed(() => {
   const name = userStore.user?.nickname || userStore.user?.username || ''
   return name ? name.slice(0, 1) : '绘'
+})
+const canApplyCertification = computed(() => Boolean(userStore.user?.bio?.trim()) && publicWorkCount.value >= 4)
+const certificationRequirementText = computed(() => {
+  if (eligibilityLoading.value) return '正在核对主页资料与公开作品…'
+  if (!userStore.user?.bio?.trim()) return `请先填写主页简介；当前公开作品 ${publicWorkCount.value} 件。`
+  if (publicWorkCount.value < 4) return `当前公开作品 ${publicWorkCount.value} 件，还需公开 ${4 - publicWorkCount.value} 件后才能申请。`
+  return `申请条件已满足：主页简介完整，当前公开作品 ${publicWorkCount.value} 件。`
 })
 const cropScale = computed(() => cropBaseScale.value * cropZoom.value)
 const cropRenderedSize = computed(() => ({
@@ -191,13 +202,38 @@ async function saveProfile() {
   }
 }
 
-function openCertification() {
+async function refreshCertificationEligibility() {
+  eligibilityLoading.value = true
+  try {
+    const result = await getMyWorks({ page: 1, size: 100 })
+    publicWorkCount.value = (result.records || []).filter(work => work.visibility === 1).length
+  } finally {
+    eligibilityLoading.value = false
+  }
+}
+
+async function openCertification() {
+  await refreshCertificationEligibility()
+  if (publicWorkCount.value < 4) {
+    ElMessage.warning(`至少公开 4 件作品后才能申请，当前为 ${publicWorkCount.value} 件`)
+    return
+  }
+  if (!userStore.user?.bio?.trim()) {
+    ElMessage.warning('请先编辑主页资料并填写个人简介')
+    return
+  }
   certForm.commonId = userStore.user?.nickname || ''
   certForm.commonSite = ''
   certVisible.value = true
 }
 
 async function submitCertificationForm() {
+  await refreshCertificationEligibility()
+  if (publicWorkCount.value < 4) {
+    certVisible.value = false
+    ElMessage.warning(`公开作品不足 4 件，当前为 ${publicWorkCount.value} 件，不能提交认证申请`)
+    return
+  }
   if (!userStore.user?.bio?.trim()) {
     ElMessage.warning('请先编辑主页资料并填写个人简介')
     return
@@ -324,6 +360,8 @@ function resetCrop() {
   cropDrag.active = false
   cropDrag.pointerId = null
 }
+
+onMounted(refreshCertificationEligibility)
 </script>
 
 <style scoped>
