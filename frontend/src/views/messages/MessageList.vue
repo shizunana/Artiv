@@ -62,14 +62,9 @@
               <footer class="chat-composer">
                 <div class="chat-extension-bar" aria-label="消息扩展功能">
                   <el-button text class="chat-extension-bar__item" :loading="sendingImages" @click="openImagePicker">
-                    🖼️ 发送图片
+                    <el-icon class="chat-extension-bar__image-icon"><Picture /></el-icon>
+                    <span>发送图片</span>
                   </el-button>
-                  <el-tooltip content="表情功能预留中" placement="top">
-                    <span><el-button text disabled>😊 表情</el-button></span>
-                  </el-tooltip>
-                  <el-tooltip content="文件功能预留中" placement="top">
-                    <span><el-button text disabled>📎 文件</el-button></span>
-                  </el-tooltip>
                   <el-button text class="chat-extension-bar__item" @click="sendOrderCard">🧾 发送订单状态</el-button>
                   <span class="chat-extension-bar__hint">单次最多 9 张，每张不超过 5 MB</span>
                 </div>
@@ -121,6 +116,7 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Picture } from '@element-plus/icons-vue'
 import { getConversation, getConversations, getNotifications, markRead, sendPrivateMessage } from '@/api/message'
 import { formatDateTime } from '@/utils/date'
 import { useUserStore } from '@/stores/user'
@@ -455,6 +451,7 @@ onUnmounted(() => {
 .chat-extension-bar { display: flex; min-height: 30px; align-items: center; gap: 4px; border-bottom: 1px solid #edf0f4; }
 .chat-extension-bar :deep(.el-button) { margin: 0; padding-inline: 7px; }
 .chat-extension-bar__item { color: var(--artiv-primary); }
+.chat-extension-bar__image-icon { color: var(--artiv-text-primary); font-size: 16px; }
 .chat-extension-bar__hint { margin-left: auto; color: var(--artiv-text-secondary); font-size: 12px; }
 .image-queue { display: flex; max-height: 90px; align-items: center; gap: 8px; overflow-x: auto; }
 .image-queue__item { position: relative; flex: 0 0 auto; width: 64px; height: 64px; }
