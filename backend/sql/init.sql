@@ -11,6 +11,12 @@ CREATE DATABASE IF NOT EXISTS `artiv`
 
 USE `artiv`;
 
+-- 管理后台扩展表先删除，避免初始化时残留旧结构。
+DROP TABLE IF EXISTS `order_dispute_evidence`;
+DROP TABLE IF EXISTS `order_dispute`;
+DROP TABLE IF EXISTS `artist_certification`;
+DROP TABLE IF EXISTS `admin_action_log`;
+
 -- -----------------------------------------------------
 -- 用户表
 -- -----------------------------------------------------
@@ -27,11 +33,18 @@ CREATE TABLE `user` (
   `role`        TINYINT      NOT NULL DEFAULT 2 COMMENT '角色：1 企划方、2 画师、3 管理员',
   `cert_status` TINYINT      NOT NULL DEFAULT 0 COMMENT '画师认证：0 未认证、1 审核中、2 已认证、3 已驳回',
   `status`      TINYINT      NOT NULL DEFAULT 0 COMMENT '账号状态：0 正常、1 封禁',
+  `ban_reason`  VARCHAR(500) DEFAULT NULL COMMENT '最近一次封禁原因',
+  `banned_by`   BIGINT       DEFAULT NULL COMMENT '执行封禁的管理员ID',
+  `banned_at`   DATETIME     DEFAULT NULL COMMENT '封禁时间',
+  `banned_until` DATETIME    DEFAULT NULL COMMENT '限时封禁截止时间；NULL为永久封禁',
   `deleted`     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除：0 未删、1 已删',
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_username` (`username`)
+  UNIQUE KEY `uk_username` (`username`),
+  KEY `idx_user_status_ban` (`status`, `banned_until`, `deleted`),
+  KEY `idx_user_created` (`created_at`, `deleted`),
+  KEY `idx_user_cert` (`cert_status`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '用户表';
 
 -- -----------------------------------------------------
@@ -99,12 +112,18 @@ CREATE TABLE `project` (
   `mode`            TINYINT       NOT NULL DEFAULT 0 COMMENT '合作方式：0 公开招募、1 定向邀请',
   `recruit_deadline` DATETIME     DEFAULT NULL COMMENT '招募截止时间（默认发布后10日）',
   `status`          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已关闭',
+  `moderation_status` TINYINT     NOT NULL DEFAULT 0 COMMENT '审核状态：0正常、1违规下架',
+  `moderation_reason` VARCHAR(500) DEFAULT NULL COMMENT '下架或恢复原因',
+  `moderated_by`     BIGINT       DEFAULT NULL COMMENT '最近操作管理员ID',
+  `moderated_at`     DATETIME     DEFAULT NULL COMMENT '最近审核操作时间',
   `deleted`         TINYINT       NOT NULL DEFAULT 0 COMMENT '逻辑删除',
   `created_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_employer` (`employer_id`),
-  KEY `idx_status` (`status`)
+  KEY `idx_status` (`status`),
+  KEY `idx_project_public` (`moderation_status`, `status`, `deleted`),
+  KEY `idx_project_created` (`created_at`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '企划表';
 
 -- -----------------------------------------------------
@@ -124,7 +143,8 @@ CREATE TABLE `application` (
   `updated_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_project_painter` (`project_id`, `painter_id`),
-  KEY `idx_painter` (`painter_id`)
+  KEY `idx_painter` (`painter_id`),
+  KEY `idx_application_project_created` (`project_id`, `created_at`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '应征表';
 
 -- -----------------------------------------------------
@@ -177,7 +197,9 @@ CREATE TABLE `order_info` (
   KEY `idx_employer` (`employer_id`),
   KEY `idx_painter` (`painter_id`),
   KEY `idx_project` (`project_id`),
-  KEY `idx_application_status` (`application_id`, `status`, `deleted`)
+  KEY `idx_application_status` (`application_id`, `status`, `deleted`),
+  KEY `idx_order_status_created` (`status`, `created_at`, `deleted`),
+  KEY `idx_order_completed` (`completed_at`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '订单表';
 
 -- -----------------------------------------------------
@@ -261,6 +283,80 @@ CREATE TABLE `review` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_from` (`order_id`, `from_id`)
 ) ENGINE = InnoDB COMMENT = '评价表';
+
+-- -----------------------------------------------------
+-- 画师认证申请
+-- -----------------------------------------------------
+CREATE TABLE `artist_certification` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL COMMENT '申请画师ID',
+  `common_id` VARCHAR(100) NOT NULL COMMENT '常用昵称或常用ID',
+  `common_site` VARCHAR(500) DEFAULT NULL COMMENT '其他平台个人主页',
+  `public_work_count` INT NOT NULL DEFAULT 0 COMMENT '提交时公开作品数量快照',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '0待审核、1通过、2驳回',
+  `reviewer_id` BIGINT DEFAULT NULL,
+  `review_reason` VARCHAR(500) DEFAULT NULL,
+  `reviewed_at` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_cert_user_created` (`user_id`, `created_at`),
+  KEY `idx_cert_status_created` (`status`, `created_at`, `deleted`)
+) ENGINE=InnoDB COMMENT='画师认证申请';
+
+-- -----------------------------------------------------
+-- 订单争议与双方图片证据
+-- -----------------------------------------------------
+CREATE TABLE `order_dispute` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `order_id` BIGINT NOT NULL,
+  `initiator_id` BIGINT NOT NULL,
+  `reason` VARCHAR(500) NOT NULL,
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '0待仲裁、1已处理',
+  `result` TINYINT DEFAULT NULL COMMENT '1全额退款企划方、2全额结算画师、3预留部分退款',
+  `resolution_reason` VARCHAR(500) DEFAULT NULL,
+  `resolved_by` BIGINT DEFAULT NULL,
+  `resolved_at` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_dispute_order` (`order_id`),
+  KEY `idx_dispute_status_created` (`status`, `created_at`, `deleted`)
+) ENGINE=InnoDB COMMENT='订单争议';
+
+CREATE TABLE `order_dispute_evidence` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `dispute_id` BIGINT NOT NULL,
+  `submitted_by` BIGINT NOT NULL,
+  `image` VARCHAR(255) NOT NULL,
+  `description` VARCHAR(500) DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_evidence_dispute_user` (`dispute_id`, `submitted_by`, `created_at`)
+) ENGINE=InnoDB COMMENT='订单争议图片证据';
+
+-- -----------------------------------------------------
+-- 管理员操作审计日志
+-- -----------------------------------------------------
+CREATE TABLE `admin_action_log` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `admin_id` BIGINT DEFAULT NULL COMMENT '系统任务为空',
+  `action_type` VARCHAR(50) NOT NULL,
+  `target_type` VARCHAR(50) NOT NULL,
+  `target_id` BIGINT DEFAULT NULL,
+  `before_data` TEXT DEFAULT NULL,
+  `after_data` TEXT DEFAULT NULL,
+  `reason` VARCHAR(500) DEFAULT NULL,
+  `request_id` VARCHAR(64) DEFAULT NULL,
+  `ip_address` VARCHAR(64) DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_admin_log_created` (`created_at`),
+  KEY `idx_admin_log_target` (`target_type`, `target_id`, `created_at`),
+  KEY `idx_admin_log_admin` (`admin_id`, `created_at`)
+) ENGINE=InnoDB COMMENT='管理员操作审计日志';
 
 -- =====================================================
 -- 演示数据（BCrypt 密码均为 123456）

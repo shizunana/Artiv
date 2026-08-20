@@ -27,7 +27,7 @@
           </router-link>
         </div>
 
-        <div class="wb-sidebar__foot">
+        <div v-if="workbench !== 'admin'" class="wb-sidebar__foot">
           <button class="wb-switch" @click="switchRole">
             切换为{{ oppositeRoleText }}
           </button>
@@ -74,8 +74,11 @@ const menus = {
   admin: [
     { path: '/admin', title: '概览' },
     { path: '/admin/users', title: '用户管理' },
-    { path: '/admin/projects', title: '企划审核' },
+    { path: '/admin/certifications', title: '认证审核' },
+    { path: '/admin/projects', title: '企划治理' },
+    { path: '/admin/disputes', title: '订单仲裁' },
     { path: '/admin/stats', title: '数据统计' },
+    { path: '/admin/audit-logs', title: '操作审计' },
   ],
 }
 

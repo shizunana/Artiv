@@ -10,6 +10,7 @@ import com.artiv.mapper.InvitationMapper;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
+import com.artiv.mapper.ApplicationMapper;
 import com.artiv.service.impl.ProjectServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,12 @@ class ProjectServiceTest {
 
     @Mock
     private OrderInfoMapper orderInfoMapper;
+
+    @Mock
+    private ApplicationMapper applicationMapper;
+
+    @Mock
+    private AccountRestrictionService accountRestrictionService;
 
     @InjectMocks
     private ProjectServiceImpl projectService;

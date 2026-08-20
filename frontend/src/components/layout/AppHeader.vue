@@ -15,7 +15,7 @@
 
       <div class="app-header__actions">
         <template v-if="userStore.isLoggedIn">
-          <el-button type="primary" size="small" round @click="goPublish">发布需求</el-button>
+          <el-button v-if="!userStore.isAdmin" type="primary" size="small" round @click="goPublish">发布需求</el-button>
           <el-badge :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
             <el-button circle size="small" @click="goMessages">
               <el-icon><Bell /></el-icon>
@@ -31,7 +31,7 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu class="account-menu">
-                <div class="account-menu__funds">
+                <div v-if="!userStore.isAdmin" class="account-menu__funds">
                   <div class="account-menu__funds-title">资金管理</div>
                   <div class="account-menu__balance">
                     <span>账户余额</span>

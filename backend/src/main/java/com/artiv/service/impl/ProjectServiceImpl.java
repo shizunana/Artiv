@@ -13,10 +13,13 @@ import com.artiv.entity.Invitation;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.User;
 import com.artiv.mapper.InvitationMapper;
+import com.artiv.mapper.ApplicationMapper;
+import com.artiv.entity.Application;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.ProjectService;
+import com.artiv.service.AccountRestrictionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -38,7 +41,9 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMapper projectMapper;
     private final UserMapper userMapper;
     private final InvitationMapper invitationMapper;
+    private final ApplicationMapper applicationMapper;
     private final OrderInfoMapper orderInfoMapper;
+    private final AccountRestrictionService accountRestrictionService;
 
     @Override
     public Page<Project> listProjects(long page, long size, String keyword, Integer status,
@@ -49,6 +54,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .eq(Project::getDeleted, 0)
                 .eq(Project::getMode, 0)
                 .eq(Project::getStatus, 0)
+                .eq(Project::getModerationStatus, 0)
                 .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
                 .like(StringUtils.hasText(tag), Project::getTags, tag)
                 .eq(StringUtils.hasText(category), Project::getCategory, category)
@@ -80,6 +86,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public Project create(ProjectRequest request, Long employerId) {
+        accountRestrictionService.requireAvailable(employerId, "发布企划");
         // 截稿日期不能早于发布后 7 天
         LocalDate minDeadline = LocalDate.now().plusDays(7);
         if (request.getDeadline().isBefore(minDeadline)) {
@@ -104,6 +111,7 @@ public class ProjectServiceImpl implements ProjectService {
         // 招募期默认发布后 10 日
         project.setRecruitDeadline(now.plusDays(10));
         project.setStatus(0);
+        project.setModerationStatus(0);
         project.setDeleted(0);
         project.setCreatedAt(now);
         project.setUpdatedAt(now);
@@ -141,14 +149,20 @@ public class ProjectServiceImpl implements ProjectService {
         if (project == null || project.getDeleted() == 1) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
-        boolean active = Integer.valueOf(0).equals(project.getStatus());
+        boolean active = Integer.valueOf(0).equals(project.getStatus())
+                && !Integer.valueOf(1).equals(project.getModerationStatus());
         boolean owner = viewerId != null && viewerId.equals(project.getEmployerId());
         boolean participant = viewerId != null && orderInfoMapper.selectCount(
                 new LambdaQueryWrapper<OrderInfo>()
                         .eq(OrderInfo::getProjectId, id)
                         .and(wrapper -> wrapper.eq(OrderInfo::getEmployerId, viewerId)
                                 .or().eq(OrderInfo::getPainterId, viewerId))) > 0;
-        if (!active && !owner && !participant) {
+        boolean existingApplicant = viewerId != null && Integer.valueOf(1).equals(project.getModerationStatus())
+                && applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
+                .eq(Application::getProjectId, id)
+                .eq(Application::getPainterId, viewerId)
+                .eq(Application::getDeleted, 0)) > 0;
+        if (!active && !owner && !participant && !existingApplicant) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
         project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));
@@ -161,6 +175,9 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
         Project project = requireOwned(id, employerId);
+        if (Integer.valueOf(1).equals(project.getModerationStatus())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "违规下架企划只能由管理员恢复");
+        }
         project.setStatus(status);
         if (status == 0 && (project.getRecruitDeadline() == null
                 || project.getRecruitDeadline().isBefore(LocalDateTime.now()))) {

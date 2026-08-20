@@ -28,6 +28,18 @@ export function requestOrderAfterSale(id, reason) {
   return request.post(`/orders/${id}/after-sale`, { reason })
 }
 
+export function createOrderDispute(id, data) {
+  return request.post(`/orders/${id}/disputes`, data)
+}
+
+export function getCurrentOrderDispute(id) {
+  return request.get(`/orders/${id}/disputes/current`)
+}
+
+export function addDisputeEvidence(id, data) {
+  return request.post(`/disputes/${id}/evidence`, data)
+}
+
 export function submitOrderStage(id, data) {
   return request.post(`/orders/${id}/stages`, data)
 }

@@ -18,6 +18,7 @@ import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.ApplicationService;
 import com.artiv.service.MessageService;
+import com.artiv.service.AccountRestrictionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +36,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final UserMapper userMapper;
     private final WorkMapper workMapper;
     private final MessageService messageService;
+    private final AccountRestrictionService accountRestrictionService;
 
     @Override
     public Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId) {
@@ -84,9 +86,13 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public Application create(Application application) {
+        accountRestrictionService.requireAvailable(application.getPainterId(), "应征企划");
         Project project = projectMapper.selectById(application.getProjectId());
         if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (Integer.valueOf(1).equals(project.getModerationStatus())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "该企划已因违规下架，不能新增应征");
         }
         if (!Integer.valueOf(0).equals(project.getStatus())
                 || (project.getRecruitDeadline() != null && project.getRecruitDeadline().isBefore(LocalDateTime.now()))) {

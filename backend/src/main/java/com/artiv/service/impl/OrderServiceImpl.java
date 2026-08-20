@@ -26,6 +26,7 @@ import com.artiv.mapper.UserMapper;
 import com.artiv.service.MessageService;
 import com.artiv.service.OrderPreviewService;
 import com.artiv.service.OrderService;
+import com.artiv.service.AccountRestrictionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -63,6 +64,7 @@ public class OrderServiceImpl implements OrderService {
     private final MessageService messageService;
     private final OrderPreviewService orderPreviewService;
     private final ObjectMapper objectMapper;
+    private final AccountRestrictionService accountRestrictionService;
 
     @Override
     public Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup,
@@ -119,6 +121,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderInfo createStallPurchase(Long stallId, Long employerId) {
+        accountRestrictionService.requireAvailable(employerId, "购买橱窗服务");
         Stall stall = stallMapper.selectByIdForUpdate(stallId);
         if (stall == null || !Integer.valueOf(0).equals(stall.getDeleted())
                 || !Integer.valueOf(1).equals(stall.getStatus())
@@ -166,6 +169,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderInfo createProjectOrder(Long projectId, Long applicationId, Long employerId) {
+        accountRestrictionService.requireAvailable(employerId, "发送企划订单");
         Application application = applicationMapper.selectByIdForUpdate(applicationId);
         if (application == null || !Integer.valueOf(0).equals(application.getDeleted())
                 || !projectId.equals(application.getProjectId())
@@ -351,6 +355,46 @@ public class OrderServiceImpl implements OrderService {
         return order;
     }
 
+    @Override
+    @Transactional
+    public int cancelUnfinishedForBannedUser(Long userId, Long adminId, String reason) {
+        List<Long> orderIds = orderInfoMapper.selectList(new LambdaQueryWrapper<OrderInfo>()
+                        .and(w -> w.eq(OrderInfo::getEmployerId, userId).or().eq(OrderInfo::getPainterId, userId))
+                        .in(OrderInfo::getStatus, PENDING, IN_PROGRESS, PENDING_REVIEW, AFTER_SALE)
+                        .eq(OrderInfo::getDeleted, 0)
+                        .orderByAsc(OrderInfo::getId))
+                .stream().map(OrderInfo::getId).toList();
+        int cancelled = 0;
+        for (Long orderId : orderIds) {
+            OrderInfo order = orderInfoMapper.selectByIdForUpdate(orderId);
+            if (order != null && List.of(PENDING, IN_PROGRESS, PENDING_REVIEW, AFTER_SALE).contains(order.getStatus())) {
+                cancelAndRefund(order, adminId, reason, "ADMIN_BAN_CANCEL");
+                cancelled++;
+            }
+        }
+        return cancelled;
+    }
+
+    @Override
+    @Transactional
+    public OrderInfo arbitrate(Long orderId, Long adminId, boolean settlePainter, String reason) {
+        OrderInfo order = orderInfoMapper.selectByIdForUpdate(orderId);
+        if (order == null || !Integer.valueOf(0).equals(order.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (!Integer.valueOf(AFTER_SALE).equals(order.getStatus())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "订单不在待仲裁状态");
+        }
+        if (settlePainter) {
+            settle(order);
+            record(order, adminId, "ARBITRATION_SETTLED",
+                    "管理员仲裁为全额结算画师。说明：" + requireReason(reason), "ORDER_ARBITRATION_SETTLED");
+        } else {
+            cancelAndRefund(order, adminId, requireReason(reason), "ORDER_ARBITRATION_REFUND");
+        }
+        return order;
+    }
+
     private OrderInfo cancelAndRefund(OrderInfo order, Long actorId, String reason, String subtype) {
         User employer = userMapper.selectByIdForUpdate(order.getEmployerId());
         employer.setBalance((employer.getBalance() == null ? BigDecimal.ZERO : employer.getBalance()).add(order.getAmount()));
@@ -370,7 +414,12 @@ public class OrderServiceImpl implements OrderService {
         save(order);
         String amount = order.getAmount() == null ? "0.00"
                 : order.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString();
-        String action = "ORDER_REJECTED".equals(subtype) ? "画师已拒绝" : "企划方已取消";
+        String action = switch (subtype) {
+            case "ORDER_REJECTED" -> "画师已拒绝";
+            case "ADMIN_BAN_CANCEL" -> "管理员因用户封禁已终止";
+            case "ORDER_ARBITRATION_REFUND" -> "管理员仲裁已退款";
+            default -> "企划方已取消";
+        };
         String content = order.getStallId() == null
                 ? action + "企划订单「" + displayOrderTitle(order.getProjectTitle(), order.getId())
                     + "」，托管金额 ¥" + amount + " 已退回。原因：" + reason

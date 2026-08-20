@@ -69,8 +69,11 @@ const routes = [
     children: [
       { path: '', name: 'AdminHome', component: () => import('@/views/admin/Dashboard.vue'), meta: { title: '管理后台' } },
       { path: 'users', name: 'AdminUsers', component: () => import('@/views/admin/Users.vue'), meta: { title: '用户管理' } },
+      { path: 'certifications', name: 'AdminCertifications', component: () => import('@/views/admin/Certifications.vue'), meta: { title: '认证审核' } },
       { path: 'projects', name: 'AdminProjects', component: () => import('@/views/admin/Projects.vue'), meta: { title: '企划审核' } },
+      { path: 'disputes', name: 'AdminDisputes', component: () => import('@/views/admin/Disputes.vue'), meta: { title: '订单仲裁' } },
       { path: 'stats', name: 'AdminStats', component: () => import('@/views/admin/Stats.vue'), meta: { title: '数据统计' } },
+      { path: 'audit-logs', name: 'AdminAuditLogs', component: () => import('@/views/admin/AuditLogs.vue'), meta: { title: '操作审计' } },
     ],
   },
 ]
@@ -89,7 +92,7 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth && !token) {
     return { name: 'Login', query: { redirect: to.fullPath } }
   }
-  if (to.meta.requiresAdmin && !userStore.isAdmin) {
+  if (to.matched.some(record => record.meta.requiresAdmin) && !userStore.isAdmin) {
     return { name: 'Home' }
   }
   // 工作台路由与角色匹配：画师访问企划方工作台、企划方访问画师工作台时引导回自己的工作台

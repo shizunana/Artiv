@@ -9,6 +9,9 @@ import com.artiv.dto.OrderStageSubmitRequest;
 import com.artiv.entity.OrderInfo;
 import com.artiv.security.UserContext;
 import com.artiv.service.OrderService;
+import com.artiv.service.DisputeService;
+import com.artiv.dto.admin.DisputeCreateRequest;
+import com.artiv.entity.OrderDispute;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderService orderService;
+    private final DisputeService disputeService;
 
     @GetMapping
     public Result<Page<OrderInfo>> list(@RequestParam(defaultValue = "1") long page,
@@ -56,8 +60,10 @@ public class OrderController {
     }
 
     @PostMapping("/{id}/after-sale")
-    public Result<OrderInfo> afterSale(@PathVariable Long id, @RequestBody OrderReasonRequest request) {
-        return Result.ok(orderService.requestAfterSale(id, UserContext.getUserId(), request.getReason()));
+    public Result<OrderDispute> afterSale(@PathVariable Long id, @RequestBody OrderReasonRequest request) {
+        DisputeCreateRequest disputeRequest = new DisputeCreateRequest();
+        disputeRequest.setReason(request.getReason());
+        return Result.ok(disputeService.create(id, UserContext.getUserId(), disputeRequest));
     }
 
     @PostMapping("/{id}/stages")

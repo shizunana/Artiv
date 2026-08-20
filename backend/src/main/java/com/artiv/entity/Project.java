@@ -58,6 +58,15 @@ public class Project {
     /** 状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已下架 */
     private Integer status;
 
+    /** 管理审核：0 正常、1 违规下架。与业务状态分离。 */
+    private Integer moderationStatus;
+
+    private String moderationReason;
+
+    private Long moderatedBy;
+
+    private LocalDateTime moderatedAt;
+
     private Integer deleted;
 
     private LocalDateTime createdAt;

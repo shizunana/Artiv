@@ -50,8 +50,36 @@ class OrderServiceTest {
     @Mock private UserMapper userMapper;
     @Mock private MessageService messageService;
     @Mock private OrderPreviewService orderPreviewService;
+    @Mock private AccountRestrictionService accountRestrictionService;
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
     @InjectMocks private OrderServiceImpl orderService;
+
+    @Test
+    void adminBanCancelsUnfinishedOrderRefundsAndRestoresStock() {
+        OrderInfo order = new OrderInfo();
+        order.setId(41L);
+        order.setEmployerId(15L);
+        order.setPainterId(2L);
+        order.setStallId(9L);
+        order.setAmount(new BigDecimal("320.00"));
+        order.setStatus(1);
+        order.setDeleted(0);
+        when(orderInfoMapper.selectList(any())).thenReturn(List.of(order));
+        when(orderInfoMapper.selectByIdForUpdate(41L)).thenReturn(order);
+        User employer = activeUser(15L, new BigDecimal("10.00"));
+        when(userMapper.selectByIdForUpdate(15L)).thenReturn(employer);
+        Stall stall = activeStall();
+        stall.setStock(0);
+        when(stallMapper.selectByIdForUpdate(9L)).thenReturn(stall);
+
+        int cancelled = orderService.cancelUnfinishedForBannedUser(2L, 3L, "管理员封禁用户：违规交易");
+
+        assertEquals(1, cancelled);
+        assertEquals(new BigDecimal("330.00"), employer.getBalance());
+        assertEquals(1, stall.getStock());
+        assertEquals(4, order.getStatus());
+        verify(orderInfoMapper).updateById(order);
+    }
 
     @Test
     void createStallPurchaseLocksBalanceAndDecrementsStock() {

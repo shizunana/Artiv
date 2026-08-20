@@ -3,7 +3,7 @@
     <div class="wb-card">
       <div class="profile-title-row">
         <h3 class="card-title">个人资料与认证</h3>
-        <el-button v-if="certStatus === 2 && !editing" type="primary" plain @click="startEdit">编辑展示资料</el-button>
+        <el-button v-if="!editing" type="primary" plain @click="startEdit">编辑主页资料</el-button>
       </div>
 
       <section class="avatar-editor-section" aria-label="头像设置">
@@ -46,21 +46,34 @@
 
       <div class="cert-actions">
         <template v-if="certStatus === 0">
-          <el-button type="primary" round @click="applyCert">申请画师认证</el-button>
-          <span class="cert-tip">需要完善个人资料并上传作品，将有助于快速通过认证。</span>
+          <el-button type="primary" round @click="openCertification">申请画师认证</el-button>
+          <span class="cert-tip">需要填写主页简介，并公开至少 4 件作品。</span>
         </template>
         <template v-else-if="certStatus === 1">
           <el-alert title="认证审核中，请耐心等待管理员审核" type="warning" :closable="false" show-icon />
         </template>
         <template v-else-if="certStatus === 3">
           <el-alert title="认证被驳回，请完善资料后重新申请" type="error" :closable="false" show-icon />
-          <el-button type="primary" round class="mt16" @click="applyCert">重新申请</el-button>
+          <el-button type="primary" round class="mt16" @click="openCertification">重新申请</el-button>
         </template>
         <template v-else>
           <el-alert title="您已通过画师认证，可以应征企划、开设橱窗" type="success" :closable="false" show-icon />
         </template>
       </div>
     </div>
+
+    <el-dialog v-model="certVisible" title="画师认证申请" width="680px" destroy-on-close>
+      <el-steps :active="2" finish-status="success" align-center class="cert-steps">
+        <el-step title="阅读须知" /><el-step title="功能介绍" /><el-step title="填写认证信息" /><el-step title="等待审核" />
+      </el-steps>
+      <el-alert title="管理员将查看你的公开主页、主页简介、公开作品和本次提交信息。申请时必须至少有 4 件公开作品。" type="info" :closable="false" show-icon />
+      <el-form label-position="top" class="cert-form">
+        <el-form-item label="主页简介"><div class="profile-preview">{{ userStore.user?.bio || '尚未填写，请先关闭窗口并编辑主页资料' }}</div></el-form-item>
+        <el-form-item label="常用ID" required><el-input v-model="certForm.commonId" maxlength="100" show-word-limit placeholder="签名或常用昵称" /></el-form-item>
+        <el-form-item label="常用站（选填）"><el-input v-model="certForm.commonSite" maxlength="500" placeholder="其他平台个人主页，需以 http:// 或 https:// 开头" /></el-form-item>
+      </el-form>
+      <template #footer><el-button @click="certVisible=false">取消</el-button><el-button type="primary" :loading="certSubmitting" @click="submitCertificationForm">提交申请</el-button></template>
+    </el-dialog>
 
     <el-dialog
       v-model="cropVisible"
@@ -111,7 +124,7 @@
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { applyCert as applyCertApi, updateMyAvatar, updateMyPainterProfile } from '@/api/user'
+import { submitCertification, updateMyAvatar, updateMyPainterProfile } from '@/api/user'
 import { uploadFile } from '@/api/upload'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
 import { CERT_STATUS, statusText, statusType } from '@/utils/status'
@@ -125,6 +138,9 @@ const subjectOptions = SUBJECT_OPTIONS
 const editing = ref(false)
 const saving = ref(false)
 const form = reactive({ bio: '', tags: [] })
+const certVisible = ref(false)
+const certSubmitting = ref(false)
+const certForm = reactive({ commonId: '', commonSite: '' })
 const avatarFileInput = ref(null)
 const cropStage = ref(null)
 const cropImageElement = ref(null)
@@ -175,10 +191,30 @@ async function saveProfile() {
   }
 }
 
-async function applyCert() {
-  const user = await applyCertApi()
-  userStore.updateCurrentUser(user)
-  ElMessage.success('认证申请已提交，请等待管理员审核')
+function openCertification() {
+  certForm.commonId = userStore.user?.nickname || ''
+  certForm.commonSite = ''
+  certVisible.value = true
+}
+
+async function submitCertificationForm() {
+  if (!userStore.user?.bio?.trim()) {
+    ElMessage.warning('请先编辑主页资料并填写个人简介')
+    return
+  }
+  if (!certForm.commonId.trim()) {
+    ElMessage.warning('请填写常用ID')
+    return
+  }
+  certSubmitting.value = true
+  try {
+    await submitCertification({ commonId: certForm.commonId, commonSite: certForm.commonSite || null })
+    await userStore.fetchMe()
+    certVisible.value = false
+    ElMessage.success('认证申请已提交，请等待管理员审核')
+  } finally {
+    certSubmitting.value = false
+  }
 }
 
 function chooseAvatar() {
@@ -457,6 +493,10 @@ function resetCrop() {
   color: var(--artiv-text-secondary);
   font-size: 13px;
 }
+
+.cert-steps { margin: 4px 0 24px; }
+.cert-form { margin-top: 20px; }
+.profile-preview { width: 100%; padding: 12px; border-radius: 5px; background: #f5f7fa; color: var(--artiv-text-secondary); }
 
 .mt16 {
   margin-top: 16px;

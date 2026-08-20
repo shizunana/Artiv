@@ -4,6 +4,8 @@ import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.artiv.entity.User;
+import com.artiv.mapper.UserMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -14,9 +16,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final UserMapper userMapper;
 
-    public AuthInterceptor(JwtUtil jwtUtil) {
+    public AuthInterceptor(JwtUtil jwtUtil, UserMapper userMapper) {
         this.jwtUtil = jwtUtil;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -45,7 +49,17 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
         Long userId = jwtUtil.parseUserId(token);
-        UserContext.set(new LoginUser(userId, null, null));
+        if (request.getRequestURI().startsWith("/api/v1/admin/")) {
+            User user = userMapper.selectById(userId);
+            if (user == null || !Integer.valueOf(3).equals(user.getRole())
+                    || !Integer.valueOf(0).equals(user.getStatus())
+                    || Integer.valueOf(1).equals(user.getDeleted())) {
+                throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "仅正常状态的管理员可访问后台");
+            }
+            UserContext.set(new LoginUser(userId, user.getUsername(), user.getRole()));
+        } else {
+            UserContext.set(new LoginUser(userId, null, null));
+        }
         return true;
     }
 

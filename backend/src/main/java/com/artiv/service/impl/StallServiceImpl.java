@@ -14,6 +14,7 @@ import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.StallMapper;
 import com.artiv.service.StallService;
+import com.artiv.service.AccountRestrictionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,7 @@ public class StallServiceImpl implements StallService {
     private final UserMapper userMapper;
     private final OrderInfoMapper orderInfoMapper;
     private final ObjectMapper objectMapper;
+    private final AccountRestrictionService accountRestrictionService;
 
     private static final Set<String> SUBJECT_OPTIONS = Set.of(
             "LOGO", "Q版", "lolita", "安头", "拆分", "场景", "定制", "动图", "氛围", "搞笑",
@@ -142,6 +144,7 @@ public class StallServiceImpl implements StallService {
 
     @Override
     public Stall create(Stall stall, Long painterId) {
+        accountRestrictionService.requireAvailable(painterId, "创建橱窗");
         if (!CATEGORY_OPTIONS.contains(stall.getCategory())) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "橱窗类型必须从统一选项中选择");
         }

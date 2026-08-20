@@ -46,6 +46,9 @@ class ApplicationServiceTest {
     @Mock
     private MessageService messageService;
 
+    @Mock
+    private AccountRestrictionService accountRestrictionService;
+
     @InjectMocks
     private ApplicationServiceImpl applicationService;
 

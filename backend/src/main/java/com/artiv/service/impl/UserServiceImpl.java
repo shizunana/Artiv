@@ -9,6 +9,7 @@ import com.artiv.entity.User;
 import com.artiv.mapper.UserMapper;
 import com.artiv.security.JwtUtil;
 import com.artiv.service.UserService;
+import com.artiv.service.AccountRestrictionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
+    private final AccountRestrictionService accountRestrictionService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
@@ -55,9 +57,7 @@ public class UserServiceImpl implements UserService {
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BusinessException(ResultCode.LOGIN_FAILED);
         }
-        if (user.getStatus() != null && user.getStatus() == 1) {
-            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "账号已被封禁");
-        }
+        user = accountRestrictionService.refresh(user.getId());
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         user.setPassword(null);
         Map<String, Object> data = new HashMap<>();
@@ -68,10 +68,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User getById(Long id) {
-        User user = userMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
-        }
+        User user = accountRestrictionService.refresh(id);
         user.setPassword(null);
         return user;
     }

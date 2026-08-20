@@ -32,8 +32,12 @@ export function updateUserStatus(id, status) {
   return request.put(`/admin/users/${id}/status`, null, { params: { status } })
 }
 
-export function applyCert() {
-  return request.put('/users/me/cert')
+export function submitCertification(data) {
+  return request.post('/users/me/certifications', data)
+}
+
+export function getLatestCertification() {
+  return request.get('/users/me/certifications/latest')
 }
 
 export function getArtists(params) {

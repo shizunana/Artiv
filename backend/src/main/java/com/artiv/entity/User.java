@@ -41,6 +41,15 @@ public class User {
     /** 状态：0 正常、1 封禁 */
     private Integer status;
 
+    private String banReason;
+
+    private Long bannedBy;
+
+    private LocalDateTime bannedAt;
+
+    /** 限时封禁截止时间；永久封禁为空。 */
+    private LocalDateTime bannedUntil;
+
     private String bio;
 
     /** 风格标签，逗号分隔 */

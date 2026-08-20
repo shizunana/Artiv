@@ -38,6 +38,9 @@ class StallServiceTest {
     @Mock
     private OrderInfoMapper orderInfoMapper;
 
+    @Mock
+    private AccountRestrictionService accountRestrictionService;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 

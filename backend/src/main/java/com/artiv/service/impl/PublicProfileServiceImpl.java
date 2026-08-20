@@ -112,6 +112,7 @@ public class PublicProfileServiceImpl implements PublicProfileService {
                         .eq(Project::getEmployerId, userId)
                         .eq(Project::getMode, 0)
                         .eq(Project::getDeleted, 0)
+                        .eq(Project::getModerationStatus, 0)
                         .in(Project::getStatus, 0, 3)
                         .orderByDesc(Project::getCreatedAt));
     }
@@ -145,6 +146,7 @@ public class PublicProfileServiceImpl implements PublicProfileService {
                 .eq(Project::getEmployerId, userId)
                 .eq(Project::getMode, 0)
                 .eq(Project::getDeleted, 0)
+                .eq(Project::getModerationStatus, 0)
                 .in(Project::getStatus, 0, 3));
     }
 
