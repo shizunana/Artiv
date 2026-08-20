@@ -20,6 +20,7 @@ public enum ResultCode {
     USERNAME_EXISTS(1001, "用户名已存在"),
     LOGIN_FAILED(1002, "用户名或密码错误"),
     TOKEN_INVALID(1003, "登录过期，请重新登录"),
+    NICKNAME_EXISTS(1004, "昵称已存在"),
     PARAM_INVALID(2001, "参数校验失败"),
     RESOURCE_NOT_FOUND(2002, "资源不存在"),
     NO_PERMISSION(2003, "无权操作该资源"),

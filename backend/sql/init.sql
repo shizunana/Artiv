@@ -42,6 +42,7 @@ CREATE TABLE `user` (
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`),
+  UNIQUE KEY `uk_nickname` (`nickname`),
   KEY `idx_user_status_ban` (`status`, `banned_until`, `deleted`),
   KEY `idx_user_created` (`created_at`, `deleted`),
   KEY `idx_user_cert` (`cert_status`, `deleted`)

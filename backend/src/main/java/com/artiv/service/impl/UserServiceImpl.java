@@ -11,6 +11,7 @@ import com.artiv.security.JwtUtil;
 import com.artiv.service.UserService;
 import com.artiv.service.AccountRestrictionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -29,15 +30,19 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User register(RegisterRequest request) {
+        String nickname = request.getNickname().trim();
         Long exists = userMapper.selectCount(
                 Wrappers.<User>lambdaQuery().eq(User::getUsername, request.getUsername()));
         if (exists > 0) {
             throw new BusinessException(ResultCode.USERNAME_EXISTS);
         }
+        if (nicknameExists(nickname)) {
+            throw new BusinessException(ResultCode.NICKNAME_EXISTS);
+        }
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setNickname(request.getNickname());
+        user.setNickname(nickname);
         user.setRole(request.getRole());
         user.setCertStatus(0);
         user.setStatus(0);
@@ -45,9 +50,22 @@ public class UserServiceImpl implements UserService {
         LocalDateTime now = LocalDateTime.now();
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
-        userMapper.insert(user);
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException duplicateKeyException) {
+            // 预检查不能替代数据库唯一索引；并发同昵称注册时转换为稳定业务错误。
+            if (nicknameExists(nickname)) {
+                throw new BusinessException(ResultCode.NICKNAME_EXISTS);
+            }
+            throw duplicateKeyException;
+        }
         user.setPassword(null);
         return user;
+    }
+
+    private boolean nicknameExists(String nickname) {
+        return userMapper.selectCount(
+                Wrappers.<User>lambdaQuery().eq(User::getNickname, nickname)) > 0;
     }
 
     @Override
