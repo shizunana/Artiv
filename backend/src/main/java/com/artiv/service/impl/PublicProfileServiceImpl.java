@@ -49,11 +49,6 @@ public class PublicProfileServiceImpl implements PublicProfileService {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "主页身份仅支持 painter 或 employer");
         }
 
-        boolean painterAvailable = Integer.valueOf(2).equals(user.getCertStatus());
-        if ("painter".equals(normalizedRole) && !painterAvailable) {
-            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND.getCode(), "该用户尚未开通画师主页");
-        }
-
         PublicProfileResponse response = new PublicProfileResponse();
         response.setId(user.getId());
         response.setNickname(StringUtils.hasText(user.getNickname()) ? user.getNickname() : "艺绘用户");
@@ -61,18 +56,18 @@ public class PublicProfileServiceImpl implements PublicProfileService {
         response.setBio(user.getBio());
         response.setTags(splitTags(user.getTags()));
         response.setCertStatus(user.getCertStatus());
-        response.setPainterProfileAvailable(painterAvailable);
+        response.setPainterProfileAvailable(true);
         response.setEmployerProfileAvailable(true);
         response.setPublicWorkCount(countWorks(userId));
         response.setPublicStallCount(countStalls(userId));
         response.setPublicProjectCount(countProjects(userId));
 
-        List<OrderInfo> orders = listRoleOrders(userId, normalizedRole);
-        RateStats completionStats = calculateCompletionRate(orders);
-        response.setCompletionRate(completionStats.rate());
-        response.setCompletionCompletedCount(completionStats.numerator());
-        response.setCompletionTerminalCount(completionStats.denominator());
         if ("painter".equals(normalizedRole)) {
+            List<OrderInfo> orders = listRoleOrders(userId, normalizedRole);
+            RateStats completionStats = calculateCompletionRate(orders);
+            response.setCompletionRate(completionStats.rate());
+            response.setCompletionCompletedCount(completionStats.numerator());
+            response.setCompletionTerminalCount(completionStats.denominator());
             RateStats onTimeStats = calculateOnTimeRate(orders);
             response.setOnTimeRate(onTimeStats.rate());
             response.setOnTimeCompletedCount(onTimeStats.numerator());

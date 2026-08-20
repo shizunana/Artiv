@@ -14,10 +14,10 @@
         <div class="identity-copy">
           <div class="identity-title">
             <h1>{{ profile.nickname }}</h1>
-            <span v-if="isPainter" class="rating-placeholder" title="评分功能预留">★ 5.0</span>
           </div>
           <div class="identity-badges">
-            <el-tag v-if="isPainter" size="small" type="success" effect="light">认证画师</el-tag>
+            <el-tag v-if="isPainter && profile.certStatus === 2" size="small" type="success" effect="light">认证画师</el-tag>
+            <el-tag v-else-if="isPainter" size="small" type="info" effect="light">未认证</el-tag>
             <el-tag v-else size="small" type="info" effect="light">企划方</el-tag>
             <el-tag v-for="tag in profile.tags" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
           </div>
@@ -36,12 +36,12 @@
         <p>{{ profile.bio || (isPainter ? '这位画师暂未填写个人简介。' : '这位企划方暂未填写个人简介。') }}</p>
       </section>
 
-      <section class="profile-metrics" aria-label="履约数据">
+      <section v-if="isPainter" class="profile-metrics" aria-label="画师履约数据">
         <div class="metric-item">
           <span>需求完成率</span>
           <strong>{{ formatRate(profile.completionRate) }}</strong>
         </div>
-        <div v-if="isPainter" class="metric-item">
+        <div class="metric-item">
           <span>准时交稿率</span>
           <strong>{{ formatRate(profile.onTimeRate) }}</strong>
         </div>
@@ -271,7 +271,6 @@ function goProject(id) { router.push({ name: 'ProjectDetail', params: { id } }) 
 .identity-copy { align-self: flex-start; padding-top: 18px; }
 .identity-title { display: flex; gap: 12px; align-items: center; }
 .identity-title h1 { margin: 0; color: #202a35; font-size: 26px; }
-.rating-placeholder { color: #f59a23; font-size: 17px; }
 .identity-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .profile-actions { display: flex; gap: 10px; margin-left: auto; }
 .profile-actions :deep(.el-button) { min-width: 110px; }

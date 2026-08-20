@@ -28,7 +28,7 @@ public class PublicProfileResponse {
 
     private boolean employerProfileAvailable;
 
-    /** 已结束订单中的完成比例；没有可统计订单时为 null。 */
+    /** 画师已结束订单中的完成比例；企划方主页及没有样本时为 null。 */
     private Integer completionRate;
 
     private long completionCompletedCount;
