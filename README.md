@@ -152,4 +152,4 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\database-baseline.ps1 -Ac
 | [数据库测试基线](docs/数据库测试基线.md) | 测试前快照、状态检查和安全还原方法 |
 | [未解决问题](docs/未解决问题.md) | 当前有效缺口、风险及历史解决记录 |
 | [测试记录](docs/测试.md) | 自动化、构建、浏览器验证和待回归项 |
-| [演示脚本](docs/演示脚本.md) | 答辩演示流程 |
+| [演示脚本](docs/演示脚本.md) | 用途暂定，待项目完成后重新规划 |
