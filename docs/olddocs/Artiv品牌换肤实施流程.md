@@ -96,7 +96,7 @@
 
 1. 更新 `backend/sql/init.sql` 与当前迁移脚本中的数据库名、注释和品牌文字，使其可初始化 `artiv`。
 2. 更新 README、docs 及当前生效的项目说明中的品牌、技术标识和根目录路径。
-3. `.superpowers/`、`docs/superpowers/` 为历史执行归档：保留内容真实性，不做机械改名；其不参与运行和对外演示。
+3. `docs/olddocs/superpowers/`、`docs/superpowers/` 为历史执行归档：保留内容真实性，不做机械改名；其不参与运行和对外演示。原项目根目录 `.superpowers/` 已迁入 `docs/olddocs/superpowers/`，并加入 Git 忽略。
 4. 检查测试数据、默认素材与截图是否带有肉眼可见的旧品牌文字；只替换项目自带的测试素材，不改用户业务图片。
 
 ### 阶段 6：构建、运行与数据回归
