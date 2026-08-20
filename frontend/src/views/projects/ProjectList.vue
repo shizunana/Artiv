@@ -81,9 +81,9 @@
           <div class="project-card__divider"></div>
 
           <div class="project-card__info">
-            <span class="info-item">📅 {{ project.deadline || '-' }} 截稿</span>
-            <span class="info-item">🏷️ {{ project.category || '-' }}</span>
-            <span class="info-item">👤 0 人应征</span>
+            <span class="info-item"><el-icon><Calendar /></el-icon>{{ project.deadline || '-' }} 截稿</span>
+            <span class="info-item"><el-icon><Postcard /></el-icon>{{ project.category || '-' }}</span>
+            <span class="info-item"><span class="applicant-pawn" aria-hidden="true">♟︎</span>{{ project.applicationCount }} 人应征</span>
             <span class="info-item info-budget">¥{{ project.budget }}</span>
           </div>
         </div>
@@ -100,8 +100,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search } from '@element-plus/icons-vue'
-import { getProjects } from '@/api/project'
+import { Calendar, Postcard, Search } from '@element-plus/icons-vue'
+import { getApplications, getProjects } from '@/api/project'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import Pagination from '@/components/common/Pagination.vue'
@@ -173,7 +173,15 @@ async function load() {
       }
     }
     const data = await getProjects(params)
-    projects.value = data.records || []
+    const records = data.records || []
+    projects.value = await Promise.all(records.map(async (project) => {
+      try {
+        const applications = await getApplications(project.id, { page: 1, size: 1 })
+        return { ...project, applicationCount: applications.total || 0 }
+      } catch {
+        return { ...project, applicationCount: 0 }
+      }
+    }))
     total.value = data.total || 0
   } finally {
     loading.value = false
@@ -388,6 +396,23 @@ onMounted(load)
   flex-wrap: wrap;
   font-size: 13px;
   color: var(--artiv-text);
+}
+
+.info-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-item :deep(.el-icon) {
+  color: currentColor;
+  font-size: 14px;
+}
+
+.applicant-pawn {
+  font-family: "Segoe UI Symbol", serif;
+  font-size: 15px;
+  line-height: 1;
 }
 
 .info-budget {
