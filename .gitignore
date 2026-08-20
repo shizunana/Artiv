@@ -45,5 +45,6 @@ backend/src/main/resources/application-local.yml
 
 # ---- 其他 ----
 .worktrees/
+.artiv-data/
 *.swp
 *~
