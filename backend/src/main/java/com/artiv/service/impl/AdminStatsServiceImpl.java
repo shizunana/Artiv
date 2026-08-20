@@ -270,7 +270,7 @@ public class AdminStatsServiceImpl implements AdminStatsService {
 
     private Range resolve(LocalDate start, LocalDate end) {
         LocalDate actualEnd = end == null ? LocalDate.now() : end;
-        LocalDate actualStart = start == null ? actualEnd.minusDays(29) : start;
+        LocalDate actualStart = start == null ? actualEnd.minusDays(6) : start;
         long days = ChronoUnit.DAYS.between(actualStart, actualEnd) + 1;
         if (days < 1 || days > 366) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "统计日期范围必须为1至366天");

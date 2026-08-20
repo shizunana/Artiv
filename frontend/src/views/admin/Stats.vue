@@ -44,7 +44,7 @@ const demandBaseMetrics=computed(()=>{const m=data.value.topMetrics||{};return[{
 const operationMetrics=computed(()=>{const m=data.value.topMetrics||{};return[{label:'总用户数',value:value(m.totalUsers)},{label:'新增用户数',value:value(m.newUsers)},{label:'新增订单数',value:value(m.newOrders)},{label:'完成订单数',value:value(m.completedOrders)},{label:'成交总额',value:`¥${m.gmv??0}`}]})
 const mapToItems=source=>Object.entries(source||{}).map(([name,value])=>({name,value}))
 const BarList=defineComponent({props:{items:{type:Array,default:()=>[]}},setup(props){return()=>h('div',{class:'bar-list'},props.items.length?props.items.map(item=>{const max=Math.max(1,...props.items.map(i=>Number(i.value)||0));return h('div',{class:'bar-row'},[h('div',{class:'bar-label'},[h('span',item.name),h('strong',String(item.value))]),h('div',{class:'bar-track'},h('i',{style:{width:`${(Number(item.value)||0)*100/max}%`}}))])}):[h('p',{class:'empty'},'暂无数据')])}})
-onMounted(()=>preset(30))
+onMounted(()=>preset(7))
 </script>
 
 <style scoped>
