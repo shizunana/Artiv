@@ -2,6 +2,7 @@ package com.artiv.service;
 
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
+import com.artiv.dto.PainterProfileUpdateRequest;
 import com.artiv.dto.RegisterRequest;
 import com.artiv.entity.User;
 import com.artiv.mapper.UserMapper;
@@ -68,6 +69,37 @@ class UserServiceTest {
         assertEquals(ResultCode.NICKNAME_EXISTS.getCode(), exception.getCode());
     }
 
+    @Test
+    void updatePainterProfileRejectsAnotherUsersNickname() {
+        when(userMapper.selectById(2L)).thenReturn(painter(2L, "原昵称"));
+        when(userMapper.selectCount(any())).thenReturn(1L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userService.updatePainterProfile(2L, profileRequest("重复昵称")));
+
+        assertEquals(ResultCode.NICKNAME_EXISTS.getCode(), exception.getCode());
+        assertEquals("昵称已被使用，无法更改", exception.getMessage());
+        verify(userMapper, never()).updateById(any(User.class));
+    }
+
+    @Test
+    void updatePainterProfileTrimsAndReturnsLatestUser() {
+        User current = painter(2L, "原昵称");
+        User updated = painter(2L, "新昵称");
+        updated.setPassword("encoded-password");
+        when(userMapper.selectById(2L)).thenReturn(current, updated);
+        when(userMapper.selectCount(any())).thenReturn(0L);
+        when(userMapper.updateById(any(User.class))).thenReturn(1);
+
+        User result = userService.updatePainterProfile(2L, profileRequest("  新昵称  "));
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).updateById(captor.capture());
+        assertEquals("新昵称", captor.getValue().getNickname());
+        assertEquals("新昵称", result.getNickname());
+        assertNull(result.getPassword());
+    }
+
     private RegisterRequest request(String username, String nickname) {
         RegisterRequest request = new RegisterRequest();
         request.setUsername(username);
@@ -75,5 +107,22 @@ class UserServiceTest {
         request.setPassword("123456");
         request.setRole(2);
         return request;
+    }
+
+    private PainterProfileUpdateRequest profileRequest(String nickname) {
+        PainterProfileUpdateRequest request = new PainterProfileUpdateRequest();
+        request.setNickname(nickname);
+        request.setBio("简介");
+        request.setTags(java.util.List.of("日系"));
+        return request;
+    }
+
+    private User painter(Long id, String nickname) {
+        User user = new User();
+        user.setId(id);
+        user.setNickname(nickname);
+        user.setRole(2);
+        user.setDeleted(0);
+        return user;
     }
 }

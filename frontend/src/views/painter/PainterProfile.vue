@@ -22,7 +22,10 @@
 
       <el-descriptions :column="2" border>
         <el-descriptions-item label="用户名">{{ userStore.user?.username }}</el-descriptions-item>
-        <el-descriptions-item label="昵称">{{ userStore.user?.nickname }}</el-descriptions-item>
+        <el-descriptions-item label="昵称">
+          <el-input v-if="editing" v-model="form.nickname" maxlength="50" show-word-limit placeholder="请输入唯一昵称" />
+          <span v-else>{{ userStore.user?.nickname }}</span>
+        </el-descriptions-item>
         <el-descriptions-item label="角色">画师</el-descriptions-item>
         <el-descriptions-item label="认证状态">
           <el-tag :type="certType" size="small">{{ certText }}</el-tag>
@@ -139,7 +142,7 @@ const certType = computed(() => statusType(CERT_STATUS, certStatus.value))
 const subjectOptions = SUBJECT_OPTIONS
 const editing = ref(false)
 const saving = ref(false)
-const form = reactive({ bio: '', tags: [] })
+const form = reactive({ nickname: '', bio: '', tags: [] })
 const certVisible = ref(false)
 const certSubmitting = ref(false)
 const certForm = reactive({ commonId: '', commonSite: '' })
@@ -181,6 +184,7 @@ const cropImageStyle = computed(() => ({
 }))
 
 function startEdit() {
+  form.nickname = userStore.user?.nickname || ''
   form.bio = userStore.user?.bio || ''
   form.tags = (userStore.user?.tags || '').split(',').map(tag => tag.trim()).filter(tag => subjectOptions.includes(tag))
   editing.value = true
@@ -191,9 +195,14 @@ function cancelEdit() {
 }
 
 async function saveProfile() {
+  const nickname = form.nickname.trim()
+  if (!nickname) {
+    ElMessage.warning('昵称不能为空')
+    return
+  }
   saving.value = true
   try {
-    const user = await updateMyPainterProfile({ bio: form.bio, tags: form.tags })
+    const user = await updateMyPainterProfile({ nickname, bio: form.bio, tags: form.tags })
     userStore.updateCurrentUser(user)
     editing.value = false
     ElMessage.success('展示资料已保存')

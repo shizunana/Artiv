@@ -1,5 +1,6 @@
 package com.artiv.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -8,6 +9,10 @@ import java.util.List;
 /** 已认证画师可自行维护的展示资料。 */
 @Data
 public class PainterProfileUpdateRequest {
+
+    @NotBlank(message = "昵称不能为空")
+    @Size(max = 50, message = "昵称不能超过50字")
+    private String nickname;
 
     @Size(max = 500, message = "个人简介不能超过500字")
     private String bio;

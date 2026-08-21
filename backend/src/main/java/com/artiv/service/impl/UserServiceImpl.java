@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.LoginRequest;
+import com.artiv.dto.PainterProfileUpdateRequest;
 import com.artiv.dto.RegisterRequest;
 import com.artiv.entity.User;
 import com.artiv.mapper.UserMapper;
@@ -17,11 +18,21 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
+
+    private static final Set<String> SUBJECT_OPTIONS = Set.of(
+            "LOGO", "Q版", "lolita", "安头", "拆分", "场景", "定制", "动图", "氛围", "搞笑",
+            "古风", "黑白", "横插", "厚涂", "可爱", "立绘", "模板", "男性", "女性", "排版",
+            "签名", "日常", "日系", "色块", "竖插", "双人", "水印", "像素", "小动物", "小元素",
+            "有背景", "正比", "周边制品", "桌宠", "字体设计"
+    );
 
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
@@ -64,8 +75,57 @@ public class UserServiceImpl implements UserService {
     }
 
     private boolean nicknameExists(String nickname) {
-        return userMapper.selectCount(
-                Wrappers.<User>lambdaQuery().eq(User::getNickname, nickname)) > 0;
+        return nicknameExists(nickname, null);
+    }
+
+    private boolean nicknameExists(String nickname, Long excludedUserId) {
+        return userMapper.selectCount(Wrappers.<User>lambdaQuery()
+                .eq(User::getNickname, nickname)
+                .ne(excludedUserId != null, User::getId, excludedUserId)) > 0;
+    }
+
+    @Override
+    public User updatePainterProfile(Long userId, PainterProfileUpdateRequest request) {
+        User current = userMapper.selectById(userId);
+        if (current == null || Integer.valueOf(1).equals(current.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (!Integer.valueOf(2).equals(current.getRole())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "仅画师账号可以修改展示资料");
+        }
+
+        String nickname = request.getNickname().trim();
+        if (nicknameExists(nickname, userId)) {
+            throw new BusinessException(ResultCode.NICKNAME_EXISTS.getCode(), "昵称已被使用，无法更改");
+        }
+
+        List<String> requestedTags = request.getTags() == null ? List.of() : request.getTags();
+        LinkedHashSet<String> uniqueTags = new LinkedHashSet<>();
+        for (String tag : requestedTags) {
+            if (tag == null || !SUBJECT_OPTIONS.contains(tag.trim())) {
+                throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "风格标签必须从题材风格选项中选择");
+            }
+            uniqueTags.add(tag.trim());
+        }
+
+        try {
+            User patch = new User();
+            patch.setId(userId);
+            patch.setNickname(nickname);
+            patch.setBio(request.getBio() == null ? "" : request.getBio().trim());
+            patch.setTags(String.join(",", uniqueTags));
+            patch.setUpdatedAt(LocalDateTime.now());
+            userMapper.updateById(patch);
+        } catch (DuplicateKeyException duplicateKeyException) {
+            if (nicknameExists(nickname, userId)) {
+                throw new BusinessException(ResultCode.NICKNAME_EXISTS.getCode(), "昵称已被使用，无法更改");
+            }
+            throw duplicateKeyException;
+        }
+
+        User updated = userMapper.selectById(userId);
+        updated.setPassword(null);
+        return updated;
     }
 
     @Override

@@ -20,6 +20,7 @@ import com.artiv.security.UserContext;
 import com.artiv.service.ArtistService;
 import com.artiv.service.PublicProfileService;
 import com.artiv.service.CertificationService;
+import com.artiv.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,9 +31,6 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 /**
@@ -43,14 +41,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 @RequiredArgsConstructor
 public class UserController {
 
-    private static final Set<String> SUBJECT_OPTIONS = Set.of(
-            "LOGO", "Q版", "lolita", "安头", "拆分", "场景", "定制", "动图", "氛围", "搞笑",
-            "古风", "黑白", "横插", "厚涂", "可爱", "立绘", "模板", "男性", "女性", "排版",
-            "签名", "日常", "日系", "色块", "竖插", "双人", "水印", "像素", "小动物", "小元素",
-            "有背景", "正比", "周边制品", "桌宠", "字体设计"
-    );
-
     private final UserMapper userMapper;
+    private final UserService userService;
     private final ArtistService artistService;
     private final PublicProfileService publicProfileService;
     private final CertificationService certificationService;
@@ -118,35 +110,10 @@ public class UserController {
         return Result.ok(user);
     }
 
-    /** 画师维护主页简介和题材风格；认证前也必须能完善申请资料。 */
+    /** 画师维护昵称、主页简介和题材风格；认证前也必须能完善申请资料。 */
     @PutMapping("/me/profile")
     public Result<User> updateMyPainterProfile(@Valid @RequestBody PainterProfileUpdateRequest request) {
-        Long userId = UserContext.getUserId();
-        User current = userMapper.selectById(userId);
-        if (current == null || Integer.valueOf(1).equals(current.getDeleted())) {
-            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
-        }
-        if (!Integer.valueOf(2).equals(current.getRole())) {
-            throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "仅画师账号可以修改展示资料");
-        }
-
-        List<String> requestedTags = request.getTags() == null ? List.of() : request.getTags();
-        LinkedHashSet<String> uniqueTags = new LinkedHashSet<>();
-        for (String tag : requestedTags) {
-            if (tag == null || !SUBJECT_OPTIONS.contains(tag.trim())) {
-                throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "风格标签必须从题材风格选项中选择");
-            }
-            uniqueTags.add(tag.trim());
-        }
-
-        userMapper.update(null, new LambdaUpdateWrapper<User>()
-                .eq(User::getId, userId)
-                .set(User::getBio, request.getBio() == null ? "" : request.getBio().trim())
-                .set(User::getTags, String.join(",", uniqueTags))
-                .set(User::getUpdatedAt, LocalDateTime.now()));
-        User user = userMapper.selectById(userId);
-        user.setPassword(null);
-        return Result.ok(user);
+        return Result.ok(userService.updatePainterProfile(UserContext.getUserId(), request));
     }
 
     /** 当前登录用户更新头像；头像必须来自本站上传目录。 */

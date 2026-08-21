@@ -50,30 +50,46 @@
       </el-input>
     </div>
 
-    <!-- 橱窗卡片（参考站 stall-cell） -->
+    <!-- 橱窗卡片 -->
     <div class="stall-grid" v-loading="loading">
-      <div v-for="stall in stalls" :key="stall.id" class="stall-cell" @click="goDetail(stall.id)">
+      <article
+        v-for="stall in stalls"
+        :key="stall.id"
+        class="stall-cell"
+        tabindex="0"
+        :aria-label="`查看橱窗：${stall.title}`"
+        @click="goDetail(stall.id)"
+        @keyup.enter="goDetail(stall.id)"
+      >
         <div class="stall-cell__cover">
-          <el-image
+          <img
             v-if="stall.cover"
             :src="stall.cover"
-            :preview-src-list="[stall.cover]"
-            preview-teleported
-            fit="cover"
+            :alt="stall.title"
+            loading="lazy"
             class="cover-image"
           />
           <div v-else class="cover-placeholder">
             <span>🛍️</span>
           </div>
-          <!-- 标题下沉到封面底部渐变黑（默认单行省略，hover 显示完整） -->
-          <div class="stall-cell__title" :title="stall.title">{{ stall.title }}</div>
+          <div class="stall-cell__overlay">
+            <div class="stall-cell__heading">
+              <strong :title="stall.title">{{ displayTitle(stall.title) }}</strong>
+              <small>{{ stall.category || '未分类' }}</small>
+            </div>
+            <span class="sales">{{ soldText(stall) }}</span>
+          </div>
         </div>
         <div class="stall-cell__infos">
-          <span class="painter-name" :title="stall.painterName">👤 {{ stall.painterName || '画师 #' + stall.painterId }}</span>
-          <span class="sales">已售 0</span>
+          <div class="painter-summary">
+            <el-avatar :size="26" :src="stall.painterAvatar || undefined" class="painter-avatar">
+              {{ painterInitial(stall) }}
+            </el-avatar>
+            <span class="painter-name" :title="stall.painterName">{{ stall.painterName || '画师 #' + stall.painterId }}</span>
+          </div>
           <span class="stall-cell__price">￥{{ stall.price }}</span>
         </div>
-      </div>
+      </article>
     </div>
 
     <EmptyState v-if="!loading && stalls.length === 0" description="暂无符合条件的橱窗" />
@@ -88,6 +104,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { getStalls } from '@/api/stall'
+import { getPublicProfile } from '@/api/user'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Pagination from '@/components/common/Pagination.vue'
@@ -112,6 +129,21 @@ function goDetail(id) {
   router.push({ name: 'StallDetail', params: { id } })
 }
 
+function displayTitle(title) {
+  const characters = Array.from(title || '')
+  return characters.length > 10 ? `${characters.slice(0, 10).join('')}...` : title
+}
+
+function painterInitial(stall) {
+  return (stall.painterName || `画师${stall.painterId || ''}`).slice(0, 1)
+}
+
+function soldText(stall) {
+  return Number.isFinite(Number(stall.soldCount)) && stall.soldCount !== null
+    ? `已售 ${stall.soldCount}`
+    : '已售 —'
+}
+
 async function load() {
   loading.value = true
   try {
@@ -127,7 +159,20 @@ async function load() {
     }
     if (deliverTime.value !== 'all') params.deliverTime = deliverTime.value
     const data = await getStalls(params)
-    stalls.value = data.records || []
+    const records = data.records || []
+    const painterIds = [...new Set(records.map((stall) => stall.painterId).filter(Boolean))]
+    const profileEntries = await Promise.all(painterIds.map(async (painterId) => {
+      try {
+        return [painterId, await getPublicProfile(painterId, 'painter')]
+      } catch {
+        return [painterId, null]
+      }
+    }))
+    const profiles = new Map(profileEntries)
+    stalls.value = records.map((stall) => ({
+      ...stall,
+      painterAvatar: profiles.get(stall.painterId)?.avatar || ''
+    }))
     total.value = data.total || 0
   } finally {
     loading.value = false
@@ -209,24 +254,26 @@ onMounted(load)
 /* ---------- 橱窗卡片 ---------- */
 .stall-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 20px 16px;
   padding-top: 10px;
 }
 
 .stall-cell {
+  min-width: 0;
+  outline: none;
   cursor: pointer;
-  transition: transform 0.2s;
 }
 
-.stall-cell:hover {
-  transform: translateY(-3px);
+.stall-cell:focus-visible .stall-cell__cover {
+  outline: 3px solid color-mix(in srgb, var(--artiv-primary) 35%, transparent);
+  outline-offset: 3px;
 }
 
 .stall-cell__cover {
   position: relative;
-  aspect-ratio: 1 / 1;
-  border-radius: 10px;
+  aspect-ratio: 1 / 1.04;
+  border-radius: 11px;
   overflow: hidden;
   background: var(--artiv-section-alt);
 }
@@ -235,6 +282,13 @@ onMounted(load)
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: cover;
+  transition: transform 0.32s ease;
+}
+
+.stall-cell:hover .cover-image,
+.stall-cell:focus-visible .cover-image {
+  transform: scale(1.04);
 }
 
 .cover-placeholder {
@@ -247,24 +301,48 @@ onMounted(load)
   color: var(--artiv-text-secondary);
 }
 
-.stall-cell__title {
+.stall-cell__overlay {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 22px 10px 8px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 58px 12px 11px;
+  background: linear-gradient(transparent, rgba(13, 22, 27, 0.8));
   color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: background 0.2s;
+  pointer-events: none;
 }
 
-.stall-cell:hover .stall-cell__title {
-  background: rgba(0, 0, 0, 0.82);
+.stall-cell__heading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.stall-cell__heading strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stall-cell__heading small {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 11px;
+}
+
+.sales {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .stall-cell__infos {
@@ -276,6 +354,20 @@ onMounted(load)
   font-size: 13px;
 }
 
+.painter-summary {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+
+.painter-avatar {
+  flex: 0 0 auto;
+  color: #fff;
+  background: linear-gradient(145deg, #78cfed, #159bc9);
+}
+
 .painter-name {
   color: var(--artiv-text-secondary);
   overflow: hidden;
@@ -285,16 +377,10 @@ onMounted(load)
   min-width: 0;
 }
 
-.sales {
-  color: var(--artiv-text-secondary);
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
 .stall-cell__price {
   color: var(--artiv-accent);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 17px;
   flex-shrink: 0;
 }
 
@@ -307,17 +393,30 @@ onMounted(load)
 
 @media (max-width: 1100px) {
   .stall-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 900px) {
   .stall-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .filter-row {
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 680px) {
+  .stall-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .stall-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
