@@ -21,15 +21,15 @@
               fit="contain"
               class="cover-image"
             />
-            <div v-else class="cover-placeholder">🛍️</div>
+            <div v-else class="cover-placeholder">暂无封面</div>
           </div>
 
           <!-- 橱窗详情 -->
           <section id="detail" class="detail-section">
-            <h2 class="detail-title"><span class="title-icon">🖼️</span>橱窗详情</h2>
+            <h2 class="detail-title">橱窗详情</h2>
             <p class="detail-desc">{{ stall.description || '暂无详细说明' }}</p>
             <!-- 示例图（参考站 stall-detail__example-images） -->
-            <div class="example-images">
+            <div v-if="detailImages.length" class="example-images">
               <el-image
                 v-for="(img, i) in detailImages"
                 :key="i"
@@ -45,7 +45,7 @@
 
           <!-- 创作阶段 -->
           <section id="phases" class="detail-section">
-            <h2 class="detail-title"><span class="title-icon">🎨</span>创作阶段</h2>
+            <h2 class="detail-title">创作阶段</h2>
             <p class="section-tip">
               画师承诺按以下阶段提供阶段性稿件供企划方审核确认。<br />
               每个阶段均可根据沟通结果再次提交；最后一个阶段确认后完成交易并开放原图。
@@ -60,7 +60,7 @@
 
           <!-- 稿件参数 -->
           <section id="params" class="detail-section">
-            <h2 class="detail-title"><span class="title-icon">📋</span>稿件参数</h2>
+            <h2 class="detail-title">稿件参数</h2>
             <div class="param-grid">
               <div class="param-item"><span class="param-label">橱窗类型</span><span>{{ stall.category }}</span></div>
               <div class="param-item"><span class="param-label">颜色模式</span><span>{{ params.colorMode }}</span></div>
@@ -220,7 +220,7 @@ const params = computed(() => {
 const detailImages = computed(() => {
   const imgs = stall.value?.images
   if (!imgs) return []
-  return String(imgs).split(',').filter(Boolean)
+  return String(imgs).split(',').map((img) => img.trim()).filter(Boolean)
 })
 
 const formatText = computed(() => {
@@ -415,7 +415,7 @@ onMounted(load)
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
+  font-size: 14px;
   color: var(--artiv-text-secondary);
 }
 
@@ -431,34 +431,26 @@ onMounted(load)
   margin: 0 0 18px;
   font-size: 17px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.title-icon {
-  font-size: 18px;
+  color: var(--artiv-text);
 }
 
 .example-images {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
-  border-radius: 10px;
-  background: var(--artiv-section-alt);
-  margin-bottom: 16px;
-  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 18px;
 }
 
 .example-image {
   width: 100%;
   border-radius: 8px;
+  overflow: hidden;
   cursor: zoom-in;
 }
 
 .example-image :deep(.el-image__inner) {
   width: 100%;
-  max-height: 300px;
+  height: auto;
   object-fit: contain;
   display: block;
 }
@@ -478,26 +470,28 @@ onMounted(load)
 
 .phase-list {
   list-style: none;
-  margin: 0;
+  margin: 4px 0 0;
   padding: 0;
 }
 
 .phase-item {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
   gap: 14px;
-  margin-bottom: 16px;
+  min-height: 58px;
+  margin: 0;
   position: relative;
 }
 
 .phase-item::after {
   content: '';
   position: absolute;
-  left: 26px;
-  top: calc(100% + 2px);
+  left: 16px;
+  top: 34px;
+  bottom: 0;
   width: 1px;
-  height: 10px;
-  background: var(--artiv-primary);
+  background: var(--artiv-border);
 }
 
 .phase-item:last-child::after {
@@ -507,31 +501,40 @@ onMounted(load)
 .phase-badge {
   color: var(--artiv-primary);
   border: 1px solid var(--artiv-primary);
-  border-radius: 12px;
+  border-radius: 50%;
   font-size: 12px;
-  padding: 3px 10px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .phase-name {
   font-size: 15px;
   color: var(--artiv-text);
+  line-height: 34px;
 }
 
 .param-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  column-gap: 28px;
+  border-top: 1px solid var(--artiv-border);
 }
 
 .param-item {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  background: var(--artiv-section-alt);
-  border-radius: 8px;
-  padding: 12px 16px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--artiv-border);
   font-size: 14px;
+  line-height: 1.5;
 }
 
 .param-label {
@@ -675,6 +678,10 @@ onMounted(load)
   .detail-aside {
     width: 100%;
     position: static;
+  }
+
+  .param-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
