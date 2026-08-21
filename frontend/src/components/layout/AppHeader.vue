@@ -15,15 +15,15 @@
 
       <div class="app-header__actions">
         <template v-if="userStore.isLoggedIn">
-          <el-button v-if="!userStore.isAdmin" type="primary" size="small" round @click="goPublish">发布需求</el-button>
+          <el-button v-if="!userStore.isAdmin" type="primary" round class="publish-button" @click="goPublish">发布需求</el-button>
           <el-badge :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
-            <el-button circle size="small" @click="goMessages">
+            <el-button circle class="message-button" aria-label="打开消息中心" @click="goMessages">
               <el-icon><Bell /></el-icon>
             </el-button>
           </el-badge>
           <el-dropdown @command="onCommand" @visible-change="onAccountMenuVisible">
-            <span class="app-header__user">
-              <el-avatar :size="30" :src="userStore.user?.avatar" class="header-avatar">
+            <span class="app-header__user" role="button" tabindex="0">
+              <el-avatar :size="32" :src="userStore.user?.avatar" class="header-avatar">
                 {{ avatarText }}
               </el-avatar>
               <span class="user-nickname">{{ userStore.user?.nickname || userStore.user?.username }}</span>
@@ -135,15 +135,16 @@ function onCommand(command) {
   right: 0;
   z-index: 100;
   height: var(--artiv-header-height);
-  background: rgba(255, 255, 255, 0.97);
-  border-bottom: 1px solid var(--artiv-border);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(210, 219, 227, 0.78);
+  box-shadow: 0 4px 18px rgba(48, 75, 92, 0.06);
+  backdrop-filter: blur(14px);
 }
 
 .app-header__inner {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 32px;
   height: 100%;
 }
 
@@ -160,9 +161,9 @@ function onCommand(command) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: var(--artiv-primary);
   color: #fff;
   font-size: 17px;
@@ -170,25 +171,71 @@ function onCommand(command) {
 
 .app-header__nav {
   display: flex;
-  gap: 26px;
+  align-self: stretch;
+  gap: 28px;
   flex: 1;
 }
 
 .app-header__nav a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   color: var(--artiv-text-secondary);
   font-size: 15px;
-  transition: color 0.2s;
+  font-weight: 500;
+  transition: color 0.2s, font-weight 0.2s;
 }
 
 .app-header__nav a:hover,
 .app-header__nav a.router-link-active {
   color: var(--artiv-primary);
+  font-weight: 600;
+}
+
+.app-header__nav a::after {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--artiv-primary);
+  content: '';
+  transform: translateX(-50%);
+  transition: width 0.2s;
+}
+
+.app-header__nav a.router-link-active::after {
+  width: 24px;
 }
 
 .app-header__actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.publish-button {
+  height: 36px;
+  padding: 0 20px;
+  border: 0;
+  font-weight: 600;
+  box-shadow: 0 5px 14px rgba(0, 168, 233, 0.18);
+}
+
+.message-button {
+  width: 36px;
+  height: 36px;
+  border-color: var(--artiv-border);
+  color: var(--artiv-text-secondary);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.message-button:hover,
+.message-button:focus-visible {
+  border-color: rgba(0, 168, 233, 0.36);
+  color: var(--artiv-primary);
+  background: var(--artiv-primary-light);
 }
 
 .nav-btn {
@@ -220,10 +267,19 @@ function onCommand(command) {
 .app-header__user {
   display: inline-flex;
   align-items: center;
+  min-height: 42px;
   gap: 8px;
+  padding: 4px 8px 4px 5px;
+  border-radius: 999px;
   cursor: pointer;
   outline: none;
   color: var(--artiv-text);
+  transition: background 0.2s;
+}
+
+.app-header__user:hover,
+.app-header__user:focus-visible {
+  background: var(--artiv-primary-light);
 }
 
 .header-avatar {
@@ -253,8 +309,38 @@ function onCommand(command) {
 :global(.account-menu__balance button) { border: 0; padding: 0; color: var(--artiv-primary); background: transparent; cursor: pointer; font-size: 12px; }
 
 @media (max-width: 900px) {
+  .app-header__inner {
+    gap: 16px;
+  }
+
   .app-header__nav {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header__inner {
+    gap: 10px;
+  }
+
+  .logo-text,
+  .user-nickname {
+    display: none;
+  }
+
+  .app-header__actions {
+    margin-left: auto;
+    gap: 6px;
+  }
+
+  .publish-button {
+    height: 34px;
+    padding: 0 14px;
+  }
+
+  .app-header__user {
+    min-height: 38px;
+    padding-right: 5px;
   }
 }
 </style>
