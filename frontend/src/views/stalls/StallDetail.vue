@@ -83,7 +83,9 @@
 
           <!-- 画师信息（参考站 stall-info__owner，评分等按需求隐藏） -->
           <div class="painter-card">
-            <el-avatar :size="56" class="painter-avatar">绘</el-avatar>
+            <el-avatar :size="56" :src="painterProfile?.avatar || undefined" class="painter-avatar">
+              {{ painterInitial }}
+            </el-avatar>
             <div class="painter-info">
               <span class="painter-name">{{ stall.painterName || '画师 #' + stall.painterId }}</span>
               <span class="painter-role">认证画师</span>
@@ -182,6 +184,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { changeStallStatus, deleteStall, getStall, updateStall } from '@/api/stall'
+import { getPublicProfile } from '@/api/user'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
@@ -190,6 +193,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const stall = ref(null)
+const painterProfile = ref(null)
 const loading = ref(false)
 const buying = ref(false)
 const confirmVisible = ref(false)
@@ -234,6 +238,10 @@ const currentSubjects = computed(() => {
   return value ? String(value).split(',').filter(Boolean) : []
 })
 const subjectText = computed(() => currentSubjects.value.join('、') || '-')
+const painterInitial = computed(() => {
+  const name = painterProfile.value?.nickname || stall.value?.painterName || '画师'
+  return String(name).trim().slice(0, 1) || '画'
+})
 const isOwner = computed(() => Number(userStore.user?.id) === Number(stall.value?.painterId))
 const hasStock = computed(() => Number(stall.value?.stock || 0) > 0)
 const canPurchase = computed(() => stall.value?.status === 1 && hasStock.value)
@@ -242,6 +250,11 @@ async function load() {
   loading.value = true
   try {
     stall.value = await getStall(route.params.id)
+    try {
+      painterProfile.value = await getPublicProfile(stall.value.painterId, 'painter')
+    } catch {
+      painterProfile.value = null
+    }
     document.title = `${stall.value.title} - 艺绘`
     if (route.query.edit === '1' && Number(userStore.user?.id) === Number(stall.value.painterId)) {
       openEdit()
