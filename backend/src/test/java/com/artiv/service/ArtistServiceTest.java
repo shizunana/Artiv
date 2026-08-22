@@ -28,6 +28,9 @@ class ArtistServiceTest {
     @Mock
     private WorkMapper workMapper;
 
+    @Mock
+    private ReviewService reviewService;
+
     @InjectMocks
     private ArtistServiceImpl artistService;
 

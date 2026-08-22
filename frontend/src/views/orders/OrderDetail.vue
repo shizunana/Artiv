@@ -16,7 +16,10 @@
           <el-button v-if="isEmployer && order.status === 0" type="danger" plain @click="reasonAction('cancel')">取消订单</el-button>
           <el-button v-if="[1,2].includes(order.status)" type="danger" plain @click="openDispute">申请争议仲裁</el-button>
           <el-button @click="goMessage">联系{{ isPainter ? '企划方' : '画师' }}</el-button>
-          <el-button v-if="order.status === 3" disabled>去评价（接口预留）</el-button>
+          <el-button v-if="detail.reviewStatus === 'PENDING'" type="primary" @click="reviewVisible = true">去评价</el-button>
+          <el-button v-else-if="detail.reviewStatus === 'SUBMITTED'" disabled>已评价</el-button>
+          <el-button v-else-if="detail.reviewStatus === 'EXPIRED'" disabled>评价已过期</el-button>
+          <span v-if="detail.reviewStatus === 'PENDING'" class="review-deadline">请在 {{ formatDateTime(detail.reviewDeadline) }} 前评价</span>
         </div>
       </section>
 
@@ -87,6 +90,7 @@
       <el-upload :http-request="uploadEvidenceImage" :limit="9" :on-remove="removeEvidenceImage" multiple accept="image/png,image/jpeg,image/gif,image/webp"><el-button>上传图片证据（至少1张）</el-button></el-upload>
       <template #footer><el-button @click="evidenceVisible=false">取消</el-button><el-button type="primary" :loading="acting" @click="submitEvidence">提交证据</el-button></template>
     </el-dialog>
+    <ReviewDialog v-model="reviewVisible" :order-id="order.id" :order-title="order.projectTitle || order.stallTitle" @submitted="load" />
   </div>
 </template>
 
@@ -99,9 +103,11 @@ import { uploadFile } from '@/api/upload'
 import { ORDER_STATUS, statusText, statusType } from '@/utils/status'
 import { formatDateTime } from '@/utils/date'
 import { useUserStore } from '@/stores/user'
+import ReviewDialog from '@/components/reviews/ReviewDialog.vue'
 
 const route=useRoute(), router=useRouter(), userStore=useUserStore()
 const detail=ref(null), loading=ref(false), acting=ref(false), submitVisible=ref(false)
+const reviewVisible=ref(false)
 const submitForm=reactive({content:'',image:''})
 const dispute=ref({}), disputeVisible=ref(false), evidenceVisible=ref(false)
 const disputeForm=reactive({reason:'',description:'',images:[]}), evidenceForm=reactive({description:'',images:[]})
@@ -144,4 +150,5 @@ onMounted(load)
 <style scoped>
 .order-detail{display:grid;gap:16px}.wb-card{background:#fff;border-radius:8px;padding:24px}.order-summary header{display:flex;justify-content:space-between;align-items:flex-start}.order-summary h2{margin:8px 0 5px}.order-summary p{margin:0;color:var(--artiv-text-secondary)}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.summary-grid div{display:grid;gap:8px;padding:14px;background:var(--artiv-section-alt);border-radius:7px}.summary-grid small{color:var(--artiv-text-secondary)}.action-row{display:flex;flex-wrap:wrap;gap:10px}.source-card h3,.phase-card h3,.timeline-card h3{margin:0 0 22px}.source-layout{display:grid;grid-template-columns:140px minmax(0,1fr);gap:20px}.source-cover{width:140px;height:110px;border-radius:8px;background:var(--artiv-section-alt)}.source-layout p{margin:0 0 10px;color:var(--artiv-text-secondary)}.source-description{white-space:pre-wrap}.submission-panel{margin-top:24px;padding:18px;border:1px solid var(--artiv-border);border-radius:8px}.submission-head{display:flex;justify-content:space-between}.revision-note{margin:14px 0;padding:12px 14px;border-left:3px solid #f56c6c;border-radius:4px;background:#fff4f4;color:#a83d3d}.revision-note p{margin:6px 0 0;white-space:pre-wrap}.upload-tip{color:var(--artiv-text-secondary);line-height:1.65}.image-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.image-grid :deep(.el-image){aspect-ratio:1;border-radius:6px;overflow:hidden}.original-list{display:flex;gap:12px}.original-list a{color:var(--artiv-primary)}.review-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.phase-card>.el-button{margin-top:18px}@media(max-width:760px){.summary-grid{grid-template-columns:1fr 1fr}.image-grid{grid-template-columns:repeat(2,1fr)}.source-layout{grid-template-columns:1fr}}
 .dispute-head{display:flex;justify-content:space-between;align-items:flex-start}.dispute-head h3{margin:0}.dispute-head p{color:#a65c21}.evidence-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}.evidence-grid article{display:flex;flex-direction:column;gap:5px}.evidence-grid .el-image{width:100%;aspect-ratio:1;border-radius:6px}.evidence-grid small{color:#89929c}.dispute-reason{margin:16px 0 10px}
+.review-deadline{align-self:center;color:var(--artiv-text-secondary);font-size:12px}
 </style>

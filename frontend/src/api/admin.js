@@ -22,3 +22,8 @@ export const getAdminDispute = (id) => request.get(`/admin/disputes/${id}`)
 export const arbitrateDispute = (id, data) => request.post(`/admin/disputes/${id}/arbitrate`, data)
 
 export const getAdminAuditLogs = (params) => request.get('/admin/audit-logs', { params })
+
+export const getAdminReviewAppeals = (params) => request.get('/admin/review-appeals', { params })
+export const getAdminReviewAppeal = (id) => request.get(`/admin/review-appeals/${id}`)
+export const approveReviewAppeal = (id, data) => request.put(`/admin/review-appeals/${id}/approve`, data)
+export const rejectReviewAppeal = (id, data) => request.put(`/admin/review-appeals/${id}/reject`, data)

@@ -1,6 +1,7 @@
 package com.artiv.service;
 
 import com.artiv.dto.PublicProfileResponse;
+import com.artiv.dto.ReviewStatistics;
 import com.artiv.entity.User;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
@@ -32,6 +33,7 @@ class PublicProfileServiceTest {
     @Mock StallMapper stallMapper;
     @Mock ProjectMapper projectMapper;
     @Mock OrderInfoMapper orderInfoMapper;
+    @Mock ReviewService reviewService;
     @InjectMocks PublicProfileServiceImpl publicProfileService;
 
     @Test
@@ -42,6 +44,7 @@ class PublicProfileServiceTest {
         when(stallMapper.selectCount(any())).thenReturn(0L);
         when(projectMapper.selectCount(any())).thenReturn(1L);
         when(orderInfoMapper.selectList(any())).thenReturn(List.of());
+        when(reviewService.getStatistics(21L, "painter")).thenReturn(new ReviewStatistics(null, 0));
 
         PublicProfileResponse profile = publicProfileService.getProfile(21L, "painter");
 
@@ -58,6 +61,7 @@ class PublicProfileServiceTest {
         when(workMapper.selectCount(any())).thenReturn(0L);
         when(stallMapper.selectCount(any())).thenReturn(0L);
         when(projectMapper.selectCount(any())).thenReturn(3L);
+        when(reviewService.getStatistics(22L, "employer")).thenReturn(new ReviewStatistics(null, 0));
 
         PublicProfileResponse profile = publicProfileService.getProfile(22L, "employer");
 

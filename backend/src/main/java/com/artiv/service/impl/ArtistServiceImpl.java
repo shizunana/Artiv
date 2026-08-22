@@ -3,11 +3,13 @@ package com.artiv.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.dto.ArtistSummary;
+import com.artiv.dto.ReviewStatistics;
 import com.artiv.entity.User;
 import com.artiv.entity.Work;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.ArtistService;
+import com.artiv.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,6 +32,7 @@ public class ArtistServiceImpl implements ArtistService {
 
     private final UserMapper userMapper;
     private final WorkMapper workMapper;
+    private final ReviewService reviewService;
 
     @Override
     public Page<ArtistSummary> listArtists(long page, long size, String category, String subjects, String keyword) {
@@ -53,6 +56,8 @@ public class ArtistServiceImpl implements ArtistService {
                 .orderByDesc(Work::getCreatedAt));
         Map<Long, List<Work>> worksByPainter = publicWorks.stream()
                 .collect(Collectors.groupingBy(Work::getUserId));
+        Map<Long, ReviewStatistics> reviewStatistics = java.util.Optional.ofNullable(
+                reviewService.getStatistics(painterIds, "painter")).orElse(Map.of());
 
         Set<String> requestedSubjects = splitValues(subjects);
         String normalizedKeyword = StringUtils.hasText(keyword)
@@ -60,7 +65,8 @@ public class ArtistServiceImpl implements ArtistService {
                 : null;
 
         List<ArtistSummary> filtered = painters.stream()
-                .map(painter -> toSummary(painter, worksByPainter.getOrDefault(painter.getId(), List.of())))
+                .map(painter -> toSummary(painter, worksByPainter.getOrDefault(painter.getId(), List.of()),
+                        reviewStatistics.get(painter.getId())))
                 .filter(summary -> !StringUtils.hasText(category) || summary.getCategories().contains(category.trim()))
                 .filter(summary -> requestedSubjects.isEmpty() || containsAllTags(summary.getTags(), requestedSubjects))
                 .filter(summary -> normalizedKeyword == null || matchesKeyword(summary, normalizedKeyword))
@@ -78,7 +84,7 @@ public class ArtistServiceImpl implements ArtistService {
         return result;
     }
 
-    private ArtistSummary toSummary(User painter, List<Work> works) {
+    private ArtistSummary toSummary(User painter, List<Work> works, ReviewStatistics reviewStatistics) {
         ArtistSummary summary = new ArtistSummary();
         summary.setId(painter.getId());
         summary.setUsername(painter.getUsername());
@@ -93,6 +99,8 @@ public class ArtistServiceImpl implements ArtistService {
                 .collect(Collectors.toCollection(LinkedHashSet::new))
                 .stream().toList());
         summary.setWorks(new ArrayList<>(works.subList(0, Math.min(PREVIEW_LIMIT, works.size()))));
+        summary.setAverageScore(reviewStatistics == null ? null : reviewStatistics.getAverageScore());
+        summary.setReviewCount(reviewStatistics == null ? 0 : reviewStatistics.getReviewCount());
         return summary;
     }
 

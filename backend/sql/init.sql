@@ -282,8 +282,39 @@ CREATE TABLE `review` (
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_order_from` (`order_id`, `from_id`)
+  UNIQUE KEY `uk_order_from` (`order_id`, `from_id`),
+  KEY `idx_review_recipient_created` (`to_id`, `deleted`, `created_at`),
+  KEY `idx_review_order_deleted` (`order_id`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '评价表';
+
+DROP TABLE IF EXISTS `review_image`;
+CREATE TABLE `review_image` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `review_id` BIGINT NOT NULL COMMENT '评价ID',
+  `image_url` VARCHAR(255) NOT NULL COMMENT '本站上传图片地址',
+  `sort_order` INT NOT NULL DEFAULT 0 COMMENT '展示顺序',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_review_image_review` (`review_id`, `sort_order`, `id`)
+) ENGINE=InnoDB COMMENT='评价图片';
+
+DROP TABLE IF EXISTS `review_appeal`;
+CREATE TABLE `review_appeal` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `review_id` BIGINT NOT NULL COMMENT '被申诉评价ID',
+  `applicant_id` BIGINT NOT NULL COMMENT '申诉画师ID',
+  `reason` VARCHAR(500) NOT NULL COMMENT '申诉原因',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '0待处理、1批准删除、2驳回',
+  `admin_id` BIGINT DEFAULT NULL COMMENT '处理管理员ID',
+  `decision_reason` VARCHAR(500) DEFAULT NULL COMMENT '处理说明',
+  `decided_at` DATETIME DEFAULT NULL COMMENT '处理时间',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_review_appeal_review` (`review_id`),
+  KEY `idx_review_appeal_status_created` (`status`, `created_at`),
+  KEY `idx_review_appeal_applicant` (`applicant_id`, `created_at`)
+) ENGINE=InnoDB COMMENT='评价删除申诉';
 
 -- -----------------------------------------------------
 -- 画师认证申请

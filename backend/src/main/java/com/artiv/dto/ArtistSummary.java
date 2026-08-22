@@ -28,4 +28,8 @@ public class ArtistSummary {
     private List<String> categories;
 
     private List<Work> works;
+
+    private Double averageScore;
+
+    private long reviewCount;
 }

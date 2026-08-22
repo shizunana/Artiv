@@ -98,7 +98,8 @@ public class AuthInterceptor implements HandlerInterceptor {
                     && (segments[5].equals("public-profile")
                     || segments[5].equals("works")
                     || segments[5].equals("stalls")
-                    || segments[5].equals("projects"));
+                    || segments[5].equals("projects")
+                    || segments[5].equals("reviews"));
         }
         return false;
     }

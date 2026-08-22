@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.PublicProfileResponse;
+import com.artiv.dto.ReviewStatistics;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Project;
 import com.artiv.entity.Stall;
@@ -16,6 +17,7 @@ import com.artiv.mapper.StallMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.PublicProfileService;
+import com.artiv.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -40,6 +42,7 @@ public class PublicProfileServiceImpl implements PublicProfileService {
     private final StallMapper stallMapper;
     private final ProjectMapper projectMapper;
     private final OrderInfoMapper orderInfoMapper;
+    private final ReviewService reviewService;
 
     @Override
     public PublicProfileResponse getProfile(Long userId, String role) {
@@ -61,6 +64,9 @@ public class PublicProfileServiceImpl implements PublicProfileService {
         response.setPublicWorkCount(countWorks(userId));
         response.setPublicStallCount(countStalls(userId));
         response.setPublicProjectCount(countProjects(userId));
+        ReviewStatistics reviewStatistics = reviewService.getStatistics(userId, normalizedRole);
+        response.setAverageScore(reviewStatistics.getAverageScore());
+        response.setReviewCount(reviewStatistics.getReviewCount());
 
         if ("painter".equals(normalizedRole)) {
             List<OrderInfo> orders = listRoleOrders(userId, normalizedRole);

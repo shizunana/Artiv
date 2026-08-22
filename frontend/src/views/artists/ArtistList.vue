@@ -44,7 +44,7 @@
                 <h2>{{ artist.nickname || artist.username }}</h2>
                 <el-tag size="small" type="success" effect="light">已认证</el-tag>
               </div>
-              <p class="artist-account">@{{ artist.username }}</p>
+              <RatingSummary class="artist-account" :average-score="artist.averageScore" :review-count="artist.reviewCount" compact />
               <p class="artist-bio">{{ artist.bio || '这位画师暂未填写个人简介。' }}</p>
               <div class="artist-tags">
                 <el-tag v-for="tag in splitTags(artist.tags)" :key="tag" size="small" effect="plain">
@@ -91,6 +91,7 @@ import { useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { getArtists } from '@/api/user'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
+import RatingSummary from '@/components/reviews/RatingSummary.vue'
 
 const router = useRouter()
 const loading = ref(false)

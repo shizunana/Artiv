@@ -6,6 +6,7 @@ import com.artiv.entity.OrderStage;
 import lombok.Data;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Data
 public class OrderDetailResponse {
@@ -15,4 +16,7 @@ public class OrderDetailResponse {
     private String viewerRole;
     private List<OrderStage> submissions;
     private List<OrderEvent> events;
+    private String reviewStatus;
+    private LocalDateTime reviewDeadline;
+    private ReviewListItem viewerReview;
 }

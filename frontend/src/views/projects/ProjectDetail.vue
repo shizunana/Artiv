@@ -107,6 +107,7 @@
                 <el-avatar class="applicant-avatar" :size="66" :src="item.painter?.avatar">{{ painterName(item).slice(0, 1) }}</el-avatar>
                 <div class="applicant-copy">
                   <h3>{{ painterName(item) }}</h3>
+                  <RatingSummary :average-score="item.painter?.averageScore" :review-count="item.painter?.reviewCount" compact />
                   <p>{{ painterBio(item) }}</p>
                   <div v-if="painterTags(item).length" class="painter-tags">
                     <el-tag v-for="tag in painterTags(item)" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
@@ -216,6 +217,7 @@ import {
 } from '@/api/project'
 import { startProjectConversation } from '@/api/message'
 import { useUserStore } from '@/stores/user'
+import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import { formatDateTime } from '@/utils/date'
 import ProjectManageDialog from '@/components/projects/ProjectManageDialog.vue'
 

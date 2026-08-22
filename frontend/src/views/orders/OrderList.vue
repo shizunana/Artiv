@@ -34,6 +34,7 @@
         <div class="order-price">
           <small>托管金额</small><strong>¥{{ money(order.amount) }}</strong>
           <div class="order-actions">
+            <el-button v-if="statusGroup === 'review'" type="primary" @click.stop="openReview(order)">去评价</el-button>
             <el-button v-if="order.stallId" type="primary" link @click.stop="goStallDetail(order.stallId)">橱窗详情</el-button>
             <el-button v-if="order.projectId" type="primary" link @click.stop="goProjectDetail(order.projectId)">企划详情</el-button>
             <el-button type="primary" link @click.stop="goOrderDetail(order.id)">订单详情</el-button>
@@ -41,6 +42,7 @@
         </div>
       </article>
     </div>
+    <ReviewDialog v-model="reviewVisible" :order-id="reviewTarget?.id" :order-title="reviewTarget ? orderTitle(reviewTarget) : ''" @submitted="reviewSubmitted" />
   </div>
 </template>
 
@@ -50,6 +52,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getOrders } from '@/api/order'
 import { formatDateTime } from '@/utils/date'
 import { ORDER_STATUS, statusText, statusType } from '@/utils/status'
+import ReviewDialog from '@/components/reviews/ReviewDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,6 +61,8 @@ const statusGroup = ref('all')
 const participantRole = ref(route.path.startsWith('/dashboard') ? 'employer' : 'painter')
 const orders = ref([])
 const loading = ref(false)
+const reviewVisible = ref(false)
+const reviewTarget = ref(null)
 const filters = [
   { label: '全部订单', value: 'all' },
   { label: '待交付', value: 'delivery' },
@@ -83,6 +88,11 @@ const isPainterRoute = computed(() => route.path.startsWith('/painter'))
 function goOrderDetail(id) { router.push({ name: isPainterRoute.value ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id } }) }
 function goStallDetail(id) { router.push({ name: 'StallDetail', params: { id }, query: { from: 'order' } }) }
 function goProjectDetail(id) { router.push({ name: 'ProjectDetail', params: { id }, query: { from: 'order' } }) }
+function openReview(order) { reviewTarget.value = order; reviewVisible.value = true }
+function reviewSubmitted() {
+  if (reviewTarget.value) orders.value = orders.value.filter((item) => item.id !== reviewTarget.value.id)
+  reviewTarget.value = null
+}
 function orderTitle(order) { return order.projectTitle || order.stallTitle || `订单 #${order.id}` }
 function orderCover(order) { return order.projectCover || order.stallCover || '' }
 function money(value) { return Number(value || 0).toFixed(2) }

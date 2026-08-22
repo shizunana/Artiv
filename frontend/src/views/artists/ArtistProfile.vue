@@ -14,6 +14,7 @@
         <div class="identity-copy">
           <div class="identity-title">
             <h1>{{ profile.nickname }}</h1>
+            <RatingSummary :average-score="profile.averageScore" :review-count="profile.reviewCount" show-count hide-when-empty />
           </div>
           <div class="identity-badges">
             <el-tag v-if="isPainter && profile.certStatus === 2" size="small" type="success" effect="light">认证画师</el-tag>
@@ -95,6 +96,8 @@
             </article>
           </div>
 
+          <ReviewList v-else-if="activeTab === 'reviews'" :user-id="profileId" :role="requestedRole" />
+
           <EmptyState v-else :description="emptyDescription" />
           <div v-if="isResourceTab" ref="loadSentinel" class="load-sentinel" aria-live="polite">
             <span v-if="loadingMore">正在加载更多…</span>
@@ -117,6 +120,8 @@ import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { getPublicProfile, getPublicProfileProjects, getPublicProfileStalls, getPublicProfileWorks } from '@/api/user'
 import { useUserStore } from '@/stores/user'
+import RatingSummary from '@/components/reviews/RatingSummary.vue'
+import ReviewList from '@/components/reviews/ReviewList.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -147,14 +152,14 @@ const tabs = computed(() => isPainter.value
   ? [
       { key: 'works', label: '作品', count: profile.value?.publicWorkCount ?? 0 },
       { key: 'stalls', label: '橱窗', count: profile.value?.publicStallCount ?? 0 },
-      { key: 'reviews', label: '合作评价', count: null },
+      { key: 'reviews', label: '合作评价', count: profile.value?.reviewCount ?? 0 },
     ]
   : [
       { key: 'projects', label: '发布企划', count: profile.value?.publicProjectCount ?? 0 },
-      { key: 'reviews', label: '合作评价', count: null },
+      { key: 'reviews', label: '合作评价', count: profile.value?.reviewCount ?? 0 },
     ])
 const emptyDescription = computed(() => ({
-  works: '暂无公开作品', stalls: '暂无上架橱窗', projects: '暂无公开企划', reviews: '合作评价功能预留，暂未开放',
+  works: '暂无公开作品', stalls: '暂无上架橱窗', projects: '暂无公开企划', reviews: '暂无合作评价',
 }[activeTab.value]))
 
 onMounted(() => {

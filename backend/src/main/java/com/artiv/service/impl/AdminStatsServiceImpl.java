@@ -21,6 +21,7 @@ import com.artiv.mapper.StallMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.AdminStatsService;
+import com.artiv.service.ReviewService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,7 @@ public class AdminStatsServiceImpl implements AdminStatsService {
     private final ArtistCertificationMapper certificationMapper;
     private final OrderDisputeMapper disputeMapper;
     private final AdminActionLogMapper auditMapper;
+    private final ReviewService reviewService;
 
     @Override
     public Map<String, Object> overview() {
@@ -67,6 +69,7 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                 new LambdaQueryWrapper<ArtistCertification>().eq(ArtistCertification::getStatus, 0)));
         response.put("pendingDisputes", disputeMapper.selectCount(
                 new LambdaQueryWrapper<OrderDispute>().eq(OrderDispute::getStatus, 0)));
+        response.put("pendingReviewAppeals", reviewService.countPendingAppeals());
         response.put("activeOrders", orderInfoMapper.selectCount(new LambdaQueryWrapper<OrderInfo>()
                 .in(OrderInfo::getStatus, 0, 1, 2, 5).eq(OrderInfo::getDeleted, 0)));
         response.put("hiddenProjects", projectMapper.selectCount(new LambdaQueryWrapper<Project>()

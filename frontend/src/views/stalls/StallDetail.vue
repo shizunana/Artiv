@@ -89,6 +89,7 @@
             <div class="painter-info">
               <span class="painter-name">{{ stall.painterName || '画师 #' + stall.painterId }}</span>
               <span class="painter-role">认证画师</span>
+              <RatingSummary :average-score="painterProfile?.averageScore" :review-count="painterProfile?.reviewCount" compact />
             </div>
           </div>
 
@@ -188,6 +189,7 @@ import { getPublicProfile } from '@/api/user'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
+import RatingSummary from '@/components/reviews/RatingSummary.vue'
 
 const route = useRoute()
 const router = useRouter()

@@ -6,6 +6,7 @@ import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.ApplicantPainterSummary;
 import com.artiv.dto.ApplicationDetail;
+import com.artiv.dto.ReviewStatistics;
 import com.artiv.entity.Application;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Project;
@@ -19,12 +20,14 @@ import com.artiv.mapper.WorkMapper;
 import com.artiv.service.ApplicationService;
 import com.artiv.service.MessageService;
 import com.artiv.service.AccountRestrictionService;
+import com.artiv.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +40,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final WorkMapper workMapper;
     private final MessageService messageService;
     private final AccountRestrictionService accountRestrictionService;
+    private final ReviewService reviewService;
 
     @Override
     public Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId) {
@@ -51,10 +55,14 @@ public class ApplicationServiceImpl implements ApplicationService {
                         .in(Application::getStatus, 0, 1)
                         .orderByDesc(Application::getCreatedAt));
         Page<ApplicationDetail> result = new Page<>(page, size, applications.getTotal());
+        Map<Long, ReviewStatistics> reviewStatistics = java.util.Optional.ofNullable(reviewService.getStatistics(
+                applications.getRecords().stream().map(Application::getPainterId).distinct().toList(), "painter"))
+                .orElse(Map.of());
         result.setRecords(applications.getRecords().stream().map(application -> {
             ApplicationDetail detail = new ApplicationDetail();
             detail.setApplication(application);
-            detail.setPainter(toPainterSummary(userMapper.selectById(application.getPainterId())));
+            detail.setPainter(toPainterSummary(userMapper.selectById(application.getPainterId()),
+                    reviewStatistics.get(application.getPainterId())));
             List<Work> works = workMapper.selectList(new LambdaQueryWrapper<Work>()
                     .eq(Work::getUserId, application.getPainterId())
                     .eq(Work::getDeleted, 0)
@@ -209,13 +217,18 @@ public class ApplicationServiceImpl implements ApplicationService {
         applicationMapper.updateById(application);
     }
 
-    private ApplicantPainterSummary toPainterSummary(User painter) {
+    private ApplicantPainterSummary toPainterSummary(User painter, ReviewStatistics statistics) {
         if (painter == null) {
             return null;
         }
-        return new ApplicantPainterSummary(
-                painter.getId(), painter.getNickname(), painter.getAvatar(),
-                painter.getBio(), painter.getTags()
-        );
+        ApplicantPainterSummary summary = new ApplicantPainterSummary();
+        summary.setId(painter.getId());
+        summary.setNickname(painter.getNickname());
+        summary.setAvatar(painter.getAvatar());
+        summary.setBio(painter.getBio());
+        summary.setTags(painter.getTags());
+        summary.setAverageScore(statistics == null ? null : statistics.getAverageScore());
+        summary.setReviewCount(statistics == null ? 0 : statistics.getReviewCount());
+        return summary;
     }
 }

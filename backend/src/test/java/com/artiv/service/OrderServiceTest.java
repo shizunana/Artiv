@@ -51,6 +51,7 @@ class OrderServiceTest {
     @Mock private MessageService messageService;
     @Mock private OrderPreviewService orderPreviewService;
     @Mock private AccountRestrictionService accountRestrictionService;
+    @Mock private ReviewService reviewService;
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
     @InjectMocks private OrderServiceImpl orderService;
 

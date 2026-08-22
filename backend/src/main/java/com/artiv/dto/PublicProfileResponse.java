@@ -47,4 +47,9 @@ public class PublicProfileResponse {
     private long publicStallCount;
 
     private long publicProjectCount;
+
+    /** 当前主页身份收到的可见评价平均分；没有评价时为 null。 */
+    private Double averageScore;
+
+    private long reviewCount;
 }

@@ -77,6 +77,7 @@ const menus = {
     { path: '/admin/certifications', title: '认证审核' },
     { path: '/admin/projects', title: '企划治理' },
     { path: '/admin/disputes', title: '订单仲裁' },
+    { path: '/admin/review-appeals', title: '评价申诉' },
     { path: '/admin/stats', title: '数据统计' },
     { path: '/admin/audit-logs', title: '操作审计' },
   ],

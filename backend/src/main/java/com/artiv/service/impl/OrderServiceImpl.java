@@ -9,6 +9,7 @@ import com.artiv.common.ResultCode;
 import com.artiv.dto.OrderDetailResponse;
 import com.artiv.dto.OrderStageReviewRequest;
 import com.artiv.dto.OrderStageSubmitRequest;
+import com.artiv.dto.OrderReviewContext;
 import com.artiv.entity.OrderEvent;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.OrderStage;
@@ -27,6 +28,7 @@ import com.artiv.service.MessageService;
 import com.artiv.service.OrderPreviewService;
 import com.artiv.service.OrderService;
 import com.artiv.service.AccountRestrictionService;
+import com.artiv.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -65,6 +67,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderPreviewService orderPreviewService;
     private final ObjectMapper objectMapper;
     private final AccountRestrictionService accountRestrictionService;
+    private final ReviewService reviewService;
 
     @Override
     public Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup,
@@ -86,7 +89,9 @@ public class OrderServiceImpl implements OrderService {
         if ("delivery".equalsIgnoreCase(statusGroup)) {
             wrapper.in(OrderInfo::getStatus, PENDING, IN_PROGRESS, PENDING_REVIEW);
         } else if ("review".equalsIgnoreCase(statusGroup)) {
-            wrapper.eq(OrderInfo::getStatus, COMPLETED);
+            wrapper.eq(OrderInfo::getStatus, COMPLETED)
+                    .gt(OrderInfo::getCompletedAt, LocalDateTime.now().minusDays(7))
+                    .notExists("SELECT 1 FROM review r WHERE r.order_id = order_info.id AND r.from_id = " + userId);
         } else if ("afterSale".equalsIgnoreCase(statusGroup)) {
             wrapper.in(OrderInfo::getStatus, CANCELLED, AFTER_SALE);
         }
@@ -115,6 +120,12 @@ public class OrderServiceImpl implements OrderService {
         response.setSubmissions(stages);
         response.setEvents(orderEventMapper.selectList(new LambdaQueryWrapper<OrderEvent>()
                 .eq(OrderEvent::getOrderId, id).orderByAsc(OrderEvent::getCreatedAt)));
+        OrderReviewContext reviewContext = reviewService.getOrderReviewContext(order, userId);
+        if (reviewContext != null) {
+            response.setReviewStatus(reviewContext.getStatus());
+            response.setReviewDeadline(reviewContext.getDeadline());
+            response.setViewerReview(reviewContext.getReview());
+        }
         return response;
     }
 
