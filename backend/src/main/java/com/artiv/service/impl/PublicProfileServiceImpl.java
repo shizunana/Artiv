@@ -6,6 +6,7 @@ import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.PublicProfileResponse;
 import com.artiv.dto.ReviewStatistics;
+import com.artiv.dto.StallSalesCount;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Project;
 import com.artiv.entity.Stall;
@@ -96,13 +97,15 @@ public class PublicProfileServiceImpl implements PublicProfileService {
     @Override
     public Page<Stall> listStalls(Long userId, long page, long size) {
         requireActiveUser(userId);
-        return stallMapper.selectPage(new Page<>(page, normalizeSize(size, 20)),
+        Page<Stall> result = stallMapper.selectPage(new Page<>(page, normalizeSize(size, 20)),
                 new LambdaQueryWrapper<Stall>()
                         .eq(Stall::getPainterId, userId)
                         .eq(Stall::getStatus, 1)
                         .eq(Stall::getDeleted, 0)
                         .gt(Stall::getStock, 0)
                         .orderByDesc(Stall::getCreatedAt));
+        fillSoldCounts(result.getRecords());
+        return result;
     }
 
     @Override
@@ -140,6 +143,19 @@ public class PublicProfileServiceImpl implements PublicProfileService {
                 .eq(Stall::getStatus, 1)
                 .eq(Stall::getDeleted, 0)
                 .gt(Stall::getStock, 0));
+    }
+
+    private void fillSoldCounts(List<Stall> stalls) {
+        if (stalls == null || stalls.isEmpty()) {
+            return;
+        }
+        List<Long> stallIds = stalls.stream().map(Stall::getId).filter(java.util.Objects::nonNull).distinct().toList();
+        List<StallSalesCount> summaries = stallIds.isEmpty()
+                ? List.of()
+                : orderInfoMapper.selectCompletedSalesByStallIds(stallIds);
+        Map<Long, Long> soldCountByStall = (summaries == null ? List.<StallSalesCount>of() : summaries).stream()
+                .collect(Collectors.toMap(StallSalesCount::getStallId, StallSalesCount::getSoldCount));
+        stalls.forEach(stall -> stall.setSoldCount(soldCountByStall.getOrDefault(stall.getId(), 0L)));
     }
 
     private long countProjects(Long userId) {

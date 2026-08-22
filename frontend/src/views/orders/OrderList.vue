@@ -47,7 +47,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOrders } from '@/api/order'
 import { formatDateTime } from '@/utils/date'
@@ -59,10 +59,12 @@ const router = useRouter()
 const source = ref('stall')
 const statusGroup = ref('all')
 const participantRole = ref(route.path.startsWith('/dashboard') ? 'employer' : 'painter')
-const orders = ref([])
-const loading = ref(false)
+const listState = ref({ queryKey: '', records: [] })
+const loadingQueryKey = ref('')
 const reviewVisible = ref(false)
 const reviewTarget = ref(null)
+let activeRequestController = null
+let requestSequence = 0
 const filters = [
   { label: '全部订单', value: 'all' },
   { label: '待交付', value: 'delivery' },
@@ -70,18 +72,33 @@ const filters = [
   { label: '退款/售后', value: 'afterSale' },
 ]
 
+const currentQueryKey = computed(() => [participantRole.value, source.value, statusGroup.value].join(':'))
+const orders = computed(() => listState.value.queryKey === currentQueryKey.value ? listState.value.records : [])
+const loading = computed(() => loadingQueryKey.value === currentQueryKey.value)
+
 async function load() {
-  loading.value = true
+  const params = {
+    page: 1,
+    size: 30,
+    source: source.value,
+    statusGroup: statusGroup.value,
+    participantRole: participantRole.value,
+  }
+  const queryKey = [params.participantRole, params.source, params.statusGroup].join(':')
+  const requestId = ++requestSequence
+  activeRequestController?.abort()
+  const controller = new AbortController()
+  activeRequestController = controller
+  loadingQueryKey.value = queryKey
   try {
-    const data = await getOrders({
-      page: 1,
-      size: 30,
-      source: source.value,
-      statusGroup: statusGroup.value,
-      participantRole: participantRole.value,
-    })
-    orders.value = data.records || []
-  } finally { loading.value = false }
+    const data = await getOrders(params, { signal: controller.signal })
+    if (requestId !== requestSequence || queryKey !== currentQueryKey.value) return
+    listState.value = { queryKey, records: data.records || [] }
+  } catch (error) {
+    if (error?.code !== 'ERR_CANCELED') throw error
+  } finally {
+    if (requestId === requestSequence) loadingQueryKey.value = ''
+  }
 }
 function selectFilter(value) { statusGroup.value = value; load() }
 const isPainterRoute = computed(() => route.path.startsWith('/painter'))
@@ -90,13 +107,19 @@ function goStallDetail(id) { router.push({ name: 'StallDetail', params: { id }, 
 function goProjectDetail(id) { router.push({ name: 'ProjectDetail', params: { id }, query: { from: 'order' } }) }
 function openReview(order) { reviewTarget.value = order; reviewVisible.value = true }
 function reviewSubmitted() {
-  if (reviewTarget.value) orders.value = orders.value.filter((item) => item.id !== reviewTarget.value.id)
+  if (reviewTarget.value && listState.value.queryKey === currentQueryKey.value) {
+    listState.value = {
+      ...listState.value,
+      records: listState.value.records.filter((item) => item.id !== reviewTarget.value.id),
+    }
+  }
   reviewTarget.value = null
 }
 function orderTitle(order) { return order.projectTitle || order.stallTitle || `订单 #${order.id}` }
 function orderCover(order) { return order.projectCover || order.stallCover || '' }
 function money(value) { return Number(value || 0).toFixed(2) }
 onMounted(load)
+onBeforeUnmount(() => activeRequestController?.abort())
 </script>
 
 <style scoped>

@@ -99,7 +99,7 @@
               <span>橱窗价格</span>
               <strong class="price">￥{{ stall.price }}</strong>
             </div>
-            <div class="info-row"><span>已售</span><span>0 件</span></div>
+            <div class="info-row"><span>已售</span><span>{{ stall.soldCount ?? 0 }} 件</span></div>
             <div class="info-row"><span>库存</span><span :class="{ 'stock-empty': !hasStock }">{{ hasStock ? `${stall.stock} 件` : '无库存' }}</span></div>
             <div class="info-row"><span>截稿时间</span><span>{{ stall.deliverTime || '-' }}</span></div>
           </div>

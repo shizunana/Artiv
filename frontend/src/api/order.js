@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 
-export function getOrders(params) {
-  return request.get('/orders', { params })
+export function getOrders(params, config = {}) {
+  return request.get('/orders', { ...config, params })
 }
 
 export function getOrder(id) {

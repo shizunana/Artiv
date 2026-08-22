@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.StallLimitedUpdateRequest;
+import com.artiv.dto.StallSalesCount;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Stall;
 import com.artiv.entity.User;
@@ -26,6 +27,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -75,6 +78,7 @@ public class StallServiceImpl implements StallService {
         }
         Page<Stall> result = stallMapper.selectPage(new Page<>(page, size), wrapper);
         fillPainterNames(result.getRecords());
+        fillSoldCounts(result.getRecords());
         return result;
     }
 
@@ -85,6 +89,7 @@ public class StallServiceImpl implements StallService {
                 .eq(Stall::getPainterId, painterId)
                 .orderByDesc(Stall::getCreatedAt);
         Page<Stall> result = stallMapper.selectPage(new Page<>(page, size), wrapper);
+        fillSoldCounts(result.getRecords());
         fillUnfinishedOrderFlags(result.getRecords());
         return result;
     }
@@ -104,10 +109,27 @@ public class StallServiceImpl implements StallService {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND.getCode(), "请先上架后查看详情");
         }
         fillPainterNames(java.util.List.of(stall));
+        fillSoldCounts(java.util.List.of(stall));
         if (owner) {
             stall.setHasUnfinishedOrders(hasUnfinishedOrders(id));
         }
         return stall;
+    }
+
+    private void fillSoldCounts(List<Stall> stalls) {
+        if (stalls == null || stalls.isEmpty()) {
+            return;
+        }
+        List<Long> stallIds = stalls.stream().map(Stall::getId).filter(java.util.Objects::nonNull).distinct().toList();
+        List<StallSalesCount> summaries = stallIds.isEmpty()
+                ? List.of()
+                : orderInfoMapper.selectCompletedSalesByStallIds(stallIds);
+        Map<Long, StallSalesCount> summaryByStall = (summaries == null ? List.<StallSalesCount>of() : summaries)
+                .stream().collect(Collectors.toMap(StallSalesCount::getStallId, Function.identity()));
+        for (Stall stall : stalls) {
+            StallSalesCount summary = summaryByStall.get(stall.getId());
+            stall.setSoldCount(summary == null || summary.getSoldCount() == null ? 0L : summary.getSoldCount());
+        }
     }
 
     /** 填充画师昵称 */

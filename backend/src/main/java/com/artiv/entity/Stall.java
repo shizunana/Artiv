@@ -63,4 +63,8 @@ public class Stall {
     /** 是否存在尚未结束的关联订单（非表字段，仅用于“我的橱窗”操作提示） */
     @TableField(exist = false)
     private Boolean hasUnfinishedOrders;
+
+    /** 已完成订单数（非表字段，由列表/详情一次性聚合填充） */
+    @TableField(exist = false)
+    private Long soldCount;
 }

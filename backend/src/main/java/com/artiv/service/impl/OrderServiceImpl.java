@@ -90,10 +90,10 @@ public class OrderServiceImpl implements OrderService {
             wrapper.in(OrderInfo::getStatus, PENDING, IN_PROGRESS, PENDING_REVIEW);
         } else if ("review".equalsIgnoreCase(statusGroup)) {
             wrapper.eq(OrderInfo::getStatus, COMPLETED)
-                    .gt(OrderInfo::getCompletedAt, LocalDateTime.now().minusDays(7))
+                    .ge(OrderInfo::getCompletedAt, LocalDateTime.now().minusDays(7))
                     .notExists("SELECT 1 FROM review r WHERE r.order_id = order_info.id AND r.from_id = " + userId);
         } else if ("afterSale".equalsIgnoreCase(statusGroup)) {
-            wrapper.in(OrderInfo::getStatus, CANCELLED, AFTER_SALE);
+            wrapper.eq(OrderInfo::getStatus, AFTER_SALE);
         }
         wrapper.orderByDesc(OrderInfo::getCreatedAt);
         return orderInfoMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 50)), wrapper);

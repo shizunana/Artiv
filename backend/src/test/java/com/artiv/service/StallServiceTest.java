@@ -1,7 +1,9 @@
 package com.artiv.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.dto.StallLimitedUpdateRequest;
+import com.artiv.dto.StallSalesCount;
 import com.artiv.entity.Stall;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.StallMapper;
@@ -145,6 +147,27 @@ class StallServiceTest {
         verify(stallMapper).updateById(stall);
         org.junit.jupiter.api.Assertions.assertTrue(result.getParams().contains("Q版"));
         org.junit.jupiter.api.Assertions.assertTrue(result.getParams().contains("古风"));
+    }
+
+    @Test
+    void publicListUsesOneAggregateQueryAndFillsZeroForUnsoldStalls() {
+        Stall sold = ownedStall();
+        Stall unsold = ownedStall();
+        unsold.setId(28L);
+        Page<Stall> page = new Page<>(1, 20);
+        page.setRecords(List.of(sold, unsold));
+        when(stallMapper.selectPage(any(), any())).thenReturn(page);
+        StallSalesCount sales = new StallSalesCount();
+        sales.setStallId(27L);
+        sales.setSoldCount(3L);
+        when(orderInfoMapper.selectCompletedSalesByStallIds(List.of(27L, 28L))).thenReturn(List.of(sales));
+
+        Page<Stall> result = stallService.listStalls(1, 20, null, null, null,
+                null, null, null, null);
+
+        assertEquals(3L, result.getRecords().get(0).getSoldCount());
+        assertEquals(0L, result.getRecords().get(1).getSoldCount());
+        verify(orderInfoMapper).selectCompletedSalesByStallIds(List.of(27L, 28L));
     }
 
     private Stall ownedStall() {

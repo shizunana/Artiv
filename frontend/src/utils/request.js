@@ -32,6 +32,9 @@ request.interceptors.response.use(
     return Promise.reject(new Error(res.message || '请求失败'))
   },
   (error) => {
+    if (axios.isCancel(error)) {
+      return Promise.reject(error)
+    }
     if (error.response?.status === 401) {
       clearAuth()
       router.push({ name: 'Login' })

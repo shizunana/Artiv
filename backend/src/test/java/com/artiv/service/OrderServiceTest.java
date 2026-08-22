@@ -1,5 +1,8 @@
 package com.artiv.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.common.BusinessException;
 import com.artiv.dto.OrderStageReviewRequest;
@@ -20,6 +23,7 @@ import com.artiv.mapper.UserMapper;
 import com.artiv.service.impl.OrderServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -30,8 +34,10 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -408,6 +414,42 @@ class OrderServiceTest {
         orderService.listMine(1, 10, 2L, "stall", "all", "painter");
 
         verify(orderInfoMapper, org.mockito.Mockito.times(2)).selectPage(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void listMineReviewFilterKeepsOnlyUnreviewedOrdersInsideSevenDays() {
+        when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        orderService.listMine(1, 10, 2L, "stall", "review", "painter");
+
+        ArgumentCaptor<LambdaQueryWrapper> wrapperCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(orderInfoMapper).selectPage(any(), wrapperCaptor.capture());
+        LambdaQueryWrapper<OrderInfo> wrapper = wrapperCaptor.getValue();
+        String sql = sqlSegment(wrapper);
+        assertTrue(sql.contains("completed_at"));
+        assertTrue(sql.contains("NOT EXISTS"));
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(3));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void listMineAfterSaleFilterOnlyKeepsActiveDisputes() {
+        when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        orderService.listMine(1, 10, 2L, "stall", "afterSale", "painter");
+
+        ArgumentCaptor<LambdaQueryWrapper> wrapperCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(orderInfoMapper).selectPage(any(), wrapperCaptor.capture());
+        LambdaQueryWrapper<OrderInfo> wrapper = wrapperCaptor.getValue();
+        sqlSegment(wrapper);
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(5));
+        assertFalse(wrapper.getParamNameValuePairs().containsValue(4));
+    }
+
+    private String sqlSegment(LambdaQueryWrapper<OrderInfo> wrapper) {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), OrderInfo.class);
+        return wrapper.getCustomSqlSegment();
     }
 
     private Stall activeStall() {
