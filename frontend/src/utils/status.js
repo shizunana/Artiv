@@ -30,3 +30,11 @@ export function statusText(map, value, fallback = '-') {
 export function statusType(map, value, fallback = 'info') {
   return map[value]?.type ?? fallback
 }
+
+export function orderStatusText(value, viewerRole) {
+  if (Number(value) === 4) {
+    if (viewerRole === 'employer') return '已退款'
+    if (viewerRole === 'painter') return '交易关闭'
+  }
+  return statusText(ORDER_STATUS, value)
+}

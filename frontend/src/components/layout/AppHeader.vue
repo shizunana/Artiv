@@ -16,7 +16,7 @@
       <div class="app-header__actions">
         <template v-if="userStore.isLoggedIn">
           <el-button v-if="!userStore.isAdmin" type="primary" round class="publish-button" @click="goPublish">发布需求</el-button>
-          <el-badge :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
+          <el-badge v-if="!userStore.isAdmin" :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
             <el-button circle class="message-button" aria-label="打开消息中心" @click="goMessages">
               <el-icon><Bell /></el-icon>
             </el-button>
@@ -43,7 +43,8 @@
                   </div>
                 </div>
                 <el-dropdown-item command="home">主页</el-dropdown-item>
-                <el-dropdown-item command="profile">账户设置</el-dropdown-item>
+                <el-dropdown-item command="workbench">{{ userStore.isAdmin ? '工作台' : '我的工作台' }}</el-dropdown-item>
+                <el-dropdown-item v-if="!userStore.isAdmin" command="profile">账户设置</el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -60,13 +61,14 @@
 
 <script setup>
 import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowDown, Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useMessageStore } from '@/stores/message'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const messageStore = useMessageStore()
 
@@ -106,11 +108,25 @@ async function onAccountMenuVisible(visible) {
 
 function onCommand(command) {
   if (command === 'home') {
-    router.push({
-      name: 'ArtistProfile',
-      params: { id: userStore.user.id },
-      query: { role: userStore.workbenchRole === 2 ? 'painter' : 'employer' },
-    })
+    if (userStore.isAdmin) {
+      router.push({ name: 'Home' })
+    } else {
+      router.push({
+        name: 'ArtistProfile',
+        params: { id: userStore.user.id },
+        query: { role: userStore.workbenchRole === 2 ? 'painter' : 'employer' },
+      })
+    }
+  } else if (command === 'workbench') {
+    if (userStore.isAdmin) {
+      router.push('/admin')
+    } else if (route.path.startsWith('/painter')) {
+      router.push('/painter')
+    } else if (route.path.startsWith('/dashboard')) {
+      router.push('/dashboard')
+    } else {
+      router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
+    }
   } else if (command === 'recharge' || command === 'withdraw') {
     ElMessage.info('资金管理功能正在开发中')
   } else if (command === 'profile') {

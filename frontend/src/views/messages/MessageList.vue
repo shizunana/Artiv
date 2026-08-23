@@ -185,7 +185,7 @@ async function openConversation(item) {
 
 async function markActiveConversationRead(extraMessage = null) {
   if (!active.value) return
-  const activeUserId = String(active.value.withUserId)
+  const currentUserId = String(userStore.user?.id)
   const visibleOrderIds = new Set(
     messages.value.map((message) => message.orderId).filter(Boolean).map(String),
   )
@@ -193,13 +193,13 @@ async function markActiveConversationRead(extraMessage = null) {
     visibleOrderIds.add(String(extraMessage.orderId))
   }
   const candidates = [
-    ...messages.value.filter((message) => String(message.fromId) === activeUserId && !message.readAt),
+    ...messages.value.filter((message) => String(message.toId) === currentUserId && !message.readAt),
     ...notifications.value.filter((notice) => !notice.readAt
       && notice.orderId
       && visibleOrderIds.has(String(notice.orderId))),
   ]
   if (extraMessage && !extraMessage.readAt
-      && (String(extraMessage.fromId) === activeUserId
+      && (String(extraMessage.toId) === currentUserId
         || (extraMessage.orderId && visibleOrderIds.has(String(extraMessage.orderId))))) {
     candidates.push(extraMessage)
   }

@@ -3,6 +3,7 @@ package com.artiv.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.common.BusinessException;
 import com.artiv.dto.PrivateMessageRequest;
+import com.artiv.dto.ConversationSummary;
 import com.artiv.entity.Application;
 import com.artiv.entity.Message;
 import com.artiv.entity.OrderInfo;
@@ -136,6 +137,44 @@ class MessageServiceTest {
         assertEquals(2L, captor.getAllValues().get(1).getToId());
         org.junit.jupiter.api.Assertions.assertNull(captor.getAllValues().get(1).getReadAt());
         assertEquals(2L, captor.getAllValues().get(2).getToId());
+    }
+
+    @Test
+    void adminOrderEventRemainsInsideTheTradeParticipantsConversation() {
+        OrderInfo order = new OrderInfo();
+        order.setId(78L);
+        order.setEmployerId(15L);
+        order.setPainterId(2L);
+
+        messageService.createOrderEventMessage(order, 3L, "ORDER_ARBITRATION_REFUND", "管理员已退款");
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(messageMapper, org.mockito.Mockito.times(3)).insert(captor.capture());
+        Message conversationMessage = captor.getAllValues().get(2);
+        assertEquals(2L, conversationMessage.getFromId());
+        assertEquals(15L, conversationMessage.getToId());
+        assertEquals("2_15", conversationMessage.getConversationKey());
+    }
+
+    @Test
+    void conversationSummaryUsesConversationKeyForLegacyAdminAuthoredOrderEvent() {
+        Message legacy = new Message();
+        legacy.setId(397L);
+        legacy.setFromId(3L);
+        legacy.setToId(16L);
+        legacy.setType(3);
+        legacy.setConversationKey("2_16");
+        legacy.setContent("管理员仲裁为全额结算画师");
+        legacy.setCreatedAt(java.time.LocalDateTime.now());
+        when(messageMapper.selectList(any())).thenReturn(List.of(legacy));
+        when(userMapper.selectById(2L)).thenReturn(activeUser(2L));
+
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<ConversationSummary> result =
+                messageService.listConversations(16L, 1, 20);
+
+        assertEquals(1, result.getRecords().size());
+        assertEquals(2L, result.getRecords().get(0).getWithUserId());
+        assertEquals(1, result.getRecords().get(0).getUnreadCount());
     }
 
     @Test

@@ -130,11 +130,14 @@ public class MessageServiceImpl implements MessageService {
                 .orderByDesc(Message::getCreatedAt));
         Map<String, ConversationSummary> grouped = new LinkedHashMap<>();
         for (Message message : messages) {
-            String key = message.getConversationKey();
+            String key = normalizedConversationKey(message);
+            Long withUserId = conversationPartner(userId, message, key);
+            if (key == null || withUserId == null) {
+                continue;
+            }
             ConversationSummary summary = grouped.get(key);
             if (summary == null) {
                 summary = new ConversationSummary();
-                Long withUserId = userId.equals(message.getFromId()) ? message.getToId() : message.getFromId();
                 summary.setWithUserId(withUserId);
                 summary.setProjectId(message.getProjectId());
                 summary.setOrderId(message.getOrderId());
@@ -278,9 +281,15 @@ public class MessageServiceImpl implements MessageService {
         createOrderNotification(order.getPainterId(), order.getId(), subtype, content,
                 actorId != null && actorId.equals(order.getPainterId()));
         Message message = new Message();
-        message.setFromId(actorId);
-        message.setToId(actorId != null && actorId.equals(order.getEmployerId())
-                ? order.getPainterId() : order.getEmployerId());
+        boolean actorIsEmployer = actorId != null && actorId.equals(order.getEmployerId());
+        boolean actorIsPainter = actorId != null && actorId.equals(order.getPainterId());
+        // 管理员触发的仲裁事件仍属于交易双方的合并会话，不能把管理员误识别为会话对象。
+        message.setFromId(actorIsEmployer ? order.getEmployerId() : order.getPainterId());
+        message.setToId(actorIsEmployer ? order.getPainterId() : order.getEmployerId());
+        if (!actorIsEmployer && !actorIsPainter) {
+            message.setFromId(order.getPainterId());
+            message.setToId(order.getEmployerId());
+        }
         message.setOrderId(order.getId());
         message.setType(TYPE_PRIVATE);
         message.setSubtype(subtype);
@@ -388,6 +397,35 @@ public class MessageServiceImpl implements MessageService {
         long min = Math.min(firstUserId, secondUserId);
         long max = Math.max(firstUserId, secondUserId);
         return min + "_" + max;
+    }
+
+    private String normalizedConversationKey(Message message) {
+        if (message.getConversationKey() != null && !message.getConversationKey().isBlank()) {
+            return message.getConversationKey();
+        }
+        if (message.getFromId() == null || message.getToId() == null) {
+            return null;
+        }
+        return conversationKey(message.getFromId(), message.getToId());
+    }
+
+    private Long conversationPartner(Long userId, Message message, String key) {
+        if (key != null) {
+            String[] participants = key.split("_");
+            if (participants.length == 2) {
+                try {
+                    Long first = Long.valueOf(participants[0]);
+                    Long second = Long.valueOf(participants[1]);
+                    if (userId.equals(first)) return second;
+                    if (userId.equals(second)) return first;
+                } catch (NumberFormatException ignored) {
+                    // 兼容旧数据，无法解析时回退到消息收发双方。
+                }
+            }
+        }
+        if (userId.equals(message.getFromId())) return message.getToId();
+        if (userId.equals(message.getToId())) return message.getFromId();
+        return null;
     }
 
     private String projectConversationStarterKey(Long projectId, Long employerId, Long painterId) {

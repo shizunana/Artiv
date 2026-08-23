@@ -95,7 +95,10 @@ public class OrderServiceImpl implements OrderService {
         } else if ("afterSale".equalsIgnoreCase(statusGroup)) {
             wrapper.eq(OrderInfo::getStatus, AFTER_SALE);
         }
-        wrapper.orderByDesc(OrderInfo::getCreatedAt);
+        wrapper.last("ORDER BY CASE "
+                + "WHEN status IN (1, 2, 5) THEN 1 "
+                + "WHEN status = 0 THEN 2 "
+                + "ELSE 3 END ASC, created_at DESC, id DESC");
         return orderInfoMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 50)), wrapper);
     }
 

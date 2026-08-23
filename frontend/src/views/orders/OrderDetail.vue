@@ -2,7 +2,7 @@
   <div class="order-detail" v-loading="loading">
     <template v-if="detail">
       <section class="wb-card order-summary">
-        <header><div><el-button link @click="router.back()">← 返回订单管理</el-button><h2>{{ order.projectTitle || order.stallTitle || `订单 #${order.id}` }}</h2><p>订单编号 {{ order.id }} · {{ formatDateTime(order.createdAt) }}</p></div><el-tag size="large" :type="statusType(ORDER_STATUS, order.status)">{{ statusText(ORDER_STATUS, order.status) }}</el-tag></header>
+        <header><div><el-button link @click="router.back()">← 返回订单管理</el-button><h2>{{ order.projectTitle || order.stallTitle || `订单 #${order.id}` }}</h2><p>订单编号 {{ order.id }} · {{ formatDateTime(order.createdAt) }}</p></div><el-tag size="large" :type="statusType(ORDER_STATUS, order.status)">{{ orderStatusText(order.status, detail.viewerRole) }}</el-tag></header>
         <div class="summary-grid">
           <div><small>交易金额</small><strong>¥{{ money(order.amount) }}</strong></div>
           <div><small>企划方</small><strong>{{ detail.employerName }}</strong></div>
@@ -100,7 +100,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { acceptOrder, addDisputeEvidence, cancelOrder, createOrderDispute, getCurrentOrderDispute, getOrder, rejectOrder, reviewOrderStage, submitOrderStage } from '@/api/order'
 import { uploadFile } from '@/api/upload'
-import { ORDER_STATUS, statusText, statusType } from '@/utils/status'
+import { ORDER_STATUS, orderStatusText, statusType } from '@/utils/status'
 import { formatDateTime } from '@/utils/date'
 import { useUserStore } from '@/stores/user'
 import ReviewDialog from '@/components/reviews/ReviewDialog.vue'

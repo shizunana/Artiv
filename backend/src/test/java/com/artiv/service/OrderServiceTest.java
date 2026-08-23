@@ -418,6 +418,22 @@ class OrderServiceTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
+    void listMineSortsActiveThenPendingThenTerminalAndNewestInsideEachGroup() {
+        when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        orderService.listMine(1, 10, 2L, "stall", "all", "employer");
+
+        ArgumentCaptor<LambdaQueryWrapper> wrapperCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(orderInfoMapper).selectPage(any(), wrapperCaptor.capture());
+        String sql = sqlSegment(wrapperCaptor.getValue());
+        assertTrue(sql.contains("CASE WHEN status IN (1, 2, 5) THEN 1"));
+        assertTrue(sql.contains("WHEN status = 0 THEN 2"));
+        assertTrue(sql.contains("created_at DESC"));
+        assertTrue(sql.contains("id DESC"));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
     void listMineReviewFilterKeepsOnlyUnreviewedOrdersInsideSevenDays() {
         when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
 

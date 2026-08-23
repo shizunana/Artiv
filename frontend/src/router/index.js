@@ -97,6 +97,9 @@ router.beforeEach((to) => {
   if (to.matched.some(record => record.meta.requiresAdmin) && !userStore.isAdmin) {
     return { name: 'Home' }
   }
+  if (token && userStore.isAdmin && to.name === 'AccountSettings') {
+    return { name: 'AdminHome' }
+  }
   // 工作台路由与角色匹配：画师访问企划方工作台、企划方访问画师工作台时引导回自己的工作台
   if (token && to.meta.workbench) {
     const role = userStore.workbenchRole

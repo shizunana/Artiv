@@ -27,7 +27,7 @@
         <img v-if="orderCover(order)" :src="orderCover(order)" :alt="order.stallId ? '橱窗封面' : '企划封面'" />
         <div v-else class="order-cover">订单</div>
         <div class="order-main">
-          <div class="order-title-row"><h3>{{ orderTitle(order) }}</h3><el-tag :type="statusType(ORDER_STATUS, order.status)">{{ statusText(ORDER_STATUS, order.status) }}</el-tag></div>
+          <div class="order-title-row"><h3>{{ orderTitle(order) }}</h3><el-tag :type="statusType(ORDER_STATUS, order.status)">{{ orderStatusText(order.status, participantRole) }}</el-tag></div>
           <p>订单编号：{{ order.id }} · 下单时间：{{ formatDateTime(order.createdAt) }}</p>
           <p class="stage">当前阶段：第 {{ (order.currentStage ?? 0) + 1 }} 阶段</p>
         </div>
@@ -51,7 +51,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOrders } from '@/api/order'
 import { formatDateTime } from '@/utils/date'
-import { ORDER_STATUS, statusText, statusType } from '@/utils/status'
+import { ORDER_STATUS, orderStatusText, statusType } from '@/utils/status'
 import ReviewDialog from '@/components/reviews/ReviewDialog.vue'
 
 const route = useRoute()
@@ -123,7 +123,7 @@ onBeforeUnmount(() => activeRequestController?.abort())
 </script>
 
 <style scoped>
-.wb-card { background: #fff; border-radius: 8px; padding: 24px; }
+.wb-card { min-width: 0; background: #fff; border-radius: 8px; padding: 24px; }
 .order-header { display: flex; justify-content: space-between; align-items: flex-start; }
 .order-header h2 { margin: 0 0 7px; font-size: 21px; }
 .order-header p { margin: 0; color: var(--artiv-text-secondary); }
@@ -134,18 +134,20 @@ onBeforeUnmount(() => activeRequestController?.abort())
 .status-filters { display: flex; gap: 10px; padding: 4px 0 18px; border-bottom: 1px solid var(--artiv-border); }
 .status-filters button { border: 1px solid var(--artiv-border); border-radius: 18px; background: #fff; padding: 7px 18px; color: var(--artiv-text-secondary); cursor: pointer; }
 .status-filters button.active { border-color: var(--artiv-primary); background: var(--artiv-primary); color: #fff; }
-.order-cards { min-height: 360px; padding-top: 16px; }
-.order-card { display: grid; grid-template-columns: 92px minmax(0,1fr) 120px; align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
+.order-cards { min-width: 0; min-height: 360px; padding-top: 16px; }
+.order-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0,1fr) minmax(220px,240px); align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
 .order-card:hover { background: #fbfdff; }
 .order-card img,.order-cover { width: 92px; height: 72px; border-radius: 7px; object-fit: cover; }
 .order-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); }
-.order-title-row { display: flex; align-items: center; gap: 10px; }
-.order-title-row h3 { margin: 0; font-size: 16px; }
+.order-title-row { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.order-title-row h3 { min-width: 0; margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.order-main { min-width: 0; }
 .order-main p { margin: 8px 0 0; color: var(--artiv-text-secondary); font-size: 13px; }
 .order-main .stage { color: var(--artiv-text); }
-.order-price { display: grid; justify-items: end; gap: 7px; }
+.order-price { display: grid; min-width: 0; justify-items: end; gap: 7px; }
 .order-price small { color: var(--artiv-text-secondary); }
 .order-price strong { color: var(--artiv-accent); font-size: 18px; }
-.order-actions { display: flex; justify-content: flex-end; gap: 4px; white-space: nowrap; }
+.order-actions { display: flex; width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; }
+.order-actions :deep(.el-button + .el-button) { margin-left: 0; }
 @media(max-width:720px){.order-card{grid-template-columns:70px 1fr}.order-card img,.order-cover{width:70px}.order-price{grid-column:2;justify-items:start}.status-filters{overflow-x:auto}}
 </style>
