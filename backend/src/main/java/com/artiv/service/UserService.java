@@ -5,6 +5,7 @@ import com.artiv.dto.AccountProfileUpdateRequest;
 import com.artiv.dto.PasswordUpdateRequest;
 import com.artiv.dto.PainterProfileUpdateRequest;
 import com.artiv.dto.RegisterRequest;
+import com.artiv.dto.WorkbenchRoleUpdateRequest;
 import com.artiv.entity.User;
 
 import java.util.Map;
@@ -16,6 +17,8 @@ public interface UserService {
     User updatePainterProfile(Long userId, PainterProfileUpdateRequest request);
 
     User updateAccountProfile(Long userId, AccountProfileUpdateRequest request);
+
+    User updateWorkbenchRole(Long userId, WorkbenchRoleUpdateRequest request);
 
     void updatePassword(Long userId, PasswordUpdateRequest request);
 

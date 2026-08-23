@@ -6,6 +6,7 @@ import com.artiv.dto.AccountProfileUpdateRequest;
 import com.artiv.dto.PainterProfileUpdateRequest;
 import com.artiv.dto.PasswordUpdateRequest;
 import com.artiv.dto.RegisterRequest;
+import com.artiv.dto.WorkbenchRoleUpdateRequest;
 import com.artiv.entity.User;
 import com.artiv.mapper.UserMapper;
 import com.artiv.security.JwtUtil;
@@ -136,6 +137,42 @@ class UserServiceTest {
         request.setNewPassword("654321");
 
         assertThrows(BusinessException.class, () -> userService.updatePassword(2L, request));
+        verify(userMapper, never()).updateById(any(User.class));
+    }
+
+    @Test
+    void switchingWorkbenchPersistsRoleWithoutChangingPermissions() {
+        User current = painter(2L, "昵称");
+        current.setRole(1);
+        User updated = painter(2L, "昵称");
+        updated.setRole(2);
+        updated.setPassword("encoded-password");
+        when(userMapper.selectById(2L)).thenReturn(current, updated);
+
+        WorkbenchRoleUpdateRequest request = new WorkbenchRoleUpdateRequest();
+        request.setRole(2);
+        User result = userService.updateWorkbenchRole(2L, request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).updateById(captor.capture());
+        assertEquals(2, captor.getValue().getRole());
+        assertNull(captor.getValue().getCertStatus());
+        assertEquals(2, result.getRole());
+        assertNull(result.getPassword());
+    }
+
+    @Test
+    void administratorCannotUseOrdinaryWorkbenchSwitch() {
+        User admin = painter(3L, "管理员");
+        admin.setRole(3);
+        when(userMapper.selectById(3L)).thenReturn(admin);
+        WorkbenchRoleUpdateRequest request = new WorkbenchRoleUpdateRequest();
+        request.setRole(1);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userService.updateWorkbenchRole(3L, request));
+
+        assertEquals(ResultCode.NO_PERMISSION.getCode(), exception.getCode());
         verify(userMapper, never()).updateById(any(User.class));
     }
 

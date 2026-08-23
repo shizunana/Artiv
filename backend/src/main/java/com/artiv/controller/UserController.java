@@ -10,6 +10,7 @@ import com.artiv.dto.AccountProfileUpdateRequest;
 import com.artiv.dto.PasswordUpdateRequest;
 import com.artiv.dto.AvatarUpdateRequest;
 import com.artiv.dto.ArtistSummary;
+import com.artiv.dto.WorkbenchRoleUpdateRequest;
 import com.artiv.dto.PublicProfileResponse;
 import com.artiv.dto.admin.CertificationSubmitRequest;
 import com.artiv.entity.User;
@@ -124,6 +125,12 @@ public class UserController {
     @PutMapping("/me/account")
     public Result<User> updateMyAccountProfile(@Valid @RequestBody AccountProfileUpdateRequest request) {
         return Result.ok(userService.updateAccountProfile(UserContext.getUserId(), request));
+    }
+
+    /** 保存普通账号的默认工作台；role=1/2 不参与画师权限判断。 */
+    @PutMapping("/me/workbench-role")
+    public Result<User> updateMyWorkbenchRole(@Valid @RequestBody WorkbenchRoleUpdateRequest request) {
+        return Result.ok(userService.updateWorkbenchRole(UserContext.getUserId(), request));
     }
 
     /** 直接维护画师简介和题材风格，不触发认证审核。 */

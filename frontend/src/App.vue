@@ -14,7 +14,15 @@ let stopListener = null
 
 async function handleSocketEvent(event) {
   try {
-    await messageStore.fetchUnreadCount()
+    if (event?.type === 'WS_CONNECTED' || event?.type === 'WS_RECONNECTED') {
+      await Promise.all([
+        messageStore.fetchUnreadCount(),
+        messageStore.fetchConversations({ page: 1, size: 30 }),
+        messageStore.fetchNotifications({ page: 1, size: 30 }),
+      ])
+    } else {
+      await messageStore.fetchUnreadCount()
+    }
     if (event?.type === 'NEW_MESSAGE' && event.data?.subtype === 'ORDER_COMPLETED') {
       await userStore.fetchMe()
     }

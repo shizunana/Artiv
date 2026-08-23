@@ -24,6 +24,10 @@ export function updateMyAccountProfile(data) {
   return request.put('/users/me/account', data)
 }
 
+export function updateMyWorkbenchRole(role) {
+  return request.put('/users/me/workbench-role', { role })
+}
+
 export function updateMyPassword(data) {
   return request.put('/users/me/password', data)
 }

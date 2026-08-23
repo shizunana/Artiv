@@ -39,8 +39,14 @@ request.interceptors.response.use(
       clearAuth()
       router.push({ name: 'Login' })
     }
-    ElMessage.error(error.response?.data?.message || error.message || '网络错误')
-    return Promise.reject(error)
+    const responseData = error.response?.data
+    const message = responseData?.message || error.message || '网络错误'
+    ElMessage.error(message)
+    const normalizedError = new Error(message)
+    normalizedError.code = responseData?.code
+    normalizedError.status = error.response?.status
+    normalizedError.cause = error
+    return Promise.reject(normalizedError)
   },
 )
 

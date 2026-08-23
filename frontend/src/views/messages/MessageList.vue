@@ -299,11 +299,9 @@ async function scrollHistoryToBottom() {
 }
 
 function isBusinessSystemMessage(message) {
-  return message.subtype === 'APPLICATION_CONVERSATION_STARTED'
-    || message.subtype === 'STALL_PURCHASE_CONVERSATION_STARTED'
-    || message.subtype === 'PROJECT_ORDER_CONVERSATION_STARTED'
-    || message.subtype === 'PRIVATE_ORDER_CARD'
-    || message.subtype?.startsWith('ORDER_')
+  return message.type === 3
+    && message.subtype !== 'PRIVATE_CHAT'
+    && message.subtype !== 'PRIVATE_IMAGE'
 }
 
 function viewMessageDetail(message) {
@@ -355,11 +353,21 @@ function notificationTitle(notice) {
   if (notice.subtype === 'PROJECT_ORDER_CREATED') return '企划订单已发送'
   if (notice.subtype === 'PROJECT_ORDER_RECEIVED') return '收到企划订单'
   if (notice.subtype?.startsWith('ORDER_')) return '订单状态更新'
+  if (notice.subtype?.startsWith('PROJECT_MODERATION_')) return '企划治理通知'
+  if (notice.subtype?.startsWith('CERTIFICATION_')) return '画师认证通知'
+  if (notice.subtype?.startsWith('REVIEW_')) return '合作评价通知'
+  if (notice.subtype?.startsWith('ACCOUNT_')) return '账号状态通知'
   return '系统通知'
 }
 
 function notificationAction(notice) {
-  return notice.subtype?.startsWith('APPLICATION') ? '查看应征' : notice.orderId ? '查看订单' : notice.subtype?.startsWith('STALL') ? '查看消息' : '查看'
+  if (notice.orderId) return '查看订单'
+  if (notice.subtype === 'APPLICATION_CREATED') return '查看应征'
+  if (notice.subtype === 'APPLICATION_SELECTED' || notice.subtype?.startsWith('PROJECT_MODERATION_')) return '查看企划'
+  if (notice.subtype?.startsWith('CERTIFICATION_')) return '查看认证'
+  if (notice.subtype?.startsWith('REVIEW_')) return '查看评价'
+  if (notice.subtype?.startsWith('ACCOUNT_')) return '查看账户'
+  return notice.projectId ? '查看企划' : '查看工作台'
 }
 
 async function openNotification(notice) {
@@ -368,10 +376,21 @@ async function openNotification(notice) {
   if (notice.orderId) {
     router.push({ name: userStore.workbenchRole === 2 ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id: notice.orderId } })
   } else if (notice.subtype === 'APPLICATION_CREATED' && notice.projectId) {
+    if (userStore.workbenchRole !== 1) await userStore.switchRole(1)
+    router.push({ name: 'ProjectApplications', params: { id: notice.projectId } })
+  } else if (notice.projectId) {
     router.push({ name: 'ProjectDetail', params: { id: notice.projectId } })
+  } else if (notice.subtype?.startsWith('CERTIFICATION_')) {
+    router.push({ name: 'AccountSettings', query: { section: 'identity' } })
+  } else if (notice.subtype?.startsWith('REVIEW_')) {
+    router.push({ name: 'ArtistProfile', params: { id: userStore.user.id }, query: { role: 'painter' } })
+  } else if (notice.subtype?.startsWith('ACCOUNT_')) {
+    router.push({ name: 'AccountSettings' })
   } else if (notice.subtype?.startsWith('APPLICATION') || notice.subtype?.startsWith('STALL')) {
     activeTab.value = 'conversations'
     await loadConversations()
+  } else {
+    router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
   }
 }
 
@@ -390,6 +409,13 @@ onMounted(async () => {
   await Promise.all([loadConversations(), loadNotifications(), messageStore.fetchUnreadCount()])
   await openFromQuery()
   stopSocket = startMessageSocket(async (event) => {
+    if (event.type === 'WS_CONNECTED' || event.type === 'WS_RECONNECTED') {
+      await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
+      if (event.type === 'WS_RECONNECTED' && active.value) {
+        await openConversation(active.value)
+      }
+      return
+    }
     await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
     if (event.type === 'NEW_MESSAGE' && active.value
       && event.data.fromId === active.value.withUserId) {

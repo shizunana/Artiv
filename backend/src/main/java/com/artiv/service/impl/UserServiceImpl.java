@@ -8,6 +8,7 @@ import com.artiv.dto.AccountProfileUpdateRequest;
 import com.artiv.dto.PasswordUpdateRequest;
 import com.artiv.dto.PainterProfileUpdateRequest;
 import com.artiv.dto.RegisterRequest;
+import com.artiv.dto.WorkbenchRoleUpdateRequest;
 import com.artiv.entity.User;
 import com.artiv.mapper.UserMapper;
 import com.artiv.security.JwtUtil;
@@ -131,6 +132,19 @@ public class UserServiceImpl implements UserService {
             }
             throw duplicateKeyException;
         }
+        User updated = userMapper.selectById(userId);
+        updated.setPassword(null);
+        return updated;
+    }
+
+    @Override
+    public User updateWorkbenchRole(Long userId, WorkbenchRoleUpdateRequest request) {
+        requireMutableUser(userId);
+        User patch = new User();
+        patch.setId(userId);
+        patch.setRole(request.getRole());
+        patch.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(patch);
         User updated = userMapper.selectById(userId);
         updated.setPassword(null);
         return updated;

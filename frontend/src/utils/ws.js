@@ -4,6 +4,8 @@ let socket = null
 let reconnectTimer = null
 let retryDelay = 1000
 let listeners = new Set()
+let connectedBefore = false
+let manuallyStopped = false
 
 function buildUrl() {
   const raw = import.meta.env.VITE_WS_URL || '/ws'
@@ -14,16 +16,27 @@ function buildUrl() {
 
 function connect() {
   if (!getToken() || socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) return
-  socket = new WebSocket(buildUrl())
-  socket.onopen = () => { retryDelay = 1000 }
-  socket.onmessage = (event) => {
+  manuallyStopped = false
+  const currentSocket = new WebSocket(buildUrl())
+  socket = currentSocket
+  currentSocket.onopen = () => {
+    retryDelay = 1000
+    const eventType = connectedBefore ? 'WS_RECONNECTED' : 'WS_CONNECTED'
+    connectedBefore = true
+    listeners.forEach((listener) => listener({ type: eventType }))
+  }
+  currentSocket.onmessage = (event) => {
     try { listeners.forEach((listener) => listener(JSON.parse(event.data))) } catch (_) { /* 忽略非 JSON 心跳消息 */ }
   }
-  socket.onclose = () => scheduleReconnect()
-  socket.onerror = () => socket?.close()
+  currentSocket.onclose = () => {
+    if (socket === currentSocket) socket = null
+    if (!manuallyStopped) scheduleReconnect()
+  }
+  currentSocket.onerror = () => currentSocket.close()
 }
 
 function scheduleReconnect() {
+  if (!listeners.size || !getToken()) return
   clearTimeout(reconnectTimer)
   reconnectTimer = setTimeout(connect, retryDelay)
   retryDelay = Math.min(retryDelay * 2, 15000)
@@ -36,8 +49,11 @@ export function startMessageSocket(listener) {
 }
 
 export function stopMessageSocket() {
+  manuallyStopped = true
   clearTimeout(reconnectTimer)
   socket?.close()
   socket = null
   listeners = new Set()
+  connectedBefore = false
+  retryDelay = 1000
 }

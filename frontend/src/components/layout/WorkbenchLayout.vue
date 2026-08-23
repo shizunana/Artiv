@@ -9,7 +9,7 @@
         <div class="wb-sidebar__user">
           <el-avatar :size="46" :src="userStore.user?.avatar" class="wb-sidebar-avatar">{{ avatarText }}</el-avatar>
           <div class="wb-sidebar__user-info">
-            <span class="wb-sidebar__role">{{ roleText }}</span>
+            <span class="wb-sidebar__role">当前工作台 · {{ roleText }}</span>
             <span class="wb-sidebar__name">{{ userStore.user?.nickname || userStore.user?.username }}</span>
           </div>
         </div>
@@ -28,8 +28,8 @@
         </div>
 
         <div v-if="workbench !== 'admin'" class="wb-sidebar__foot">
-          <button class="wb-switch" @click="switchRole">
-            切换为{{ oppositeRoleText }}
+          <button class="wb-switch" :disabled="switchingRole" @click="switchRole">
+            {{ switchingRole ? '正在切换…' : `切换到${oppositeRoleText}工作台` }}
           </button>
         </div>
       </aside>
@@ -43,7 +43,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Right } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
@@ -52,6 +52,7 @@ import AppHeader from './AppHeader.vue'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const switchingRole = ref(false)
 
 const menus = {
   dashboard: [
@@ -99,10 +100,16 @@ const oppositeRoleText = computed(() => {
   return userStore.workbenchRole === 2 ? '企划方' : '画师'
 })
 
-function switchRole() {
-  // 演示环境：真正切换工作台身份
-  userStore.switchRole(userStore.workbenchRole === 2 ? 1 : 2)
-  router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
+async function switchRole() {
+  if (switchingRole.value) return
+  switchingRole.value = true
+  try {
+    const nextRole = userStore.workbenchRole === 2 ? 1 : 2
+    await userStore.switchRole(nextRole)
+    await router.push(nextRole === 2 ? '/painter' : '/dashboard')
+  } finally {
+    switchingRole.value = false
+  }
 }
 </script>
 
@@ -227,6 +234,11 @@ function switchRole() {
 
 .wb-switch:hover {
   background: var(--artiv-primary-light);
+}
+
+.wb-switch:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 /* ---------- 主内容区 ---------- */

@@ -2,6 +2,7 @@ package com.artiv.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.artiv.dto.ArtistCategoryAggregate;
 import com.artiv.dto.ArtistSummary;
 import com.artiv.dto.ReviewStatistics;
 import com.artiv.entity.User;
@@ -18,11 +19,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -38,52 +37,55 @@ public class ArtistServiceImpl implements ArtistService {
     public Page<ArtistSummary> listArtists(long page, long size, String category, String subjects, String keyword) {
         long safePage = Math.max(page, 1);
         long safeSize = Math.min(Math.max(size, 1), 50);
-        List<User> painters = userMapper.selectList(new LambdaQueryWrapper<User>()
+        Set<String> requestedSubjects = splitValues(subjects);
+        String normalizedCategory = StringUtils.hasText(category) ? category.trim() : null;
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+
+        LambdaQueryWrapper<User> query = new LambdaQueryWrapper<User>()
                 .eq(User::getCertStatus, 2)
                 .eq(User::getStatus, 0)
                 .eq(User::getDeleted, 0)
-                .orderByAsc(User::getId));
+                .apply(normalizedCategory != null,
+                        "EXISTS (SELECT 1 FROM work w WHERE w.user_id = `user`.id AND w.visibility = 1 AND w.deleted = 0 AND w.category = {0})",
+                        normalizedCategory);
+        requestedSubjects.forEach(subject -> query.apply(
+                "FIND_IN_SET({0}, REPLACE(COALESCE(tags, ''), ' ', '')) > 0", subject));
+        if (normalizedKeyword != null) {
+            query.and(wrapper -> wrapper.like(User::getUsername, normalizedKeyword)
+                    .or().like(User::getNickname, normalizedKeyword)
+                    .or().like(User::getBio, normalizedKeyword)
+                    .or().like(User::getTags, normalizedKeyword));
+        }
+        query.orderByAsc(User::getId);
+
+        Page<User> painterPage = userMapper.selectPage(new Page<>(safePage, safeSize), query);
+        List<User> painters = painterPage.getRecords();
         if (painters.isEmpty()) {
-            return new Page<>(safePage, safeSize, 0);
+            return new Page<>(safePage, safeSize, painterPage.getTotal());
         }
 
         List<Long> painterIds = painters.stream().map(User::getId).toList();
-        List<Work> publicWorks = workMapper.selectList(new LambdaQueryWrapper<Work>()
-                .in(Work::getUserId, painterIds)
-                .eq(Work::getVisibility, 1)
-                .eq(Work::getDeleted, 0)
-                .orderByDesc(Work::getCreatedAt));
+        List<Work> publicWorks = workMapper.selectPublicPreviews(painterIds, PREVIEW_LIMIT);
         Map<Long, List<Work>> worksByPainter = publicWorks.stream()
                 .collect(Collectors.groupingBy(Work::getUserId));
+        Map<Long, List<String>> categoriesByPainter = workMapper.selectPublicCategories(painterIds).stream()
+                .collect(Collectors.toMap(ArtistCategoryAggregate::getUserId,
+                        aggregate -> new ArrayList<>(splitValues(aggregate.getCategories()))));
         Map<Long, ReviewStatistics> reviewStatistics = java.util.Optional.ofNullable(
                 reviewService.getStatistics(painterIds, "painter")).orElse(Map.of());
 
-        Set<String> requestedSubjects = splitValues(subjects);
-        String normalizedKeyword = StringUtils.hasText(keyword)
-                ? keyword.trim().toLowerCase(Locale.ROOT)
-                : null;
-
-        List<ArtistSummary> filtered = painters.stream()
+        List<ArtistSummary> records = painters.stream()
                 .map(painter -> toSummary(painter, worksByPainter.getOrDefault(painter.getId(), List.of()),
+                        categoriesByPainter.getOrDefault(painter.getId(), List.of()),
                         reviewStatistics.get(painter.getId())))
-                .filter(summary -> !StringUtils.hasText(category) || summary.getCategories().contains(category.trim()))
-                .filter(summary -> requestedSubjects.isEmpty() || containsAllTags(summary.getTags(), requestedSubjects))
-                .filter(summary -> normalizedKeyword == null || matchesKeyword(summary, normalizedKeyword))
                 .toList();
-        long requestedOffset;
-        try {
-            requestedOffset = Math.multiplyExact(safePage - 1, safeSize);
-        } catch (ArithmeticException ignored) {
-            requestedOffset = filtered.size();
-        }
-        int from = (int) Math.min(requestedOffset, filtered.size());
-        int to = (int) Math.min(from + safeSize, filtered.size());
-        Page<ArtistSummary> result = new Page<>(safePage, safeSize, filtered.size());
-        result.setRecords(new ArrayList<>(filtered.subList(from, to)));
+        Page<ArtistSummary> result = new Page<>(safePage, safeSize, painterPage.getTotal());
+        result.setRecords(records);
         return result;
     }
 
-    private ArtistSummary toSummary(User painter, List<Work> works, ReviewStatistics reviewStatistics) {
+    private ArtistSummary toSummary(User painter, List<Work> works, List<String> categories,
+                                    ReviewStatistics reviewStatistics) {
         ArtistSummary summary = new ArtistSummary();
         summary.setId(painter.getId());
         summary.setUsername(painter.getUsername());
@@ -92,12 +94,8 @@ public class ArtistServiceImpl implements ArtistService {
         summary.setBio(painter.getBio());
         summary.setTags(painter.getTags());
         summary.setCertStatus(painter.getCertStatus());
-        summary.setCategories(works.stream()
-                .map(Work::getCategory)
-                .filter(StringUtils::hasText)
-                .collect(Collectors.toCollection(LinkedHashSet::new))
-                .stream().toList());
-        summary.setWorks(new ArrayList<>(works.subList(0, Math.min(PREVIEW_LIMIT, works.size()))));
+        summary.setCategories(categories);
+        summary.setWorks(new ArrayList<>(works));
         summary.setAverageScore(reviewStatistics == null ? null : reviewStatistics.getAverageScore());
         summary.setReviewCount(reviewStatistics == null ? 0 : reviewStatistics.getReviewCount());
         return summary;
@@ -113,14 +111,4 @@ public class ArtistServiceImpl implements ArtistService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    private boolean containsAllTags(String tags, Set<String> requestedSubjects) {
-        return splitValues(tags).containsAll(requestedSubjects);
-    }
-
-    private boolean matchesKeyword(ArtistSummary artist, String keyword) {
-        return Stream.of(artist.getUsername(), artist.getNickname(), artist.getBio(), artist.getTags())
-                .filter(StringUtils::hasText)
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .anyMatch(value -> value.contains(keyword));
-    }
 }

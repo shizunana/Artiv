@@ -2,6 +2,8 @@ package com.artiv.common;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.FieldError;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -14,9 +16,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public Result<Void> handleBusiness(BusinessException e) {
+    public ResponseEntity<Result<Void>> handleBusiness(BusinessException e) {
         log.warn("业务异常: code={}, message={}", e.getCode(), e.getMessage());
-        return Result.fail(e.getCode(), e.getMessage());
+        HttpStatus status = isForbidden(e.getCode()) ? HttpStatus.FORBIDDEN : HttpStatus.OK;
+        return ResponseEntity.status(status).body(Result.fail(e.getCode(), e.getMessage()));
+    }
+
+    private boolean isForbidden(int code) {
+        return code == ResultCode.FORBIDDEN.getCode() || code == ResultCode.NO_PERMISSION.getCode();
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
