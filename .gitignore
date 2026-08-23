@@ -47,6 +47,6 @@ backend/src/main/resources/application-local.yml
 .worktrees/
 .artiv-data/
 .superpowers/
-/docs/olddocs/Artiv品牌换肤实施流程.md
+/docs/olddocs/
 *.swp
 *~
