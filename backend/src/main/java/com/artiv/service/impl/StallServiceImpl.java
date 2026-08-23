@@ -167,6 +167,12 @@ public class StallServiceImpl implements StallService {
     @Override
     public Stall create(Stall stall, Long painterId) {
         accountRestrictionService.requireAvailable(painterId, "创建橱窗");
+        User painter = userMapper.selectById(painterId);
+        if (painter == null || !Integer.valueOf(0).equals(painter.getDeleted())
+                || !Integer.valueOf(0).equals(painter.getStatus())
+                || !Integer.valueOf(2).equals(painter.getCertStatus())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "仅已认证画师可以创建橱窗");
+        }
         if (!CATEGORY_OPTIONS.contains(stall.getCategory())) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "橱窗类型必须从统一选项中选择");
         }

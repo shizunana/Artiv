@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.Result;
 import com.artiv.dto.ApplicationDetail;
 import com.artiv.dto.ApplicationQuoteUpdateRequest;
+import com.artiv.dto.MyApplicationItem;
 import com.artiv.entity.Application;
 import com.artiv.security.UserContext;
 import com.artiv.service.ApplicationService;
@@ -45,8 +46,8 @@ public class ApplicationController {
     }
 
     @GetMapping("/applications/mine")
-    public Result<Page<Application>> mine(@RequestParam(defaultValue = "1") long page,
-                                          @RequestParam(defaultValue = "10") long size) {
+    public Result<Page<MyApplicationItem>> mine(@RequestParam(defaultValue = "1") long page,
+                                                 @RequestParam(defaultValue = "10") long size) {
         return Result.ok(applicationService.listMine(page, size, UserContext.getUserId()));
     }
 

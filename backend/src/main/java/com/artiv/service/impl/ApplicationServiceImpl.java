@@ -6,6 +6,7 @@ import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.ApplicantPainterSummary;
 import com.artiv.dto.ApplicationDetail;
+import com.artiv.dto.MyApplicationItem;
 import com.artiv.dto.ReviewStatistics;
 import com.artiv.entity.Application;
 import com.artiv.entity.OrderInfo;
@@ -28,6 +29,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -84,12 +88,35 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public Page<Application> listMine(long page, long size, Long painterId) {
-        return applicationMapper.selectPage(new Page<>(page, size),
+    public Page<MyApplicationItem> listMine(long page, long size, Long painterId) {
+        Page<Application> applications = applicationMapper.selectPage(new Page<>(page, size),
                 new LambdaQueryWrapper<Application>()
                         .eq(Application::getDeleted, 0)
                         .eq(Application::getPainterId, painterId)
                         .orderByDesc(Application::getCreatedAt));
+        List<Long> projectIds = applications.getRecords().stream()
+                .map(Application::getProjectId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, Project> projects = projectIds.isEmpty()
+                ? Map.of()
+                : projectMapper.selectBatchIds(projectIds).stream()
+                        .collect(Collectors.toMap(Project::getId, Function.identity()));
+        Page<MyApplicationItem> result = new Page<>(page, size, applications.getTotal());
+        result.setRecords(applications.getRecords().stream().map(application -> {
+            Project project = projects.get(application.getProjectId());
+            MyApplicationItem item = new MyApplicationItem();
+            item.setId(application.getId());
+            item.setProjectId(application.getProjectId());
+            item.setProjectTitle(project == null ? "企划 #" + application.getProjectId() : project.getTitle());
+            item.setProjectImages(project == null ? null : project.getImages());
+            item.setQuote(application.getQuote());
+            item.setStatus(application.getStatus());
+            item.setCreatedAt(application.getCreatedAt());
+            return item;
+        }).toList());
+        return result;
     }
 
     @Override
@@ -112,7 +139,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         User painter = userMapper.selectById(application.getPainterId());
         if (painter == null || !Integer.valueOf(0).equals(painter.getDeleted())
                 || !Integer.valueOf(0).equals(painter.getStatus())
-                || !Integer.valueOf(2).equals(painter.getRole())
                 || !Integer.valueOf(2).equals(painter.getCertStatus())) {
             throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "仅已认证画师可以应征企划");
         }

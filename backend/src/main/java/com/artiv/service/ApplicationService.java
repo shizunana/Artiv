@@ -2,13 +2,14 @@ package com.artiv.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.dto.ApplicationDetail;
+import com.artiv.dto.MyApplicationItem;
 import com.artiv.entity.Application;
 
 public interface ApplicationService {
 
     Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId);
 
-    Page<Application> listMine(long page, long size, Long painterId);
+    Page<MyApplicationItem> listMine(long page, long size, Long painterId);
 
     Application create(Application application);
 

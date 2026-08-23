@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.dto.StallLimitedUpdateRequest;
 import com.artiv.dto.StallSalesCount;
 import com.artiv.entity.Stall;
+import com.artiv.entity.User;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.StallMapper;
 import com.artiv.mapper.UserMapper;
@@ -100,6 +101,7 @@ class StallServiceTest {
     void createRejectsCategoryOutsideSharedOptions() {
         Stall stall = ownedStall();
         stall.setCategory("国潮插画");
+        when(userMapper.selectById(2L)).thenReturn(certifiedUser(2L, 2));
 
         com.artiv.common.BusinessException exception = assertThrows(
                 com.artiv.common.BusinessException.class,
@@ -107,6 +109,33 @@ class StallServiceTest {
 
         assertEquals("橱窗类型必须从统一选项中选择", exception.getMessage());
         verify(stallMapper, never()).insert(any(Stall.class));
+    }
+
+    @Test
+    void createRejectsUncertifiedUser() {
+        Stall stall = ownedStall();
+        stall.setCategory("头像");
+        when(userMapper.selectById(8L)).thenReturn(certifiedUser(8L, 0));
+
+        com.artiv.common.BusinessException exception = assertThrows(
+                com.artiv.common.BusinessException.class,
+                () -> stallService.create(stall, 8L));
+
+        assertEquals("仅已认证画师可以创建橱窗", exception.getMessage());
+        verify(stallMapper, never()).insert(any(Stall.class));
+    }
+
+    @Test
+    void createAllowsCertifiedUserWhosePrimaryRoleIsEmployer() {
+        Stall stall = ownedStall();
+        stall.setCategory("头像");
+        stall.setPhases("[{\"name\":\"初稿\"},{\"name\":\"终稿\"}]");
+        when(userMapper.selectById(16L)).thenReturn(certifiedUser(16L, 2));
+
+        Stall created = stallService.create(stall, 16L);
+
+        assertEquals(16L, created.getPainterId());
+        verify(stallMapper).insert(stall);
     }
 
     @Test
@@ -178,5 +207,15 @@ class StallServiceTest {
         stall.setStock(1);
         stall.setDeleted(0);
         return stall;
+    }
+
+    private User certifiedUser(Long id, int certStatus) {
+        User user = new User();
+        user.setId(id);
+        user.setRole(1);
+        user.setCertStatus(certStatus);
+        user.setStatus(0);
+        user.setDeleted(0);
+        return user;
     }
 }

@@ -3,8 +3,17 @@
     <div class="wb-card">
       <div class="wb-card__head">
         <h3>我的橱窗</h3>
-        <el-button type="primary" round size="small" @click="dialogVisible = true">+ 创建橱窗</el-button>
+        <el-button v-if="permissionReady && isCertifiedPainter" type="primary" round size="small" @click="dialogVisible = true">+ 创建橱窗</el-button>
       </div>
+
+      <el-alert
+        v-if="permissionReady && !isCertifiedPainter"
+        class="certification-alert"
+        title="完成画师认证后才能创建橱窗"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
 
       <el-table :data="stalls" v-loading="loading" empty-text="还没有橱窗，创建一个明码标价的服务吧">
         <el-table-column label="封面" width="70">
@@ -140,13 +149,14 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getMyStalls, createStall } from '@/api/stall'
 import { uploadFile } from '@/api/upload'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
+import { useUserStore } from '@/stores/user'
 
 const stalls = ref([])
 const router = useRouter()
@@ -171,6 +181,9 @@ const form = reactive({
   params: { colorMode: 'RGB', spec: '', format: [], subject: [] },
   description: '',
 })
+const userStore = useUserStore()
+const permissionReady = ref(false)
+const isCertifiedPainter = computed(() => Number(userStore.user?.certStatus || 0) === 2)
 
 // 橱窗详情图：文件列表（UI）与 URL 列表（提交）
 const detailFileList = ref([])
@@ -216,6 +229,10 @@ async function load() {
 }
 
 async function save() {
+  if (!isCertifiedPainter.value) {
+    ElMessage.error('完成画师认证后才能创建橱窗')
+    return
+  }
   if (!form.title || !form.category) {
     ElMessage.warning('请填写服务名称与类型')
     return
@@ -275,7 +292,11 @@ function goEdit(id) {
   router.push({ name: 'StallDetail', params: { id }, query: { edit: '1' } })
 }
 
-onMounted(load)
+onMounted(async () => {
+  await userStore.fetchMe().catch(() => null)
+  permissionReady.value = true
+  await load()
+})
 </script>
 
 <style scoped>
@@ -304,6 +325,10 @@ onMounted(load)
 .wb-card__head h3 {
   margin: 0;
   font-size: 17px;
+}
+
+.certification-alert {
+  margin-bottom: 16px;
 }
 
 .cover-thumb {

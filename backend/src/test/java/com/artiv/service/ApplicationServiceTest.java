@@ -130,6 +130,29 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void listMineIncludesProjectTitleAndReferenceImages() {
+        Application application = new Application();
+        application.setId(5L);
+        application.setProjectId(8L);
+        application.setQuote(java.math.BigDecimal.valueOf(500));
+        var applications = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<Application>(1, 10);
+        applications.setRecords(java.util.List.of(application));
+        applications.setTotal(1);
+        when(applicationMapper.selectPage(any(), any())).thenReturn(applications);
+        Project project = new Project();
+        project.setId(8L);
+        project.setTitle("角色海报插画");
+        project.setImages("/uploads/reference-1.png,/uploads/reference-2.png");
+        when(projectMapper.selectBatchIds(java.util.List.of(8L))).thenReturn(java.util.List.of(project));
+
+        var result = applicationService.listMine(1, 10, 2L);
+
+        assertEquals("角色海报插画", result.getRecords().getFirst().getProjectTitle());
+        assertEquals(project.getImages(), result.getRecords().getFirst().getProjectImages());
+        assertEquals(8L, result.getRecords().getFirst().getProjectId());
+    }
+
+    @Test
     void createNotifiesProjectEmployer() {
         Project project = new Project();
         project.setId(8L);
@@ -162,6 +185,35 @@ class ApplicationServiceTest {
                 eq(8L),
                 eq("画师 #2 应征了你的企划「角色海报插画」。")
         );
+    }
+
+    @Test
+    void createAllowsCertifiedUserWhosePrimaryRoleIsEmployer() {
+        Project project = new Project();
+        project.setId(8L);
+        project.setEmployerId(1L);
+        project.setTitle("角色海报插画");
+        project.setDeleted(0);
+        project.setStatus(0);
+        when(projectMapper.selectById(8L)).thenReturn(project);
+        User painter = new User();
+        painter.setId(16L);
+        painter.setRole(1);
+        painter.setCertStatus(2);
+        painter.setStatus(0);
+        painter.setDeleted(0);
+        when(userMapper.selectById(16L)).thenReturn(painter);
+        when(workMapper.selectCount(any())).thenReturn(4L);
+        when(applicationMapper.selectOne(any())).thenReturn(null);
+        Application application = new Application();
+        application.setProjectId(8L);
+        application.setPainterId(16L);
+        application.setQuote(java.math.BigDecimal.valueOf(500));
+
+        Application created = applicationService.create(application);
+
+        assertEquals(16L, created.getPainterId());
+        verify(applicationMapper).insert(application);
     }
 
     @Test

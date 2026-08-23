@@ -256,8 +256,11 @@ const employerName = computed(() => employer.value?.nickname || `企划方 #${pr
 const currentUserId = computed(() => Number(userStore.user?.id || 0))
 const isOwner = computed(() => currentUserId.value > 0 && currentUserId.value === Number(project.value?.employerId))
 const currentApplication = computed(() => applicants.value.find((item) => Number(item.painter?.id) === currentUserId.value))
-const canApply = computed(() => userStore.isLoggedIn
-  && userStore.user?.certStatus === 2
+const certificationReady = ref(!userStore.isLoggedIn)
+const isCertifiedPainter = computed(() => Number(userStore.user?.certStatus || 0) === 2)
+const canApply = computed(() => certificationReady.value
+  && userStore.isLoggedIn
+  && isCertifiedPainter.value
   && !isOwner.value
   && !currentApplication.value
   && Number(project.value?.status) === 0
@@ -265,7 +268,8 @@ const canApply = computed(() => userStore.isLoggedIn
 const applyButtonDisabled = computed(() => currentApplication.value
   ? Number(currentApplication.value.application.status) !== 0
   : !canApply.value)
-const showApplyButton = computed(() => !isOwner.value && (userStore.user?.certStatus === 2 || !userStore.isLoggedIn))
+const showApplyButton = computed(() => !isOwner.value
+  && (!userStore.isLoggedIn || (certificationReady.value && isCertifiedPainter.value)))
 const applyButtonText = computed(() => {
   if (!userStore.isLoggedIn) return '登录后应征企划'
   if (currentApplication.value) return '更改应征'
@@ -482,7 +486,13 @@ function handleProjectDeleted() {
   router.push({ name: 'DashboardProjects' })
 }
 
-onMounted(loadProject)
+onMounted(async () => {
+  if (userStore.isLoggedIn) {
+    await userStore.fetchMe().catch(() => null)
+  }
+  certificationReady.value = true
+  await loadProject()
+})
 </script>
 
 <style scoped>
