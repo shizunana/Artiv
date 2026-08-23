@@ -20,7 +20,6 @@
               <button
                 type="button"
                 class="wb-sidebar__tab wb-sidebar__group-toggle"
-                :class="{ 'is-active': isMenuActive(item) }"
                 :aria-expanded="orderMenuExpanded"
                 @click="orderMenuExpanded = !orderMenuExpanded"
               >
@@ -144,7 +143,7 @@ const oppositeRoleText = computed(() => {
 })
 
 function isMenuActive(item) {
-  return item.children ? isOrdersRoute.value : route.path === item.path
+  return route.path === item.path
 }
 
 function isOrderChildActive(child) {
@@ -154,7 +153,7 @@ function isOrderChildActive(child) {
 watch(
   () => route.path,
   () => {
-    orderMenuExpanded.value = isOrdersRoute.value
+    if (isOrdersRoute.value) orderMenuExpanded.value = true
   },
   { immediate: true },
 )
