@@ -259,10 +259,11 @@ function onCommand(command) {
   padding: 3px 7px;
   border: 0;
   border-radius: 8px;
-  color: var(--artiv-text-secondary);
+  color: var(--artiv-text);
   background: transparent;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   transition: color .2s, background .2s;
 }
 
@@ -301,6 +302,10 @@ function onCommand(command) {
 
 .msg-badge {
   line-height: 1;
+}
+
+.msg-badge :deep(.el-badge__content) {
+  font-weight: 700;
 }
 
 :global(.message-quick-menu) { min-width: 146px; padding: 6px; }
