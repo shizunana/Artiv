@@ -29,15 +29,18 @@
               <header><b>{{ active.withUserNickname || `用户 #${active.withUserId}` }}</b><small>沟通会话</small></header>
               <div class="chat-history" v-loading="loadingMessages">
                 <el-empty v-if="!messages.length" description="开始沟通吧" :image-size="72" />
-                <template v-for="msg in messages" :key="msg.id">
-                  <article v-if="isBusinessSystemMessage(msg)" class="business-system-message">
-                    <span class="business-system-message__badge">{{ msg.subtype === 'PRIVATE_ORDER_CARD' ? '订单状态' : '系统提示' }}</span>
-                    <p>{{ msg.content }}</p>
-                    <div class="business-system-message__footer">
-                      <button type="button" @click="viewMessageDetail(msg)">查看详情</button>
-                      <time>{{ formatDateTime(msg.createdAt) }}</time>
-                    </div>
-                  </article>
+                <template v-for="(msg, index) in messages" :key="msg.id">
+                  <time v-if="shouldShowTimeDivider(index)" class="chat-time-divider">{{ formatChatTime(msg.createdAt) }}</time>
+                  <div v-if="isBusinessSystemMessage(msg)" class="business-system-message-row">
+                    <article class="business-system-message">
+                      <strong class="business-system-message__title">{{ msg.subtype === 'PRIVATE_ORDER_CARD' ? '订单状态' : '系统提示' }}</strong>
+                      <p>{{ msg.content }}</p>
+                      <button v-if="hasMessageDetail(msg)" type="button" class="business-system-message__action" @click="viewMessageDetail(msg)">
+                        <span>查看详情</span>
+                        <el-icon><ArrowRight /></el-icon>
+                      </button>
+                    </article>
+                  </div>
                   <div v-else class="bubble-row" :class="{ mine: msg.fromId === userStore.user?.id }">
                     <div class="bubble" :class="{ 'bubble--images': isImageMessage(msg) }">
                       <template v-if="isImageMessage(msg)">
@@ -54,7 +57,6 @@
                         </div>
                       </template>
                       <template v-else>{{ msg.content }}</template>
-                      <time>{{ formatDateTime(msg.createdAt) }}</time>
                     </div>
                   </div>
                 </template>
@@ -65,7 +67,10 @@
                     <el-icon class="chat-extension-bar__image-icon"><Picture /></el-icon>
                     <span>发送图片</span>
                   </el-button>
-                  <el-button text class="chat-extension-bar__item" @click="sendOrderCard">🧾 发送订单状态</el-button>
+                  <el-button text class="chat-extension-bar__item" @click="sendOrderCard">
+                    <el-icon class="chat-extension-bar__image-icon"><Document /></el-icon>
+                    <span>发送订单状态</span>
+                  </el-button>
                   <span class="chat-extension-bar__hint">单次最多 9 张，每张不超过 5 MB</span>
                 </div>
                 <div v-if="pendingImages.length" class="image-queue">
@@ -116,7 +121,7 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Picture } from '@element-plus/icons-vue'
+import { ArrowRight, Document, Picture } from '@element-plus/icons-vue'
 import { getConversation, getConversations, getNotifications, markRead, sendPrivateMessage } from '@/api/message'
 import { formatDateTime } from '@/utils/date'
 import { useUserStore } from '@/stores/user'
@@ -304,6 +309,33 @@ function isBusinessSystemMessage(message) {
     && message.subtype !== 'PRIVATE_IMAGE'
 }
 
+function hasMessageDetail(message) {
+  return Boolean(message.orderId || message.projectId)
+}
+
+function shouldShowTimeDivider(index) {
+  const current = new Date(messages.value[index]?.createdAt).getTime()
+  if (!Number.isFinite(current)) return false
+  if (index === 0) return true
+  const previous = new Date(messages.value[index - 1]?.createdAt).getTime()
+  return !Number.isFinite(previous) || current - previous >= 5 * 60 * 1000
+}
+
+function formatChatTime(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const now = new Date()
+  const sameDay = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate()
+  const clock = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  if (sameDay) return `今天 ${clock}`
+  const dateText = `${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日`
+  return date.getFullYear() === now.getFullYear()
+    ? `${dateText} ${clock}`
+    : `${date.getFullYear()}年${dateText} ${clock}`
+}
+
 function viewMessageDetail(message) {
   if (message.orderId) {
     router.push({ name: userStore.workbenchRole === 2 ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id: message.orderId } })
@@ -457,27 +489,28 @@ onUnmounted(() => {
 .chat-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .chat-panel header { padding: 18px 24px; border-bottom: 1px solid var(--artiv-border); }
 .chat-panel header small { color: var(--artiv-text-secondary); }
-.chat-history { min-height: 0; padding: 22px 24px; overflow-y: auto; }
+.chat-history { min-height: 0; padding: 20px 28px 26px; overflow-y: auto; background: #f5f7fa; }
+.chat-time-divider { display: block; margin: 18px auto 12px; color: #9aa3af; font-size: 12px; text-align: center; }
 .bubble-row { display: flex; margin: 10px 0; }
 .bubble-row.mine { justify-content: flex-end; }
-.bubble { max-width: 68%; padding: 10px 13px; border-radius: 8px; background: #f2f4f7; line-height: 1.6; white-space: pre-wrap; }
-.mine .bubble { background: var(--artiv-primary); color: #fff; }
-.bubble time { display: block; margin-top: 5px; font-size: 11px; opacity: .7; }
+.bubble { max-width: 68%; padding: 10px 13px; border: 1px solid #e5e9ef; border-radius: 8px; background: #fff; line-height: 1.6; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(31, 42, 55, .04); }
+.mine .bubble { border-color: var(--artiv-primary); background: var(--artiv-primary); color: #fff; box-shadow: none; }
 .bubble--images { width: min(480px, 78%); max-width: 78%; padding: 6px; }
 .message-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .message-images :deep(.el-image) { width: 100%; aspect-ratio: 1 / 1; border-radius: 5px; overflow: hidden; cursor: zoom-in; }
 .message-images :deep(.el-image:only-child) { grid-column: span 2; max-height: 380px; aspect-ratio: auto; }
-.business-system-message { width: min(460px, 78%); margin: 14px 0; padding: 12px 14px 10px; border: 1px solid #c8d8ea; border-radius: 8px; background: #f6faff; color: #46566b; }
-.business-system-message__badge { display: inline-block; margin-bottom: 6px; padding: 2px 7px; border-radius: 10px; background: #e4f3ff; color: var(--artiv-primary); font-size: 11px; }
-.business-system-message p { margin: 0; line-height: 1.65; }
-.business-system-message__footer { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; }
-.business-system-message__footer button { padding: 0; border: 0; background: transparent; color: var(--artiv-primary); cursor: pointer; font-size: 12px; }
-.business-system-message__footer time { color: var(--artiv-text-secondary); font-size: 11px; }
-.chat-composer { display: grid; gap: 10px; padding: 10px 24px 16px; border-top: 1px solid var(--artiv-border); }
+.business-system-message-row { display: flex; justify-content: center; margin: 12px 0 18px; }
+.business-system-message { width: min(520px, 74%); overflow: hidden; border: 1px solid #e2e7ed; border-radius: 8px; background: #fff; color: #46505c; box-shadow: 0 2px 8px rgba(31, 42, 55, .05); }
+.business-system-message__title { display: block; padding: 14px 16px 0; color: var(--artiv-text); font-size: 14px; }
+.business-system-message p { margin: 0; padding: 9px 16px 14px; color: #5f6975; line-height: 1.65; white-space: pre-wrap; }
+.business-system-message__action { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 10px 16px; border: 0; border-top: 1px solid #edf0f4; background: #fff; color: var(--artiv-text); cursor: pointer; font-size: 12px; text-align: left; }
+.business-system-message__action:hover { color: var(--artiv-primary); background: #f9fcfe; }
+.chat-composer { display: grid; gap: 10px; padding: 10px 24px 16px; border-top: 1px solid var(--artiv-border); background: #fff; }
 .chat-extension-bar { display: flex; min-height: 30px; align-items: center; gap: 4px; border-bottom: 1px solid #edf0f4; }
 .chat-extension-bar :deep(.el-button) { margin: 0; padding-inline: 7px; }
-.chat-extension-bar__item { color: var(--artiv-primary); }
-.chat-extension-bar__image-icon { color: var(--artiv-text-primary); font-size: 16px; }
+.chat-extension-bar__item { color: var(--artiv-text); }
+.chat-extension-bar__item:hover { color: var(--artiv-primary); }
+.chat-extension-bar__image-icon { color: var(--artiv-text); font-size: 16px; }
 .chat-extension-bar__hint { margin-left: auto; color: var(--artiv-text-secondary); font-size: 12px; }
 .image-queue { display: flex; max-height: 90px; align-items: center; gap: 8px; overflow-x: auto; }
 .image-queue__item { position: relative; flex: 0 0 auto; width: 64px; height: 64px; }
@@ -496,5 +529,5 @@ onUnmounted(() => {
 .notice-copy b { color: var(--artiv-text); }
 .notice-copy p { margin: 8px 0; color: var(--artiv-text-secondary); line-height: 1.6; }
 .notice-copy small { color: var(--artiv-text-secondary); }
-@media (max-width: 760px) { .message-center { height: auto; min-height: 0; }.message-tabs { min-height: 0; }.message-layout { grid-template-columns: 1fr; height: auto; }.conversation-list { border-right: 0; border-bottom: 1px solid var(--artiv-border); max-height: 220px; }.conversation-scroll { max-height: 172px; }.chat-panel { min-height: 440px; }.notification-panel { padding: 16px; }.business-system-message { width: auto; max-width: 100%; }.chat-extension-bar__hint { display: none; }.chat-composer { padding-inline: 16px; }.bubble--images { width: min(100%, 360px); max-width: 88%; } }
+@media (max-width: 760px) { .message-center { height: auto; min-height: 0; }.message-tabs { min-height: 0; }.message-layout { grid-template-columns: 1fr; height: auto; }.conversation-list { border-right: 0; border-bottom: 1px solid var(--artiv-border); max-height: 220px; }.conversation-scroll { max-height: 172px; }.chat-panel { min-height: 440px; }.chat-history { padding-inline: 16px; }.notification-panel { padding: 16px; }.business-system-message { width: 100%; }.chat-extension-bar__hint { display: none; }.chat-composer { padding-inline: 16px; }.bubble--images { width: min(100%, 360px); max-width: 88%; } }
 </style>
