@@ -1,7 +1,34 @@
 <template>
-  <div class="message-center wb-card">
-    <el-tabs v-model="activeTab" class="message-tabs" @tab-change="onTabChange">
-      <el-tab-pane label="我的消息" name="conversations">
+  <div class="message-page">
+    <div class="page-container message-page__body">
+      <aside class="message-nav" aria-label="消息中心导航">
+        <div class="message-nav__title">
+          <el-icon><ChatDotRound /></el-icon>
+          <strong>消息中心</strong>
+        </div>
+        <nav class="message-nav__items">
+          <button type="button" :class="{ active: activeTab === 'conversations' }" @click="selectMessageSection('conversations')">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>我的消息</span>
+          </button>
+          <button type="button" :class="{ active: activeTab === 'notifications' }" @click="selectMessageSection('notifications')">
+            <el-icon><Bell /></el-icon>
+            <span>系统消息</span>
+          </button>
+        </nav>
+        <div class="message-nav__divider" />
+        <button type="button" class="message-nav__setting" disabled>
+          <el-icon><Setting /></el-icon>
+          <span>消息设置</span>
+          <small>暂未开放</small>
+        </button>
+      </aside>
+
+      <section class="message-center">
+        <div v-if="activeTab === 'conversations'" class="message-section">
+          <header class="message-section__header">
+            <h2>我的消息</h2>
+          </header>
         <div class="message-layout">
           <aside class="conversation-list" v-loading="loadingConversations && !conversations.length">
             <div class="panel-title"><h3>会话</h3><el-button link :loading="loadingConversations" @click="loadConversations">刷新</el-button></div>
@@ -98,29 +125,33 @@
             <el-empty v-else description="从左侧选择会话，或从应征、橱窗下单页面发起沟通" />
           </section>
         </div>
-      </el-tab-pane>
+        </div>
 
-      <el-tab-pane label="系统通知" name="notifications">
+        <div v-else class="message-section">
+          <header class="message-section__header">
+            <h2>系统消息</h2>
+            <el-button link @click="readAll">全部已读</el-button>
+          </header>
         <div class="notification-panel" v-loading="loadingNotifications">
-          <div class="panel-title"><h3>系统通知</h3><el-button link @click="readAll">全部已读</el-button></div>
-          <el-empty v-if="!notifications.length" description="暂无系统通知" />
+          <el-empty v-if="!notifications.length" description="暂无系统消息" />
           <article v-for="notice in notifications" :key="notice.id" class="notification-card" :class="{ unread: !notice.readAt }" @click="openNotification(notice)">
             <div class="notice-icon">系</div>
             <div class="notice-copy"><b>{{ notificationTitle(notice) }}</b><p>{{ notice.content }}</p><small>{{ formatDateTime(notice.createdAt) }}</small></div>
             <el-button link type="primary">{{ notificationAction(notice) }}</el-button>
           </article>
         </div>
-      </el-tab-pane>
-    </el-tabs>
-    <el-dialog v-model="orderPickerVisible" title="选择要发送的订单" width="620px">
-      <p class="order-picker__hint">当前会话双方共有 {{ relatedOrders.length }} 笔订单，请选择其中一笔发送状态卡片。</p>
-      <div class="order-picker">
-        <button v-for="order in relatedOrders" :key="order.id" type="button" class="order-picker__item" @click="sendSelectedOrder(order)">
-          <span><b>{{ order.stallTitle || `订单 #${order.id}` }}</b><small>订单 #{{ order.id }} · {{ formatDateTime(order.createdAt) }}</small></span>
-          <span><el-tag size="small">{{ orderStatusText(order.status) }}</el-tag><strong>¥{{ Number(order.amount || 0).toFixed(2) }}</strong></span>
-        </button>
-      </div>
-    </el-dialog>
+        </div>
+        <el-dialog v-model="orderPickerVisible" title="选择要发送的订单" width="620px">
+          <p class="order-picker__hint">当前会话双方共有 {{ relatedOrders.length }} 笔订单，请选择其中一笔发送状态卡片。</p>
+          <div class="order-picker">
+            <button v-for="order in relatedOrders" :key="order.id" type="button" class="order-picker__item" @click="sendSelectedOrder(order)">
+              <span><b>{{ order.stallTitle || `订单 #${order.id}` }}</b><small>订单 #{{ order.id }} · {{ formatDateTime(order.createdAt) }}</small></span>
+              <span><el-tag size="small">{{ orderStatusText(order.status) }}</el-tag><strong>¥{{ Number(order.amount || 0).toFixed(2) }}</strong></span>
+            </button>
+          </div>
+        </el-dialog>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -128,7 +159,7 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowRight, Document, Picture } from '@element-plus/icons-vue'
+import { ArrowRight, Bell, ChatDotRound, Document, Picture, Setting } from '@element-plus/icons-vue'
 import { getConversation, getConversations, getNotifications, markRead, sendPrivateMessage } from '@/api/message'
 import { formatDateTime } from '@/utils/date'
 import { useUserStore } from '@/stores/user'
@@ -140,7 +171,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const messageStore = useMessageStore()
-const activeTab = ref('conversations')
+const activeTab = ref(route.query.tab === 'notifications' ? 'notifications' : 'conversations')
 const conversations = ref([])
 const notifications = ref([])
 const messages = ref([])
@@ -463,7 +494,7 @@ async function openNotification(notice) {
   } else if (notice.subtype?.startsWith('ACCOUNT_')) {
     router.push({ name: 'AccountSettings' })
   } else if (notice.subtype?.startsWith('APPLICATION') || notice.subtype?.startsWith('STALL')) {
-    activeTab.value = 'conversations'
+    await selectMessageSection('conversations')
     await loadConversations()
   } else {
     router.push(userStore.workbenchRole === 2 ? '/painter' : '/dashboard')
@@ -478,8 +509,13 @@ async function openFromQuery() {
   await openConversation(existing || { withUserId, withUserNickname: route.query.nickname || `用户 #${withUserId}` })
 }
 
-async function onTabChange(name) {
-  if (name === 'notifications') await loadNotifications()
+async function selectMessageSection(name) {
+  const section = name === 'notifications' ? 'notifications' : 'conversations'
+  activeTab.value = section
+  await router.replace({
+    name: 'Messages',
+    query: section === 'notifications' ? { tab: 'notifications' } : {},
+  })
 }
 
 onMounted(async () => {
@@ -507,6 +543,10 @@ onMounted(async () => {
   })
 })
 
+watch(() => route.query.tab, async (tab) => {
+  activeTab.value = tab === 'notifications' ? 'notifications' : 'conversations'
+  if (activeTab.value === 'notifications') await loadNotifications()
+})
 watch(() => route.fullPath, openFromQuery)
 onUnmounted(() => {
   stopSocket?.()
@@ -515,12 +555,24 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.message-center { height: calc(100vh - 112px); min-height: 520px; padding: 0; overflow: hidden; }
-.message-tabs { display: flex; height: 100%; flex-direction: column; }
-.message-tabs :deep(.el-tabs__header) { flex: 0 0 auto; margin: 0; padding: 0 22px; border-bottom: 1px solid var(--artiv-border); }
-.message-tabs :deep(.el-tabs__content) { flex: 1; min-height: 0; padding: 0; }
-.message-tabs :deep(.el-tab-pane) { height: 100%; }
-.message-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100%; min-height: 0; }
+.message-page { min-height: calc(100vh - var(--artiv-header-height)); padding: 28px 0 44px; background: #f4f7f9; }
+.message-page__body { display: grid; grid-template-columns: 188px minmax(0, 1fr); align-items: start; gap: 16px; }
+.message-nav { position: sticky; top: calc(var(--artiv-header-height) + 24px); overflow: hidden; border: 1px solid #e4ebf0; border-radius: 10px; background: #fff; box-shadow: 0 8px 28px rgb(42 67 84 / 5%); }
+.message-nav__title { display: flex; align-items: center; gap: 9px; padding: 18px 20px 15px; border-bottom: 1px solid #edf1f4; color: var(--artiv-text); font-size: 16px; }
+.message-nav__title .el-icon { color: var(--artiv-primary); font-size: 18px; }
+.message-nav__items { display: grid; gap: 4px; padding: 10px; }
+.message-nav__items button, .message-nav__setting { display: flex; width: 100%; min-height: 42px; align-items: center; gap: 10px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: var(--artiv-text-secondary); cursor: pointer; font: inherit; text-align: left; transition: color .2s, background .2s; }
+.message-nav__items button:hover { color: var(--artiv-primary); background: #f4fbff; }
+.message-nav__items button.active { color: var(--artiv-primary); background: var(--artiv-primary-light); font-weight: 600; }
+.message-nav__items .el-icon, .message-nav__setting .el-icon { font-size: 17px; }
+.message-nav__divider { height: 1px; margin: 2px 14px 0; background: #edf1f4; }
+.message-nav__setting { margin: 8px 10px 10px; width: calc(100% - 20px); color: #a6afb9; cursor: not-allowed; }
+.message-nav__setting small { margin-left: auto; color: #b6bec6; font-size: 10px; }
+.message-center { height: calc(100vh - var(--artiv-header-height) - 56px); min-height: 620px; overflow: hidden; border: 1px solid #e4ebf0; border-radius: 10px; background: #fff; box-shadow: 0 8px 28px rgb(42 67 84 / 5%); }
+.message-section { display: flex; height: 100%; min-height: 0; flex-direction: column; }
+.message-section__header { display: flex; min-height: 54px; flex: 0 0 auto; align-items: center; justify-content: space-between; padding: 0 22px; border-bottom: 1px solid var(--artiv-border); }
+.message-section__header h2 { margin: 0; font-size: 16px; }
+.message-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 0; flex: 1; }
 .conversation-list { display: flex; min-height: 0; flex-direction: column; border-right: 1px solid var(--artiv-border); padding: 16px; }
 .conversation-scroll, .chat-history { scrollbar-width: none; -ms-overflow-style: none; }
 .conversation-scroll::-webkit-scrollbar, .chat-history::-webkit-scrollbar { width: 0; height: 0; }
@@ -569,7 +621,7 @@ onUnmounted(() => {
 .chat-composer__input-row { display: flex; align-items: flex-end; gap: 12px; }
 .chat-composer__input-row :deep(.el-textarea) { flex: 1; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; clip-path: inset(50%); }
-.notification-panel { min-height: 535px; padding: 20px 28px; }
+.notification-panel { min-height: 0; flex: 1; padding: 8px 28px 24px; overflow-y: auto; }
 .notification-card { display: flex; align-items: flex-start; gap: 14px; padding: 18px; margin-top: 12px; border: 1px solid var(--artiv-border); border-radius: 10px; cursor: pointer; }
 .notification-card:hover { border-color: var(--artiv-primary); }
 .notification-card.unread { background: #f5fbff; }
@@ -579,5 +631,6 @@ onUnmounted(() => {
 .notice-copy b { color: var(--artiv-text); }
 .notice-copy p { margin: 8px 0; color: var(--artiv-text-secondary); line-height: 1.6; }
 .notice-copy small { color: var(--artiv-text-secondary); }
-@media (max-width: 760px) { .message-center { height: auto; min-height: 0; }.message-tabs { min-height: 0; }.message-layout { grid-template-columns: 1fr; height: auto; }.conversation-list { border-right: 0; border-bottom: 1px solid var(--artiv-border); max-height: 220px; }.conversation-scroll { max-height: 172px; }.chat-panel { min-height: 440px; }.chat-history { padding-inline: 16px; }.notification-panel { padding: 16px; }.business-system-message { width: 100%; }.chat-extension-bar__hint { display: none; }.chat-composer { padding-inline: 16px; }.bubble--images { width: min(100%, 360px); max-width: 88%; } }
+@media (max-width: 900px) { .message-page__body { grid-template-columns: 158px minmax(0, 1fr); }.message-layout { grid-template-columns: 260px minmax(0, 1fr); }.message-nav__setting small { display: none; } }
+@media (max-width: 760px) { .message-page { padding: 16px 0 28px; }.message-page__body { grid-template-columns: 1fr; }.message-nav { position: static; display: flex; align-items: center; padding: 8px; }.message-nav__title { padding: 0 10px; border: 0; }.message-nav__items { display: flex; flex: 1; padding: 0 8px; }.message-nav__items button { width: auto; }.message-nav__divider, .message-nav__setting { display: none; }.message-center { height: auto; min-height: 0; }.message-layout { grid-template-columns: 1fr; height: auto; }.conversation-list { border-right: 0; border-bottom: 1px solid var(--artiv-border); max-height: 220px; }.conversation-scroll { max-height: 172px; }.chat-panel { min-height: 440px; }.chat-history { padding-inline: 16px; }.notification-panel { padding: 16px; }.business-system-message { width: 100%; }.chat-extension-bar__hint { display: none; }.chat-composer { padding-inline: 16px; }.bubble--images { width: min(100%, 360px); max-width: 88%; } }
 </style>

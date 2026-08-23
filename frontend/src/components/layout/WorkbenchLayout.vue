@@ -60,7 +60,6 @@ const menus = {
     { path: '/dashboard/projects', title: '我的企划' },
     { path: '/dashboard/projects/new', title: '发布企划' },
     { path: '/dashboard/orders', title: '订单管理' },
-    { path: '/dashboard/messages', title: '消息中心' },
   ],
   painter: [
     { path: '/painter', title: '工作台主页' },
@@ -69,7 +68,6 @@ const menus = {
     { path: '/painter/applications', title: '我的应征' },
     { path: '/painter/invitations', title: '收到的邀请' },
     { path: '/painter/orders', title: '订单管理' },
-    { path: '/painter/messages', title: '消息中心' },
   ],
   admin: [
     { path: '/admin', title: '概览' },

@@ -27,6 +27,7 @@ const routes = [
       { path: 'projects/:id', name: 'ProjectDetail', component: () => import('@/views/projects/ProjectDetail.vue'), meta: { title: '企划详情' } },
       { path: 'stalls', name: 'Stalls', component: () => import('@/views/stalls/StallList.vue'), meta: { title: '服务板' } },
       { path: 'stalls/:id', name: 'StallDetail', component: () => import('@/views/stalls/StallDetail.vue'), meta: { title: '服务板详情' } },
+      { path: 'messages', name: 'Messages', component: () => import('@/views/messages/MessageList.vue'), meta: { title: '消息中心', requiresAuth: true } },
       { path: 'settings', name: 'AccountSettings', component: () => import('@/views/account/AccountSettings.vue'), meta: { title: '账户设置', requiresAuth: true } },
     ],
   },
@@ -42,7 +43,7 @@ const routes = [
       { path: 'projects/:id/applications', name: 'ProjectApplications', component: () => import('@/views/dashboard/Applications.vue'), meta: { title: '应征管理' } },
       { path: 'orders', name: 'DashboardOrders', component: () => import('@/views/orders/OrderList.vue'), meta: { title: '订单管理' } },
       { path: 'orders/:id', name: 'DashboardOrderDetail', component: () => import('@/views/orders/OrderDetail.vue'), meta: { title: '订单详情' } },
-      { path: 'messages', name: 'DashboardMessages', component: () => import('@/views/messages/MessageList.vue'), meta: { title: '消息中心' } },
+      { path: 'messages', name: 'DashboardMessages', redirect: to => ({ name: 'Messages', query: to.query, hash: to.hash }) },
     ],
   },
   // ---- 画师工作台 ----
@@ -59,7 +60,7 @@ const routes = [
       { path: 'invitations', name: 'PainterInvitations', component: () => import('@/views/painter/MyInvitations.vue'), meta: { title: '收到的邀请' } },
       { path: 'orders', name: 'PainterOrders', component: () => import('@/views/orders/OrderList.vue'), meta: { title: '订单管理' } },
       { path: 'orders/:id', name: 'PainterOrderDetail', component: () => import('@/views/orders/OrderDetail.vue'), meta: { title: '订单详情' } },
-      { path: 'messages', name: 'PainterMessages', component: () => import('@/views/messages/MessageList.vue'), meta: { title: '消息中心' } },
+      { path: 'messages', name: 'PainterMessages', redirect: to => ({ name: 'Messages', query: to.query, hash: to.hash }) },
     ],
   },
   // ---- 管理后台 ----

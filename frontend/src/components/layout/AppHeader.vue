@@ -16,11 +16,20 @@
       <div class="app-header__actions">
         <template v-if="userStore.isLoggedIn">
           <el-button v-if="!userStore.isAdmin" type="primary" round class="publish-button" @click="goPublish">发布需求</el-button>
-          <el-badge v-if="!userStore.isAdmin" :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
-            <el-button circle class="message-button" aria-label="打开消息中心" @click="goMessages">
-              <el-icon><Bell /></el-icon>
-            </el-button>
-          </el-badge>
+          <el-dropdown v-if="!userStore.isAdmin" trigger="hover" placement="bottom" @command="onMessageCommand">
+            <el-badge :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
+              <button type="button" class="message-entry" aria-label="打开消息中心" @click.stop="goMessages('conversations')">
+                <el-icon><MessageIcon /></el-icon>
+                <span>消息</span>
+              </button>
+            </el-badge>
+            <template #dropdown>
+              <el-dropdown-menu class="message-quick-menu">
+                <el-dropdown-item command="conversations">我的消息</el-dropdown-item>
+                <el-dropdown-item command="notifications">系统消息</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
           <el-dropdown @command="onCommand" @visible-change="onAccountMenuVisible">
             <span class="app-header__user" role="button" tabindex="0">
               <el-avatar :size="32" :src="userStore.user?.avatar" class="header-avatar">
@@ -62,7 +71,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Bell } from '@element-plus/icons-vue'
+import { ArrowDown, Message as MessageIcon } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useMessageStore } from '@/stores/message'
@@ -92,9 +101,15 @@ function goPublish() {
   }
 }
 
-function goMessages() {
-  const base = userStore.workbenchRole === 2 ? '/painter' : '/dashboard'
-  router.push(`${base}/messages`)
+function goMessages(section = 'conversations') {
+  router.push({
+    name: 'Messages',
+    query: section === 'notifications' ? { tab: 'notifications' } : {},
+  })
+}
+
+function onMessageCommand(command) {
+  goMessages(command)
 }
 
 async function onAccountMenuVisible(visible) {
@@ -234,19 +249,32 @@ function onCommand(command) {
   box-shadow: 0 5px 14px rgba(0, 168, 233, 0.18);
 }
 
-.message-button {
-  width: 36px;
-  height: 36px;
-  border-color: var(--artiv-border);
+.message-entry {
+  display: inline-flex;
+  min-width: 48px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 8px;
   color: var(--artiv-text-secondary);
-  background: rgba(255, 255, 255, 0.78);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  transition: color .2s, background .2s;
 }
 
-.message-button:hover,
-.message-button:focus-visible {
-  border-color: rgba(0, 168, 233, 0.36);
+.message-entry .el-icon {
+  font-size: 18px;
+}
+
+.message-entry:hover,
+.message-entry:focus-visible {
   color: var(--artiv-primary);
   background: var(--artiv-primary-light);
+  outline: none;
 }
 
 .nav-btn {
@@ -274,6 +302,9 @@ function onCommand(command) {
 .msg-badge {
   line-height: 1;
 }
+
+:global(.message-quick-menu) { min-width: 146px; padding: 6px; }
+:global(.message-quick-menu .el-dropdown-menu__item) { justify-content: center; border-radius: 6px; padding: 10px 18px; }
 
 .app-header__user {
   display: inline-flex;
@@ -347,6 +378,15 @@ function onCommand(command) {
   .publish-button {
     height: 34px;
     padding: 0 14px;
+  }
+
+  .message-entry {
+    min-width: 36px;
+    padding-inline: 5px;
+  }
+
+  .message-entry span {
+    display: none;
   }
 
   .app-header__user {

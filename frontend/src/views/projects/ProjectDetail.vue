@@ -422,7 +422,7 @@ async function openChat(item) {
   startingChatId.value = item.painter.id
   try {
     await startProjectConversation(project.value.id, item.painter.id)
-    await router.push({ name: 'DashboardMessages', query: { withUserId: item.painter.id, projectId: project.value.id } })
+    await router.push({ name: 'Messages', query: { withUserId: item.painter.id, projectId: project.value.id } })
   } catch (error) {
     ElMessage.error(error.message || '发起私信失败')
   } finally {

@@ -137,7 +137,7 @@ async function uploadDelivery(options){try{submitForm.image=await uploadFile(opt
 function clearDelivery(){submitForm.image=''}
 async function submitStage(){if(!submitForm.image){ElMessage.warning('请先上传本阶段交付图片');return}await run(()=>submitOrderStage(order.value.id,submitForm),'阶段稿已提交');submitVisible.value=false;submitForm.content='';submitForm.image=''}
 async function review(action){let remark='';if(action==='revise'){try{const result=await ElMessageBox.prompt('请填写明确的修改意见','要求修改',{inputType:'textarea',inputValidator:(v)=>!!v?.trim()||'请填写修改意见'});remark=result.value}catch{return}}if(action==='complete'){try{await ElMessageBox.confirm('确认后将立即完成交易、把款项结算给画师，并开放当前交付原图。未执行的后续阶段会被跳过。','确认完成交易',{type:'warning',confirmButtonText:'确认收货并完成'})}catch{return}}await run(()=>reviewOrderStage(order.value.id,{action,remark}),action==='complete'?'交易已完成并结算':action==='approve'?'阶段已通过':'已要求修改')}
-function goMessage(){const otherId=isPainter.value?order.value.employerId:order.value.painterId;const nickname=isPainter.value?detail.value.employerName:detail.value.painterName;router.push({name:isPainter.value?'PainterMessages':'DashboardMessages',query:{withUserId:otherId,nickname,orderId:order.value.id}})}
+function goMessage(){const otherId=isPainter.value?order.value.employerId:order.value.painterId;const nickname=isPainter.value?detail.value.employerName:detail.value.painterName;router.push({name:'Messages',query:{withUserId:otherId,nickname,orderId:order.value.id}})}
 function goProject(){router.push({name:'ProjectDetail',params:{id:order.value.projectId},query:{from:'order'}})}
 function goStall(){router.push({name:'StallDetail',params:{id:order.value.stallId},query:{from:'order'}})}
 function splitFiles(value){return value?String(value).split(',').filter(Boolean):[]}

@@ -73,7 +73,7 @@ async function select(row) {
 }
 
 function communicate(row) {
-  router.push({ name: 'DashboardMessages', query: { withUserId: row.painterId, projectId: route.params.id } })
+  router.push({ name: 'Messages', query: { withUserId: row.painterId, projectId: route.params.id } })
 }
 
 function reject(row) {
