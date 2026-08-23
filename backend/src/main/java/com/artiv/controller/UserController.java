@@ -6,6 +6,8 @@ import com.artiv.common.Result;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.PainterProfileUpdateRequest;
+import com.artiv.dto.AccountProfileUpdateRequest;
+import com.artiv.dto.PasswordUpdateRequest;
 import com.artiv.dto.AvatarUpdateRequest;
 import com.artiv.dto.ArtistSummary;
 import com.artiv.dto.PublicProfileResponse;
@@ -103,17 +105,38 @@ public class UserController {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
         CertificationSubmitRequest request = new CertificationSubmitRequest();
-        request.setCommonId(current.getNickname());
+        request.setCommonId(current.getArtistName() == null ? current.getNickname() : current.getArtistName());
+        request.setCommonSite(current.getArtistSite());
         certificationService.submit(userId, request);
         User user = userMapper.selectById(userId);
         user.setPassword(null);
         return Result.ok(user);
     }
 
-    /** 画师维护昵称、主页简介和题材风格；认证前也必须能完善申请资料。 */
+    /** @deprecated 兼容旧客户端；新客户端使用 PUT /users/me/painter-profile。 */
+    @Deprecated
     @PutMapping("/me/profile")
     public Result<User> updateMyPainterProfile(@Valid @RequestBody PainterProfileUpdateRequest request) {
         return Result.ok(userService.updatePainterProfile(UserContext.getUserId(), request));
+    }
+
+    /** 企划方与画师共用的账户资料入口：昵称和企划方简介。 */
+    @PutMapping("/me/account")
+    public Result<User> updateMyAccountProfile(@Valid @RequestBody AccountProfileUpdateRequest request) {
+        return Result.ok(userService.updateAccountProfile(UserContext.getUserId(), request));
+    }
+
+    /** 直接维护画师简介和题材风格，不触发认证审核。 */
+    @PutMapping("/me/painter-profile")
+    public Result<User> updateMyPainterIdentityProfile(@Valid @RequestBody PainterProfileUpdateRequest request) {
+        return Result.ok(userService.updatePainterProfile(UserContext.getUserId(), request));
+    }
+
+    /** 校验当前密码后修改密码。 */
+    @PutMapping("/me/password")
+    public Result<Void> updateMyPassword(@Valid @RequestBody PasswordUpdateRequest request) {
+        userService.updatePassword(UserContext.getUserId(), request);
+        return Result.ok();
     }
 
     /** 当前登录用户更新头像；头像必须来自本站上传目录。 */

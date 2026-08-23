@@ -22,7 +22,7 @@
       </div>
       <div class="cert-actions">
         <el-button type="primary" round @click="router.push({ name: 'PainterWorks' })">完善资料与作品</el-button>
-        <el-button round @click="router.push({ name: 'PainterProfile' })">进行画师认证</el-button>
+        <el-button round @click="router.push({ name: 'AccountSettings', query: { section: 'identity' } })">进行画师认证</el-button>
       </div>
     </section>
 

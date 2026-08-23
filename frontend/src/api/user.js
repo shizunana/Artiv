@@ -17,7 +17,15 @@ export function updateProfile(id, data) {
 }
 
 export function updateMyPainterProfile(data) {
-  return request.put('/users/me/profile', data)
+  return request.put('/users/me/painter-profile', data)
+}
+
+export function updateMyAccountProfile(data) {
+  return request.put('/users/me/account', data)
+}
+
+export function updateMyPassword(data) {
+  return request.put('/users/me/password', data)
 }
 
 export function updateMyAvatar(data) {
@@ -38,6 +46,14 @@ export function submitCertification(data) {
 
 export function getLatestCertification() {
   return request.get('/users/me/certifications/latest')
+}
+
+export function getCertificationStatus() {
+  return request.get('/users/me/certifications/status')
+}
+
+export function submitCertificationChange(data) {
+  return request.post('/users/me/certifications/changes', data)
 }
 
 export function getArtists(params) {

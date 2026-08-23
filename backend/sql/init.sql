@@ -28,10 +28,13 @@ CREATE TABLE `user` (
   `nickname`    VARCHAR(50)  NOT NULL COMMENT '昵称',
   `avatar`      VARCHAR(255) DEFAULT NULL COMMENT '头像地址',
   `balance`     DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '账户可用余额',
-  `bio`         VARCHAR(500) DEFAULT NULL COMMENT '个人简介',
+  `bio`         VARCHAR(500) DEFAULT NULL COMMENT '画师公开主页简介',
+  `employer_bio` VARCHAR(500) DEFAULT NULL COMMENT '企划方公开主页简介',
   `tags`        VARCHAR(255) DEFAULT NULL COMMENT '风格标签，逗号分隔',
+  `artist_name` VARCHAR(100) DEFAULT NULL COMMENT '已审核生效的画师笔名',
+  `artist_site` VARCHAR(500) DEFAULT NULL COMMENT '已审核生效的画师常用站',
   `role`        TINYINT      NOT NULL DEFAULT 2 COMMENT '角色：1 企划方、2 画师、3 管理员',
-  `cert_status` TINYINT      NOT NULL DEFAULT 0 COMMENT '画师认证：0 未认证、1 审核中、2 已认证、3 已驳回',
+  `cert_status` TINYINT      NOT NULL DEFAULT 0 COMMENT '画师认证：0 未认证、1 审核中、2 已认证',
   `status`      TINYINT      NOT NULL DEFAULT 0 COMMENT '账号状态：0 正常、1 封禁',
   `ban_reason`  VARCHAR(500) DEFAULT NULL COMMENT '最近一次封禁原因',
   `banned_by`   BIGINT       DEFAULT NULL COMMENT '执行封禁的管理员ID',
@@ -322,8 +325,11 @@ CREATE TABLE `review_appeal` (
 CREATE TABLE `artist_certification` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `user_id` BIGINT NOT NULL COMMENT '申请画师ID',
-  `common_id` VARCHAR(100) NOT NULL COMMENT '常用昵称或常用ID',
-  `common_site` VARCHAR(500) DEFAULT NULL COMMENT '其他平台个人主页',
+  `application_type` TINYINT NOT NULL DEFAULT 0 COMMENT '申请类型：0初次认证、1认证资料修改',
+  `common_id` VARCHAR(100) NOT NULL COMMENT '申请笔名',
+  `common_site` VARCHAR(500) NOT NULL COMMENT '申请常用站个人主页',
+  `previous_common_id` VARCHAR(100) DEFAULT NULL COMMENT '提交修改时已生效笔名快照',
+  `previous_common_site` VARCHAR(500) DEFAULT NULL COMMENT '提交修改时已生效常用站快照',
   `public_work_count` INT NOT NULL DEFAULT 0 COMMENT '提交时公开作品数量快照',
   `status` TINYINT NOT NULL DEFAULT 0 COMMENT '0待审核、1通过、2驳回',
   `reviewer_id` BIGINT DEFAULT NULL,
@@ -334,6 +340,7 @@ CREATE TABLE `artist_certification` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_cert_user_created` (`user_id`, `created_at`),
+  KEY `idx_cert_user_type_status` (`user_id`, `application_type`, `status`, `deleted`, `created_at`),
   KEY `idx_cert_status_created` (`status`, `created_at`, `deleted`)
 ) ENGINE=InnoDB COMMENT='画师认证申请';
 
@@ -394,10 +401,12 @@ CREATE TABLE `admin_action_log` (
 -- 演示数据（BCrypt 密码均为 123456）
 -- =====================================================
 
-INSERT INTO `user` (`id`, `username`, `password`, `nickname`, `avatar`, `bio`, `tags`, `role`, `cert_status`, `status`) VALUES
-  (1, 'planner', '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '企划小张', NULL, '资深品牌企划，长期寻找合作画师。', '品牌,插画', 1, 0, 0),
-  (2, 'artist',  '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '画师阿绘', NULL, '国潮插画师，擅长人物与场景，接稿中。', '国潮,插画,人物', 2, 2, 0),
-  (3, 'admin',   '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '平台管理员', NULL, NULL, NULL, 3, 0, 0);
+INSERT INTO `user`
+  (`id`, `username`, `password`, `nickname`, `avatar`, `bio`, `employer_bio`, `tags`, `artist_name`, `artist_site`, `role`, `cert_status`, `status`)
+VALUES
+  (1, 'planner', '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '企划小张', NULL, NULL, '资深品牌企划，长期寻找合作画师。', NULL, NULL, NULL, 1, 0, 0),
+  (2, 'artist',  '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '画师阿绘', NULL, '国潮插画师，擅长人物与场景，接稿中。', NULL, '国潮,插画,人物', '画师阿绘', 'https://www.pixiv.net/users/2', 2, 2, 0),
+  (3, 'admin',   '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '平台管理员', NULL, NULL, NULL, NULL, NULL, NULL, 3, 0, 0);
 
 INSERT INTO `work` (`id`, `user_id`, `title`, `category`, `subject`, `description`, `visibility`) VALUES
   (1, 2, '国潮·龙腾四海', '平面设计', '古风,有背景', '节日主题国潮插画，曾用于品牌海报宣传。', 1),

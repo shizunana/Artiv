@@ -57,8 +57,9 @@ public class PublicProfileServiceImpl implements PublicProfileService {
         response.setId(user.getId());
         response.setNickname(StringUtils.hasText(user.getNickname()) ? user.getNickname() : "艺绘用户");
         response.setAvatar(user.getAvatar());
-        response.setBio(user.getBio());
-        response.setTags(splitTags(user.getTags()));
+        boolean painterProfile = "painter".equals(normalizedRole);
+        response.setBio(painterProfile ? user.getBio() : user.getEmployerBio());
+        response.setTags(painterProfile ? splitTags(user.getTags()) : List.of());
         response.setCertStatus(user.getCertStatus());
         response.setPainterProfileAvailable(true);
         response.setEmployerProfileAvailable(true);
@@ -69,7 +70,7 @@ public class PublicProfileServiceImpl implements PublicProfileService {
         response.setAverageScore(reviewStatistics.getAverageScore());
         response.setReviewCount(reviewStatistics.getReviewCount());
 
-        if ("painter".equals(normalizedRole)) {
+        if (painterProfile) {
             List<OrderInfo> orders = listRoleOrders(userId, normalizedRole);
             RateStats completionStats = calculateCompletionRate(orders);
             response.setCompletionRate(completionStats.rate());

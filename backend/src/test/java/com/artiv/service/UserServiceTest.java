@@ -2,7 +2,9 @@ package com.artiv.service;
 
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
+import com.artiv.dto.AccountProfileUpdateRequest;
 import com.artiv.dto.PainterProfileUpdateRequest;
+import com.artiv.dto.PasswordUpdateRequest;
 import com.artiv.dto.RegisterRequest;
 import com.artiv.entity.User;
 import com.artiv.mapper.UserMapper;
@@ -15,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -70,12 +73,12 @@ class UserServiceTest {
     }
 
     @Test
-    void updatePainterProfileRejectsAnotherUsersNickname() {
+    void updateAccountProfileRejectsAnotherUsersNickname() {
         when(userMapper.selectById(2L)).thenReturn(painter(2L, "原昵称"));
         when(userMapper.selectCount(any())).thenReturn(1L);
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> userService.updatePainterProfile(2L, profileRequest("重复昵称")));
+                () -> userService.updateAccountProfile(2L, accountRequest("重复昵称")));
 
         assertEquals(ResultCode.NICKNAME_EXISTS.getCode(), exception.getCode());
         assertEquals("昵称已被使用，无法更改", exception.getMessage());
@@ -83,7 +86,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updatePainterProfileTrimsAndReturnsLatestUser() {
+    void updateAccountProfileTrimsAndReturnsLatestUser() {
         User current = painter(2L, "原昵称");
         User updated = painter(2L, "新昵称");
         updated.setPassword("encoded-password");
@@ -91,13 +94,49 @@ class UserServiceTest {
         when(userMapper.selectCount(any())).thenReturn(0L);
         when(userMapper.updateById(any(User.class))).thenReturn(1);
 
-        User result = userService.updatePainterProfile(2L, profileRequest("  新昵称  "));
+        User result = userService.updateAccountProfile(2L, accountRequest("  新昵称  "));
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userMapper).updateById(captor.capture());
         assertEquals("新昵称", captor.getValue().getNickname());
+        assertEquals("企划简介", captor.getValue().getEmployerBio());
         assertEquals("新昵称", result.getNickname());
         assertNull(result.getPassword());
+    }
+
+    @Test
+    void updatePainterProfileKeepsIdentityFieldsSeparateForEmployerAccount() {
+        User current = painter(2L, "原昵称");
+        current.setRole(1);
+        User updated = painter(2L, "原昵称");
+        updated.setRole(1);
+        updated.setPassword("encoded-password");
+        when(userMapper.selectById(2L)).thenReturn(current, updated);
+
+        PainterProfileUpdateRequest request = new PainterProfileUpdateRequest();
+        request.setBio("  画师简介  ");
+        request.setTags(java.util.List.of("日系", "场景"));
+        User result = userService.updatePainterProfile(2L, request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).updateById(captor.capture());
+        assertEquals("画师简介", captor.getValue().getBio());
+        assertEquals("日系,场景", captor.getValue().getTags());
+        assertNull(captor.getValue().getEmployerBio());
+        assertNull(result.getPassword());
+    }
+
+    @Test
+    void updatePasswordRejectsWrongCurrentPassword() {
+        User current = painter(2L, "昵称");
+        current.setPassword(new BCryptPasswordEncoder().encode("123456"));
+        when(userMapper.selectById(2L)).thenReturn(current);
+        PasswordUpdateRequest request = new PasswordUpdateRequest();
+        request.setCurrentPassword("wrong-password");
+        request.setNewPassword("654321");
+
+        assertThrows(BusinessException.class, () -> userService.updatePassword(2L, request));
+        verify(userMapper, never()).updateById(any(User.class));
     }
 
     private RegisterRequest request(String username, String nickname) {
@@ -109,11 +148,10 @@ class UserServiceTest {
         return request;
     }
 
-    private PainterProfileUpdateRequest profileRequest(String nickname) {
-        PainterProfileUpdateRequest request = new PainterProfileUpdateRequest();
+    private AccountProfileUpdateRequest accountRequest(String nickname) {
+        AccountProfileUpdateRequest request = new AccountProfileUpdateRequest();
         request.setNickname(nickname);
-        request.setBio("简介");
-        request.setTags(java.util.List.of("日系"));
+        request.setEmployerBio("企划简介");
         return request;
     }
 

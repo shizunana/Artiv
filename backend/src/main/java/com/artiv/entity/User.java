@@ -35,7 +35,7 @@ public class User {
     /** 角色：1 企划方、2 画师、3 管理员 */
     private Integer role;
 
-    /** 画师认证：0 未认证、1 审核中、2 已认证、3 已驳回 */
+    /** 画师认证：0 未认证、1 审核中、2 已认证 */
     private Integer certStatus;
 
     /** 状态：0 正常、1 封禁 */
@@ -52,8 +52,17 @@ public class User {
 
     private String bio;
 
+    /** 企划方公开主页简介；与画师简介 bio 分开维护。 */
+    private String employerBio;
+
     /** 风格标签，逗号分隔 */
     private String tags;
+
+    /** 当前已审核生效的画师笔名。 */
+    private String artistName;
+
+    /** 当前已审核生效的画师常用站。 */
+    private String artistSite;
 
     /** 逻辑删除：0 未删、1 已删 */
     @JsonIgnore

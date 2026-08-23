@@ -27,6 +27,7 @@ const routes = [
       { path: 'projects/:id', name: 'ProjectDetail', component: () => import('@/views/projects/ProjectDetail.vue'), meta: { title: '企划详情' } },
       { path: 'stalls', name: 'Stalls', component: () => import('@/views/stalls/StallList.vue'), meta: { title: '服务板' } },
       { path: 'stalls/:id', name: 'StallDetail', component: () => import('@/views/stalls/StallDetail.vue'), meta: { title: '服务板详情' } },
+      { path: 'settings', name: 'AccountSettings', component: () => import('@/views/account/AccountSettings.vue'), meta: { title: '账户设置', requiresAuth: true } },
     ],
   },
   // ---- 企划方工作台 ----
@@ -51,7 +52,7 @@ const routes = [
     meta: { requiresAuth: true, workbench: 'painter' },
     children: [
       { path: '', name: 'PainterHome', component: () => import('@/views/painter/PainterHome.vue'), meta: { title: '画师工作台' } },
-      { path: 'profile', name: 'PainterProfile', component: () => import('@/views/painter/PainterProfile.vue'), meta: { title: '资料与认证' } },
+      { path: 'profile', redirect: { name: 'AccountSettings', query: { section: 'identity' } } },
       { path: 'works', name: 'PainterWorks', component: () => import('@/views/painter/MyWorks.vue'), meta: { title: '作品集管理' } },
       { path: 'stalls', name: 'PainterStalls', component: () => import('@/views/painter/MyStalls.vue'), meta: { title: '服务板管理' } },
       { path: 'applications', name: 'PainterApplications', component: () => import('@/views/painter/MyApplications.vue'), meta: { title: '我的应征' } },

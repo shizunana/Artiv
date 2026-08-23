@@ -1,6 +1,8 @@
 package com.artiv.controller;
 
 import com.artiv.common.Result;
+import com.artiv.dto.CertificationChangeRequest;
+import com.artiv.dto.CertificationStatusResponse;
 import com.artiv.dto.admin.CertificationSubmitRequest;
 import com.artiv.entity.ArtistCertification;
 import com.artiv.security.UserContext;
@@ -22,6 +24,16 @@ public class CertificationController {
     @PostMapping
     public Result<ArtistCertification> submit(@Valid @RequestBody CertificationSubmitRequest request) {
         return Result.ok(certificationService.submit(UserContext.getUserId(), request));
+    }
+
+    @PostMapping("/changes")
+    public Result<ArtistCertification> submitChange(@Valid @RequestBody CertificationChangeRequest request) {
+        return Result.ok(certificationService.submitChange(UserContext.getUserId(), request));
+    }
+
+    @GetMapping("/status")
+    public Result<CertificationStatusResponse> status() {
+        return Result.ok(certificationService.status(UserContext.getUserId()));
     }
 
     @GetMapping("/latest")

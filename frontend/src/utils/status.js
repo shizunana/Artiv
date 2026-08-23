@@ -21,7 +21,6 @@ export const CERT_STATUS = {
   0: { text: '未认证', type: 'info' },
   1: { text: '审核中', type: 'warning' },
   2: { text: '已认证', type: 'success' },
-  3: { text: '已驳回', type: 'danger' },
 }
 
 export function statusText(map, value, fallback = '-') {

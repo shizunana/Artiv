@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.LoginRequest;
+import com.artiv.dto.AccountProfileUpdateRequest;
+import com.artiv.dto.PasswordUpdateRequest;
 import com.artiv.dto.PainterProfileUpdateRequest;
 import com.artiv.dto.RegisterRequest;
 import com.artiv.entity.User;
@@ -86,18 +88,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User updatePainterProfile(Long userId, PainterProfileUpdateRequest request) {
-        User current = userMapper.selectById(userId);
-        if (current == null || Integer.valueOf(1).equals(current.getDeleted())) {
-            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
-        }
-        if (!Integer.valueOf(2).equals(current.getRole())) {
-            throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "仅画师账号可以修改展示资料");
-        }
-
-        String nickname = request.getNickname().trim();
-        if (nicknameExists(nickname, userId)) {
-            throw new BusinessException(ResultCode.NICKNAME_EXISTS.getCode(), "昵称已被使用，无法更改");
-        }
+        requireMutableUser(userId);
 
         List<String> requestedTags = request.getTags() == null ? List.of() : request.getTags();
         LinkedHashSet<String> uniqueTags = new LinkedHashSet<>();
@@ -108,12 +99,30 @@ public class UserServiceImpl implements UserService {
             uniqueTags.add(tag.trim());
         }
 
+        User patch = new User();
+        patch.setId(userId);
+        patch.setBio(request.getBio() == null ? "" : request.getBio().trim());
+        patch.setTags(String.join(",", uniqueTags));
+        patch.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(patch);
+
+        User updated = userMapper.selectById(userId);
+        updated.setPassword(null);
+        return updated;
+    }
+
+    @Override
+    public User updateAccountProfile(Long userId, AccountProfileUpdateRequest request) {
+        requireMutableUser(userId);
+        String nickname = request.getNickname().trim();
+        if (nicknameExists(nickname, userId)) {
+            throw new BusinessException(ResultCode.NICKNAME_EXISTS.getCode(), "昵称已被使用，无法更改");
+        }
         try {
             User patch = new User();
             patch.setId(userId);
             patch.setNickname(nickname);
-            patch.setBio(request.getBio() == null ? "" : request.getBio().trim());
-            patch.setTags(String.join(",", uniqueTags));
+            patch.setEmployerBio(request.getEmployerBio() == null ? "" : request.getEmployerBio().trim());
             patch.setUpdatedAt(LocalDateTime.now());
             userMapper.updateById(patch);
         } catch (DuplicateKeyException duplicateKeyException) {
@@ -122,10 +131,36 @@ public class UserServiceImpl implements UserService {
             }
             throw duplicateKeyException;
         }
-
         User updated = userMapper.selectById(userId);
         updated.setPassword(null);
         return updated;
+    }
+
+    @Override
+    public void updatePassword(Long userId, PasswordUpdateRequest request) {
+        User current = requireMutableUser(userId);
+        if (!passwordEncoder.matches(request.getCurrentPassword(), current.getPassword())) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "当前密码不正确");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), current.getPassword())) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "新密码不能与当前密码相同");
+        }
+        User patch = new User();
+        patch.setId(userId);
+        patch.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        patch.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(patch);
+    }
+
+    private User requireMutableUser(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null || Integer.valueOf(1).equals(user.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (Integer.valueOf(3).equals(user.getRole())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "管理员不使用普通账户资料入口");
+        }
+        return user;
     }
 
     @Override

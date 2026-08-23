@@ -23,9 +23,8 @@
             <el-tag v-for="tag in profile.tags" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
           </div>
         </div>
-        <div class="profile-actions">
-          <el-button v-if="isOwner" @click="goEditProfile">编辑资料</el-button>
-          <template v-else-if="isPainter">
+        <div v-if="!isOwner && isPainter" class="profile-actions">
+          <template>
             <el-button class="invite-button" type="warning" @click="showReserved('邀请画师')">邀请</el-button>
             <el-button type="primary" @click="showReserved('关注画师')">关注</el-button>
           </template>
@@ -242,7 +241,6 @@ async function loadResources(reset = false) {
 function switchRole() {
   router.replace({ name: 'ArtistProfile', params: { id: profileId.value }, query: { role: isPainter.value ? 'employer' : 'painter' } })
 }
-function goEditProfile() { router.push(isPainter.value ? { name: 'PainterProfile' } : { name: 'DashboardHome' }) }
 function showReserved(name) { ElMessage.info(`${name}功能已预留，暂未开放`) }
 function formatRate(value) { return value === null || value === undefined ? '暂无' : `${value}%` }
 function previewWork(work) { previewUrl.value = work.image || '' }

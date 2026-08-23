@@ -43,7 +43,7 @@
                   </div>
                 </div>
                 <el-dropdown-item command="home">主页</el-dropdown-item>
-                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                <el-dropdown-item command="profile">账户设置</el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -75,11 +75,6 @@ onMounted(() => { if (userStore.isLoggedIn) messageStore.fetchUnreadCount() })
 const avatarText = computed(() => {
   const n = userStore.user?.nickname || userStore.user?.username || ''
   return n ? n.slice(0, 1) : '绘'
-})
-
-const workbenchHome = computed(() => {
-  const role = userStore.workbenchRole
-  return role === 2 ? '/painter' : role === 3 ? '/admin' : '/dashboard'
 })
 
 const formattedBalance = computed(() => {
@@ -119,7 +114,7 @@ function onCommand(command) {
   } else if (command === 'recharge' || command === 'withdraw') {
     ElMessage.info('资金管理功能正在开发中')
   } else if (command === 'profile') {
-    router.push(userStore.workbenchRole === 2 ? '/painter/profile' : workbenchHome.value)
+    router.push({ name: 'AccountSettings' })
   } else if (command === 'logout') {
     userStore.logout()
     router.push({ name: 'Home' })

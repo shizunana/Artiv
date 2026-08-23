@@ -27,8 +27,9 @@ public class AdminCertificationController {
     public Result<Map<String, Object>> list(@RequestParam(defaultValue = "1") long page,
                                             @RequestParam(defaultValue = "20") long size,
                                             @RequestParam(required = false) Integer status,
+                                            @RequestParam(required = false) Integer applicationType,
                                             @RequestParam(required = false) String keyword) {
-        return Result.ok(certificationService.listAdmin(page, size, status, keyword));
+        return Result.ok(certificationService.listAdmin(page, size, status, applicationType, keyword));
     }
 
     @GetMapping("/{id}")
