@@ -1,14 +1,9 @@
 <template>
   <div class="order-list wb-card">
     <header class="order-header">
-      <div><h2>订单管理</h2><p>统一查看作为画师承接和作为企划方下单的全部交易。</p></div>
+      <div><h2>订单管理</h2><p>统一查看我委托和我承接的全部交易。</p></div>
       <el-button @click="load">刷新</el-button>
     </header>
-
-    <el-tabs v-model="participantRole" class="participant-tabs" @tab-change="load">
-      <el-tab-pane label="画师受约订单" name="painter" />
-      <el-tab-pane label="企划方订单" name="employer" />
-    </el-tabs>
 
     <el-tabs v-model="source" class="source-tabs" @tab-change="load">
       <el-tab-pane label="企划订单" name="project" />
@@ -47,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOrders } from '@/api/order'
 import { formatDateTime } from '@/utils/date'
@@ -58,7 +53,7 @@ const route = useRoute()
 const router = useRouter()
 const source = ref('stall')
 const statusGroup = ref('all')
-const participantRole = ref(route.path.startsWith('/dashboard') ? 'employer' : 'painter')
+const participantRole = ref(resolveParticipantRole(route.query.participantRole))
 const listState = ref({ queryKey: '', records: [] })
 const loadingQueryKey = ref('')
 const reviewVisible = ref(false)
@@ -102,7 +97,13 @@ async function load() {
 }
 function selectFilter(value) { statusGroup.value = value; load() }
 const isPainterRoute = computed(() => route.path.startsWith('/painter'))
-function goOrderDetail(id) { router.push({ name: isPainterRoute.value ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id } }) }
+function goOrderDetail(id) {
+  router.push({
+    name: isPainterRoute.value ? 'PainterOrderDetail' : 'DashboardOrderDetail',
+    params: { id },
+    query: { participantRole: participantRole.value },
+  })
+}
 function goStallDetail(id) { router.push({ name: 'StallDetail', params: { id }, query: { from: 'order' } }) }
 function goProjectDetail(id) { router.push({ name: 'ProjectDetail', params: { id }, query: { from: 'order' } }) }
 function openReview(order) { reviewTarget.value = order; reviewVisible.value = true }
@@ -118,6 +119,20 @@ function reviewSubmitted() {
 function orderTitle(order) { return order.projectTitle || order.stallTitle || `订单 #${order.id}` }
 function orderCover(order) { return order.projectCover || order.stallCover || '' }
 function money(value) { return Number(value || 0).toFixed(2) }
+function resolveParticipantRole(value) {
+  if (value === 'employer' || value === 'painter') return value
+  return route.path.startsWith('/dashboard') ? 'employer' : 'painter'
+}
+watch(
+  () => route.query.participantRole,
+  (value) => {
+    const nextRole = resolveParticipantRole(value)
+    if (nextRole === participantRole.value) return
+    participantRole.value = nextRole
+    load()
+  },
+  { flush: 'sync' },
+)
 onMounted(load)
 onBeforeUnmount(() => activeRequestController?.abort())
 </script>
@@ -128,8 +143,6 @@ onBeforeUnmount(() => activeRequestController?.abort())
 .order-header h2 { margin: 0 0 7px; font-size: 21px; }
 .order-header p { margin: 0; color: var(--artiv-text-secondary); }
 .source-tabs { margin-top: 18px; }
-.participant-tabs { margin-top: 18px; }
-.participant-tabs + .source-tabs { margin-top: 0; }
 .source-tabs :deep(.el-tabs__header) { margin-bottom: 14px; }
 .status-filters { display: flex; gap: 10px; padding: 4px 0 18px; border-bottom: 1px solid var(--artiv-border); }
 .status-filters button { border: 1px solid var(--artiv-border); border-radius: 18px; background: #fff; padding: 7px 18px; color: var(--artiv-text-secondary); cursor: pointer; }

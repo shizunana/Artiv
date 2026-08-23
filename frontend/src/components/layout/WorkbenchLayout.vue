@@ -15,16 +15,40 @@
         </div>
 
         <div class="wb-sidebar__tabs">
-          <router-link
-            v-for="item in menuItems"
-            :key="item.path"
-            :to="item.path"
-            class="wb-sidebar__tab"
-            :class="{ 'is-active': activePath === item.path }"
-          >
-            <span>{{ item.title }}</span>
-            <el-icon v-if="item.soon" class="wb-tab-soon"><Right /></el-icon>
-          </router-link>
+          <template v-for="item in menuItems" :key="item.path">
+            <div v-if="item.children" class="wb-sidebar__group">
+              <button
+                type="button"
+                class="wb-sidebar__tab wb-sidebar__group-toggle"
+                :class="{ 'is-active': isMenuActive(item) }"
+                :aria-expanded="orderMenuExpanded"
+                @click="orderMenuExpanded = !orderMenuExpanded"
+              >
+                <span>{{ item.title }}</span>
+                <el-icon class="wb-sidebar__chevron" :class="{ 'is-open': orderMenuExpanded }"><ArrowDown /></el-icon>
+              </button>
+              <div v-show="orderMenuExpanded" class="wb-sidebar__children">
+                <router-link
+                  v-for="child in item.children"
+                  :key="child.participantRole"
+                  :to="{ path: child.path, query: { participantRole: child.participantRole } }"
+                  class="wb-sidebar__subtab"
+                  :class="{ 'is-active': isOrderChildActive(child) }"
+                >
+                  {{ child.title }}
+                </router-link>
+              </div>
+            </div>
+            <router-link
+              v-else
+              :to="item.path"
+              class="wb-sidebar__tab"
+              :class="{ 'is-active': isMenuActive(item) }"
+            >
+              <span>{{ item.title }}</span>
+              <el-icon v-if="item.soon" class="wb-tab-soon"><Right /></el-icon>
+            </router-link>
+          </template>
         </div>
 
         <div v-if="workbench !== 'admin'" class="wb-sidebar__foot">
@@ -43,9 +67,9 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Right } from '@element-plus/icons-vue'
+import { ArrowDown, Right } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import AppHeader from './AppHeader.vue'
 
@@ -53,13 +77,21 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const switchingRole = ref(false)
+const orderMenuExpanded = ref(false)
 
 const menus = {
   dashboard: [
     { path: '/dashboard', title: '工作台主页' },
     { path: '/dashboard/projects', title: '我的企划' },
     { path: '/dashboard/projects/new', title: '发布企划' },
-    { path: '/dashboard/orders', title: '订单管理' },
+    {
+      path: '/dashboard/orders',
+      title: '订单管理',
+      children: [
+        { path: '/dashboard/orders', title: '我委托的订单', participantRole: 'employer' },
+        { path: '/dashboard/orders', title: '我承接的订单', participantRole: 'painter' },
+      ],
+    },
   ],
   painter: [
     { path: '/painter', title: '工作台主页' },
@@ -67,7 +99,14 @@ const menus = {
     { path: '/painter/stalls', title: '我的橱窗' },
     { path: '/painter/applications', title: '我的应征' },
     { path: '/painter/invitations', title: '收到的邀请' },
-    { path: '/painter/orders', title: '订单管理' },
+    {
+      path: '/painter/orders',
+      title: '订单管理',
+      children: [
+        { path: '/painter/orders', title: '我委托的订单', participantRole: 'employer' },
+        { path: '/painter/orders', title: '我承接的订单', participantRole: 'painter' },
+      ],
+    },
   ],
   admin: [
     { path: '/admin', title: '概览' },
@@ -83,7 +122,13 @@ const menus = {
 
 const workbench = computed(() => route.meta.workbench || 'dashboard')
 const menuItems = computed(() => menus[workbench.value] || [])
-const activePath = computed(() => route.path)
+const isOrdersRoute = computed(() => /^\/(dashboard|painter)\/orders(?:\/|$)/.test(route.path))
+const selectedOrderRole = computed(() => {
+  if (route.query.participantRole === 'employer' || route.query.participantRole === 'painter') {
+    return route.query.participantRole
+  }
+  return workbench.value === 'painter' ? 'painter' : 'employer'
+})
 const avatarText = computed(() => {
   const n = userStore.user?.nickname || userStore.user?.username || ''
   return n ? n.slice(0, 1) : '绘'
@@ -97,6 +142,22 @@ const roleText = computed(() => {
 const oppositeRoleText = computed(() => {
   return userStore.workbenchRole === 2 ? '企划方' : '画师'
 })
+
+function isMenuActive(item) {
+  return item.children ? isOrdersRoute.value : route.path === item.path
+}
+
+function isOrderChildActive(child) {
+  return isOrdersRoute.value && selectedOrderRole.value === child.participantRole
+}
+
+watch(
+  () => route.path,
+  () => {
+    orderMenuExpanded.value = isOrdersRoute.value
+  },
+  { immediate: true },
+)
 
 async function switchRole() {
   if (switchingRole.value) return
@@ -218,6 +279,55 @@ async function switchRole() {
   padding: 16px 14px 4px;
 }
 
+.wb-sidebar__group {
+  width: 100%;
+}
+
+.wb-sidebar__group-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wb-sidebar__chevron {
+  color: #8996a1;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.wb-sidebar__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.wb-sidebar__children {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 0 16px;
+}
+
+.wb-sidebar__subtab {
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #66737e;
+  font-size: 13px;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+}
+
+.wb-sidebar__subtab:hover,
+.wb-sidebar__subtab.is-active {
+  background: var(--artiv-primary-light);
+  color: var(--artiv-primary);
+}
+
+.wb-sidebar__subtab.is-active {
+  font-weight: 600;
+}
+
 .wb-switch {
   width: 100%;
   padding: 9px 0;
@@ -260,6 +370,20 @@ async function switchRole() {
   .wb-sidebar__tabs {
     flex-direction: row;
     flex-wrap: wrap;
+  }
+
+  .wb-sidebar__group {
+    width: 100%;
+  }
+
+  .wb-sidebar__children {
+    flex-direction: row;
+    padding-left: 0;
+  }
+
+  .wb-sidebar__subtab {
+    flex: 1;
+    text-align: center;
   }
 
 }
