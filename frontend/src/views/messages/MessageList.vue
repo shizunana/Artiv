@@ -3,8 +3,8 @@
     <el-tabs v-model="activeTab" class="message-tabs" @tab-change="onTabChange">
       <el-tab-pane label="我的消息" name="conversations">
         <div class="message-layout">
-          <aside class="conversation-list" v-loading="loadingConversations">
-            <div class="panel-title"><h3>会话</h3><el-button link @click="loadConversations">刷新</el-button></div>
+          <aside class="conversation-list" v-loading="loadingConversations && !conversations.length">
+            <div class="panel-title"><h3>会话</h3><el-button link :loading="loadingConversations" @click="loadConversations">刷新</el-button></div>
             <div class="conversation-scroll">
               <el-empty v-if="!conversations.length" description="暂无沟通会话" :image-size="72" />
               <button
@@ -27,8 +27,9 @@
           <section class="chat-panel">
             <template v-if="active">
               <header><b>{{ active.withUserNickname || `用户 #${active.withUserId}` }}</b><small>沟通会话</small></header>
-              <div class="chat-history" v-loading="loadingMessages">
-                <el-empty v-if="!messages.length" description="开始沟通吧" :image-size="72" />
+              <div class="chat-history">
+                <div v-if="loadingMessages && !messages.length" class="chat-loading">正在读取会话</div>
+                <el-empty v-else-if="!messages.length" description="开始沟通吧" :image-size="72" />
                 <template v-for="(msg, index) in messages" :key="msg.id">
                   <time v-if="shouldShowTimeDivider(index)" class="chat-time-divider">{{ formatChatTime(msg.createdAt) }}</time>
                   <div v-if="isBusinessSystemMessage(msg)" class="business-system-message-row">
@@ -41,7 +42,10 @@
                       </button>
                     </article>
                   </div>
-                  <div v-else class="bubble-row" :class="{ mine: msg.fromId === userStore.user?.id }">
+                  <div v-else class="bubble-row" :class="{ mine: isMineMessage(msg) }">
+                    <el-avatar v-if="!isMineMessage(msg)" :size="34" :src="active.withUserAvatar" class="bubble-avatar">
+                      {{ active.withUserNickname?.slice(0, 1) }}
+                    </el-avatar>
                     <div class="bubble" :class="{ 'bubble--images': isImageMessage(msg) }">
                       <template v-if="isImageMessage(msg)">
                         <div class="message-images">
@@ -58,6 +62,9 @@
                       </template>
                       <template v-else>{{ msg.content }}</template>
                     </div>
+                    <el-avatar v-if="isMineMessage(msg)" :size="34" :src="userStore.user?.avatar" class="bubble-avatar">
+                      {{ userStore.user?.nickname?.slice(0, 1) }}
+                    </el-avatar>
                   </div>
                 </template>
               </div>
@@ -149,42 +156,67 @@ const sendingImages = ref(false)
 const imageInput = ref(null)
 const pendingImages = ref([])
 const maxImageCount = 9
+const messageCache = new Map()
+const historyRequestTokens = new Map()
+let historyRequestSequence = 0
 let stopSocket
 
 const conversationId = (item) => String(item.withUserId)
 const sameConversation = (first, second) => first && conversationId(first) === conversationId(second)
 
-async function loadConversations() {
-  loadingConversations.value = true
+async function loadConversations({ silent = false } = {}) {
+  if (!silent) loadingConversations.value = true
   try {
     const data = await getConversations({ page: 1, size: 30 })
     conversations.value = data.records || []
   } finally {
-    loadingConversations.value = false
+    if (!silent) loadingConversations.value = false
   }
 }
 
-async function loadNotifications() {
-  loadingNotifications.value = true
+async function loadNotifications({ silent = false } = {}) {
+  if (!silent) loadingNotifications.value = true
   try {
     const data = await getNotifications({ page: 1, size: 30 })
     notifications.value = data.records || []
   } finally {
-    loadingNotifications.value = false
+    if (!silent) loadingNotifications.value = false
   }
 }
 
-async function openConversation(item) {
+async function openConversation(item, { force = false } = {}) {
+  const key = conversationId(item)
+  const alreadyActive = sameConversation(active.value, item)
+  const cached = messageCache.get(key)
+  const needsRefresh = force || !cached || Number(item.unreadCount || 0) > 0
+  if (alreadyActive && !needsRefresh) return
+
   active.value = item
-  loadingMessages.value = true
+  if (cached) messages.value = cached
+  else messages.value = []
+  loadingMessages.value = !cached && needsRefresh
+  await scrollHistoryToBottom()
+  if (!needsRefresh) return
+
+  const requestToken = ++historyRequestSequence
+  historyRequestTokens.set(key, requestToken)
+  if (!cached) loadingMessages.value = true
   try {
     const data = await getConversation({ withUserId: item.withUserId, page: 1, size: 100 })
-    messages.value = data.records || []
+    const records = data.records || []
+    if (historyRequestTokens.get(key) !== requestToken) return
+    messageCache.set(key, records)
+    if (!sameConversation(active.value, item)) return
+    messages.value = records
     await markActiveConversationRead()
-    await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
+    const currentItem = conversations.value.find((conversation) => conversationId(conversation) === key)
+    if (currentItem) currentItem.unreadCount = 0
+    await messageStore.fetchUnreadCount()
     await scrollHistoryToBottom()
   } finally {
-    loadingMessages.value = false
+    if (historyRequestTokens.get(key) === requestToken && sameConversation(active.value, item)) {
+      loadingMessages.value = false
+    }
   }
 }
 
@@ -222,8 +254,9 @@ async function send() {
   try {
     const message = await sendPrivateMessage({ toId: active.value.withUserId, content })
     messages.value.push(message)
+    syncActiveMessageCache()
     draft.value = ''
-    await loadConversations()
+    await loadConversations({ silent: true })
     await scrollHistoryToBottom()
   } catch (error) {
     ElMessage.error(error.message || '发送失败')
@@ -273,8 +306,9 @@ async function sendImages() {
     const imageUrls = uploaded.map((result) => typeof result === 'string' ? result : result?.url).filter(Boolean)
     const message = await sendPrivateMessage({ toId: active.value.withUserId, images: imageUrls })
     messages.value.push(message)
+    syncActiveMessageCache()
     clearPendingImages()
-    await loadConversations()
+    await loadConversations({ silent: true })
     await scrollHistoryToBottom()
   } catch (error) {
     ElMessage.error(error.message || '图片发送失败')
@@ -285,6 +319,15 @@ async function sendImages() {
 
 function isImageMessage(message) {
   return message.subtype === 'PRIVATE_IMAGE'
+}
+
+function isMineMessage(message) {
+  return String(message.fromId) === String(userStore.user?.id)
+}
+
+function syncActiveMessageCache() {
+  if (!active.value) return
+  messageCache.set(conversationId(active.value), [...messages.value])
 }
 
 function imageUrls(message) {
@@ -367,6 +410,7 @@ async function sendSelectedOrder(order) {
       content: `订单 #${order.id}｜${order.stallTitle || order.projectTitle || '订单'}｜${orderStatusText(order.status)}｜¥${Number(order.amount || 0).toFixed(2)}`,
     })
     messages.value.push(message)
+    syncActiveMessageCache()
     orderPickerVisible.value = false
     await scrollHistoryToBottom()
   } catch (error) { ElMessage.error(error.message || '订单状态发送失败') }
@@ -430,7 +474,8 @@ async function openFromQuery() {
   const withUserId = Number(route.query.withUserId)
   if (!withUserId) return
   activeTab.value = 'conversations'
-  await openConversation({ withUserId, withUserNickname: route.query.nickname || `用户 #${withUserId}` })
+  const existing = conversations.value.find((item) => Number(item.withUserId) === withUserId)
+  await openConversation(existing || { withUserId, withUserNickname: route.query.nickname || `用户 #${withUserId}` })
 }
 
 async function onTabChange(name) {
@@ -442,20 +487,21 @@ onMounted(async () => {
   await openFromQuery()
   stopSocket = startMessageSocket(async (event) => {
     if (event.type === 'WS_CONNECTED' || event.type === 'WS_RECONNECTED') {
-      await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
+      await Promise.all([messageStore.fetchUnreadCount(), loadConversations({ silent: true }), loadNotifications({ silent: true })])
       if (event.type === 'WS_RECONNECTED' && active.value) {
-        await openConversation(active.value)
+        await openConversation(active.value, { force: true })
       }
       return
     }
-    await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
+    await Promise.all([messageStore.fetchUnreadCount(), loadConversations({ silent: true }), loadNotifications({ silent: true })])
     if (event.type === 'NEW_MESSAGE' && active.value
-      && event.data.fromId === active.value.withUserId) {
+      && String(event.data.fromId) === String(active.value.withUserId)) {
       if (!messages.value.some((message) => message.id === event.data.id)) {
         messages.value.push(event.data)
+        syncActiveMessageCache()
       }
       await markActiveConversationRead(event.data)
-      await Promise.all([messageStore.fetchUnreadCount(), loadConversations(), loadNotifications()])
+      await Promise.all([messageStore.fetchUnreadCount(), loadConversations({ silent: true }), loadNotifications({ silent: true })])
       await scrollHistoryToBottom()
     }
   })
@@ -490,11 +536,15 @@ onUnmounted(() => {
 .chat-panel header { padding: 18px 24px; border-bottom: 1px solid var(--artiv-border); }
 .chat-panel header small { color: var(--artiv-text-secondary); }
 .chat-history { min-height: 0; padding: 20px 28px 26px; overflow-y: auto; background: #f5f7fa; }
+.chat-loading { display: grid; min-height: 120px; place-items: center; color: #9aa3af; font-size: 12px; }
 .chat-time-divider { display: block; margin: 18px auto 12px; color: #9aa3af; font-size: 12px; text-align: center; }
-.bubble-row { display: flex; margin: 10px 0; }
+.bubble-row { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0; }
 .bubble-row.mine { justify-content: flex-end; }
-.bubble { max-width: 68%; padding: 10px 13px; border: 1px solid #e5e9ef; border-radius: 8px; background: #fff; line-height: 1.6; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(31, 42, 55, .04); }
+.bubble-avatar { flex: 0 0 auto; margin-top: 1px; border: 1px solid rgba(31, 42, 55, .06); background: #d9dee6; }
+.bubble { position: relative; max-width: calc(68% - 42px); padding: 10px 13px; border: 1px solid #e5e9ef; border-radius: 8px; background: #fff; line-height: 1.6; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(31, 42, 55, .04); }
+.bubble-row:not(.mine) .bubble::before { position: absolute; top: 11px; left: -6px; width: 10px; height: 10px; border-left: 1px solid #e5e9ef; border-bottom: 1px solid #e5e9ef; background: #fff; content: ''; transform: rotate(45deg); }
 .mine .bubble { border-color: var(--artiv-primary); background: var(--artiv-primary); color: #fff; box-shadow: none; }
+.mine .bubble::after { position: absolute; top: 11px; right: -5px; width: 10px; height: 10px; background: var(--artiv-primary); content: ''; transform: rotate(45deg); }
 .bubble--images { width: min(480px, 78%); max-width: 78%; padding: 6px; }
 .message-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .message-images :deep(.el-image) { width: 100%; aspect-ratio: 1 / 1; border-radius: 5px; overflow: hidden; cursor: zoom-in; }
