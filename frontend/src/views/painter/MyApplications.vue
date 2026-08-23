@@ -6,6 +6,7 @@
         <el-table-column label="企划图片" width="96">
           <template #default="{ row }">
             <el-image v-if="firstImage(row.projectImages)" class="project-cover" :src="firstImage(row.projectImages)" fit="cover" />
+            <span v-else class="project-cover project-cover--empty" aria-hidden="true"></span>
           </template>
         </el-table-column>
         <el-table-column prop="projectTitle" label="标题" min-width="220" show-overflow-tooltip />
@@ -101,6 +102,10 @@ onMounted(load)
   height: 58px;
   border-radius: 6px;
   background: #f3f5f7;
+}
+
+.project-cover--empty {
+  background: transparent;
 }
 
 .quote {
