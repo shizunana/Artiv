@@ -32,7 +32,7 @@ public class User {
     /** 账户可用余额；充值、提现和冻结金额将在正式资金模块中实现。 */
     private BigDecimal balance;
 
-    /** 角色：1 企划方、2 画师、3 管理员 */
+    /** 账户入口：1 默认企划方工作台、2 默认画师工作台、3 管理员 */
     private Integer role;
 
     /** 画师认证：0 未认证、1 审核中、2 已认证 */

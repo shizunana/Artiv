@@ -20,7 +20,7 @@ public class RegisterRequest {
     @NotBlank(message = "昵称不能为空")
     private String nickname;
 
-    /** 角色：1 企划方、2 画师 */
+    /** 注册主身份：1 默认企划方工作台、2 默认画师工作台；不代表永久权限。 */
     @Min(value = 1, message = "角色不合法")
     @Max(value = 2, message = "角色不合法")
     private Integer role;

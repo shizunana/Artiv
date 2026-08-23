@@ -33,7 +33,7 @@ CREATE TABLE `user` (
   `tags`        VARCHAR(255) DEFAULT NULL COMMENT '风格标签，逗号分隔',
   `artist_name` VARCHAR(100) DEFAULT NULL COMMENT '已审核生效的画师笔名',
   `artist_site` VARCHAR(500) DEFAULT NULL COMMENT '已审核生效的画师常用站',
-  `role`        TINYINT      NOT NULL DEFAULT 2 COMMENT '角色：1 企划方、2 画师、3 管理员',
+  `role`        TINYINT      NOT NULL DEFAULT 2 COMMENT '账户入口：1 默认企划方工作台、2 默认画师工作台、3 管理员',
   `cert_status` TINYINT      NOT NULL DEFAULT 0 COMMENT '画师认证：0 未认证、1 审核中、2 已认证',
   `status`      TINYINT      NOT NULL DEFAULT 0 COMMENT '账号状态：0 正常、1 封禁',
   `ban_reason`  VARCHAR(500) DEFAULT NULL COMMENT '最近一次封禁原因',

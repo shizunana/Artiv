@@ -39,7 +39,6 @@ public class ArtistServiceImpl implements ArtistService {
         long safePage = Math.max(page, 1);
         long safeSize = Math.min(Math.max(size, 1), 50);
         List<User> painters = userMapper.selectList(new LambdaQueryWrapper<User>()
-                .eq(User::getRole, 2)
                 .eq(User::getCertStatus, 2)
                 .eq(User::getStatus, 0)
                 .eq(User::getDeleted, 0)

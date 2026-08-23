@@ -87,6 +87,16 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public Project create(ProjectRequest request, Long employerId) {
         accountRestrictionService.requireAvailable(employerId, "发布企划");
+        int mode = request.getMode() == null ? 0 : request.getMode();
+        if (mode != 0 && mode != 1) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "合作方式不合法");
+        }
+        if (mode == 1) {
+            if (request.getInvitePainterId() == null) {
+                throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "定向邀请必须选择画师");
+            }
+            requireCertifiedPainter(request.getInvitePainterId(), employerId);
+        }
         // 截稿日期不能早于发布后 7 天
         LocalDate minDeadline = LocalDate.now().plusDays(7);
         if (request.getDeadline().isBefore(minDeadline)) {
@@ -107,7 +117,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setImages(request.getImages());
         project.setRequirements(serializeRequirements(request));
         project.setPhases(normalizePhases(request.getPhases()));
-        project.setMode(request.getMode() == null ? 0 : request.getMode());
+        project.setMode(mode);
         // 招募期默认发布后 10 日
         project.setRecruitDeadline(now.plusDays(10));
         project.setStatus(0);
@@ -174,6 +184,19 @@ public class ProjectServiceImpl implements ProjectService {
         }
         project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));
         return project;
+    }
+
+    private User requireCertifiedPainter(Long painterId, Long employerId) {
+        if (painterId.equals(employerId)) {
+            throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "不能邀请自己参与企划");
+        }
+        User painter = userMapper.selectById(painterId);
+        if (painter == null || !Integer.valueOf(0).equals(painter.getDeleted())
+                || !Integer.valueOf(0).equals(painter.getStatus())
+                || !Integer.valueOf(2).equals(painter.getCertStatus())) {
+            throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "只能邀请正常状态的已认证画师");
+        }
+        return painter;
     }
 
     @Override

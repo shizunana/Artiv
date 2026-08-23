@@ -51,7 +51,7 @@ public class ProjectController {
         return Result.ok(projectService.listMine(page, size, UserContext.getUserId()));
     }
 
-    /** 发布企划（仅企划方） */
+    /** 发布企划：普通账号的注册主身份 role=1/2 不限制该能力。 */
     @PostMapping
     public Result<Project> create(@Valid @RequestBody ProjectRequest request) {
         return Result.ok(projectService.create(request, UserContext.getUserId()));

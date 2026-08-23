@@ -21,7 +21,7 @@
           <section class="metric-grid five span-2"><article v-for="item in operationMetrics" :key="item.label"><strong>{{ item.value }}</strong><span>{{ item.label }}</span></article></section>
           <section class="wb-card span-2"><h3>新增用户趋势</h3><TrendChart :data="data.userTrend || []" primary-label="新增用户"/></section>
           <section class="wb-card span-2"><h3>订单趋势</h3><TrendChart :data="data.orderTrend || []" primary-label="新增订单" secondary-label="完成订单"/></section>
-          <section class="wb-card"><h3>用户角色</h3><BarList :items="mapToItems(data.userRoles)"/></section>
+          <section class="wb-card"><h3>注册主身份</h3><BarList :items="mapToItems(data.userRoles)"/></section>
           <section class="wb-card"><h3>认证状态</h3><BarList :items="mapToItems(data.certificationStatus)"/></section>
           <section class="wb-card"><h3>订单状态</h3><BarList :items="mapToItems(data.orderStatus)"/></section>
           <section class="wb-card"><h3>订单来源</h3><BarList :items="mapToItems(data.orderSource)"/></section>

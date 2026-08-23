@@ -7,6 +7,10 @@ import com.artiv.entity.Work;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.impl.ArtistServiceImpl;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,8 +20,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class ArtistServiceTest {
@@ -49,6 +57,25 @@ class ArtistServiceTest {
         assertEquals(2, page.getTotal());
         assertEquals("测试画师1", artists.get(0).getNickname());
         assertEquals(List.of(), artists.get(0).getWorks());
+    }
+
+    @Test
+    void artistHallUsesCertificationInsteadOfRegistrationRole() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), User.class);
+        User certifiedPainter = painter(16L, "认证企划方主身份", "日系");
+        certifiedPainter.setRole(1);
+        when(userMapper.selectList(any())).thenReturn(List.of(certifiedPainter));
+        when(workMapper.selectList(any())).thenReturn(List.of());
+
+        Page<ArtistSummary> page = artistService.listArtists(1, 10, null, null, null);
+
+        assertEquals(List.of(16L), page.getRecords().stream().map(ArtistSummary::getId).toList());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Wrapper<User>> queryCaptor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(userMapper).selectList(queryCaptor.capture());
+        String sql = queryCaptor.getValue().getCustomSqlSegment();
+        assertTrue(sql.contains("cert_status"));
+        assertFalse(sql.contains("role"));
     }
 
     @Test

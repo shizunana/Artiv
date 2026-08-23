@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -128,6 +129,42 @@ class ProjectServiceTest {
     }
 
     @Test
+    void directedProjectAcceptsCertifiedPainterWithEmployerRegistrationRole() {
+        ProjectRequest request = validProjectRequest();
+        request.setMode(1);
+        request.setInvitePainterId(16L);
+        User painter = new User();
+        painter.setId(16L);
+        painter.setRole(1);
+        painter.setCertStatus(2);
+        painter.setStatus(0);
+        painter.setDeleted(0);
+        when(userMapper.selectById(16L)).thenReturn(painter);
+
+        projectService.create(request, 1L);
+
+        verify(projectMapper).insert(org.mockito.ArgumentMatchers.any(Project.class));
+        verify(invitationMapper).insert(org.mockito.ArgumentMatchers.any(com.artiv.entity.Invitation.class));
+    }
+
+    @Test
+    void directedProjectRejectsUncertifiedTargetRegardlessOfRegistrationRole() {
+        ProjectRequest request = validProjectRequest();
+        request.setMode(1);
+        request.setInvitePainterId(16L);
+        User painter = new User();
+        painter.setId(16L);
+        painter.setRole(2);
+        painter.setCertStatus(0);
+        painter.setStatus(0);
+        painter.setDeleted(0);
+        when(userMapper.selectById(16L)).thenReturn(painter);
+
+        assertThrows(com.artiv.common.BusinessException.class, () -> projectService.create(request, 1L));
+        verify(projectMapper, never()).insert(org.mockito.ArgumentMatchers.any(Project.class));
+    }
+
+    @Test
     void deleteRejectsProjectThatHasAnyHistoricalOrder() {
         Project project = new Project();
         project.setId(9L);
@@ -173,5 +210,15 @@ class ProjectServiceTest {
         when(userMapper.selectById(12L)).thenReturn(publisher);
 
         assertEquals(9L, projectService.getById(9L, 3L).getId());
+    }
+
+    private ProjectRequest validProjectRequest() {
+        ProjectRequest request = new ProjectRequest();
+        request.setTitle("Project title");
+        request.setDescription("Project description");
+        request.setBudget(new BigDecimal("1200.00"));
+        request.setDeadline(LocalDate.now().plusDays(7));
+        request.setPhases("[{\"name\":\"初稿\"},{\"name\":\"终稿\"}]");
+        return request;
     }
 }

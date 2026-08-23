@@ -4,7 +4,7 @@
     <section class="wb-card">
       <div class="filters">
         <el-input v-model="query.keyword" clearable placeholder="用户名或昵称" @keyup.enter="search" />
-        <el-select v-model="query.role" clearable placeholder="角色"><el-option label="企划方" :value="1"/><el-option label="画师" :value="2"/><el-option label="管理员" :value="3"/></el-select>
+        <el-select v-model="query.role" clearable placeholder="注册主身份"><el-option label="默认企划方工作台" :value="1"/><el-option label="默认画师工作台" :value="2"/><el-option label="管理员" :value="3"/></el-select>
         <el-select v-model="query.status" clearable placeholder="账号状态"><el-option label="正常" :value="0"/><el-option label="封禁" :value="1"/></el-select>
         <el-select v-model="query.certStatus" clearable placeholder="认证状态"><el-option label="未认证" :value="0"/><el-option label="审核中" :value="1"/><el-option label="已认证" :value="2"/><el-option label="已驳回" :value="3"/></el-select>
         <el-button type="primary" @click="search">查询</el-button>
@@ -12,7 +12,7 @@
       <el-table v-loading="loading" :data="records" empty-text="暂无用户">
         <el-table-column prop="id" label="ID" width="70"/>
         <el-table-column label="用户" min-width="170"><template #default="{row}"><div class="user-cell"><el-avatar :src="row.avatar" :size="34">{{ (row.nickname || row.username || '?')[0] }}</el-avatar><div><strong>{{ row.nickname }}</strong><small>@{{ row.username }}</small></div></div></template></el-table-column>
-        <el-table-column label="角色" width="90"><template #default="{row}">{{ roleText(row.role) }}</template></el-table-column>
+        <el-table-column label="注册主身份" width="150"><template #default="{row}">{{ roleText(row.role) }}</template></el-table-column>
         <el-table-column label="认证" width="100"><template #default="{row}">{{ certText(row.certStatus) }}</template></el-table-column>
         <el-table-column label="状态" width="105"><template #default="{row}"><el-tag :type="row.status===1?'danger':'success'">{{ row.status===1?'已封禁':'正常' }}</el-tag></template></el-table-column>
         <el-table-column label="注册时间" min-width="165"><template #default="{row}">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
@@ -51,7 +51,7 @@ import { formatDateTime } from '@/utils/date'
 const query=reactive({page:1,size:20,keyword:'',role:null,status:null,certStatus:null});const records=ref([]);const total=ref(0);const loading=ref(false)
 const statusVisible=ref(false);const saving=ref(false);const selected=ref(null);const statusForm=reactive({status:1,reason:'',bannedUntil:null})
 const detailVisible=ref(false);const detailLoading=ref(false);const detail=ref({})
-const roleText=v=>({1:'企划方',2:'画师',3:'管理员'}[v]||'-');const certText=v=>({0:'未认证',1:'审核中',2:'已认证',3:'已驳回'}[v]||'-')
+const roleText=v=>({1:'默认企划方工作台',2:'默认画师工作台',3:'管理员'}[v]||'-');const certText=v=>({0:'未认证',1:'审核中',2:'已认证',3:'已驳回'}[v]||'-')
 async function load(){loading.value=true;try{const data=await getAdminUsers(query);records.value=data.records||[];total.value=data.total||0}finally{loading.value=false}}
 function search(){query.page=1;load()}function openStatus(row){selected.value=row;statusForm.status=row.status===1?0:1;statusForm.reason='';statusForm.bannedUntil=null;statusVisible.value=true}
 async function submitStatus(){if(!statusForm.reason.trim()){ElMessage.warning('请填写操作原因');return}saving.value=true;try{const result=await changeAdminUserStatus(selected.value.id,{...statusForm});ElMessage.success(statusForm.status===1?`封禁完成，已退款取消 ${result.cancelledOrders} 笔订单`:'解封完成');statusVisible.value=false;await load()}finally{saving.value=false}}

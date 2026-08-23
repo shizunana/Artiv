@@ -114,9 +114,16 @@
               v-if="form.mode === 1"
               v-model="form.invitePainterId"
               class="invite-select"
+              filterable
+              :loading="invitePaintersLoading"
               placeholder="选择被邀请的画师"
             >
-              <el-option label="画师阿绘（已认证）" :value="2" />
+              <el-option
+                v-for="painter in invitePainters"
+                :key="painter.id"
+                :label="`${painter.nickname || painter.username}（已认证）`"
+                :value="painter.id"
+              />
             </el-select>
           </section>
         </el-form>
@@ -185,7 +192,7 @@
           <el-descriptions-item label="参考图">{{ form.images.length ? `已上传 ${form.images.length} 张` : '未上传' }}</el-descriptions-item>
           <el-descriptions-item label="创作阶段">{{ phaseSummary }}</el-descriptions-item>
           <el-descriptions-item label="合作方式">{{ form.mode === 1 ? '定向邀请' : '公开招募' }}</el-descriptions-item>
-          <el-descriptions-item v-if="form.mode === 1" label="受邀画师">画师阿绘（已认证）</el-descriptions-item>
+          <el-descriptions-item v-if="form.mode === 1" label="受邀画师">{{ invitedPainterName }}</el-descriptions-item>
           <el-descriptions-item label="题材风格">{{ subjectSummary }}</el-descriptions-item>
           <el-descriptions-item label="稿件格式">{{ formatSummary }}</el-descriptions-item>
           <el-descriptions-item label="公开权限">{{ form.requirements.publishPermission }}</el-descriptions-item>
@@ -208,12 +215,15 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { createProject } from '@/api/project'
 import { uploadFile } from '@/api/upload'
+import { getArtists } from '@/api/user'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 import CreativePhaseEditor from '@/components/common/CreativePhaseEditor.vue'
 
 const router = useRouter()
 const step = ref(0)
 const submitting = ref(false)
+const invitePainters = ref([])
+const invitePaintersLoading = ref(false)
 
 const subjectCards = ['不限', ...SUBJECT_OPTIONS]
 const formatOptions = ['JPG', 'PNG', 'PSD', 'GIF', 'AI', 'SVG', 'TIF', '其他']
@@ -246,6 +256,10 @@ const uploadedImageByUid = new Map()
 const subjectSummary = computed(() => form.subjects.length ? form.subjects.join(' / ') : '不限')
 const formatSummary = computed(() => form.requirements.formats.length ? form.requirements.formats.join(' / ') : '-')
 const phaseSummary = computed(() => form.phases.map((phase) => phase.name.trim()).filter(Boolean).join(' → '))
+const invitedPainterName = computed(() => {
+  const painter = invitePainters.value.find((item) => item.id === form.invitePainterId)
+  return painter ? `${painter.nickname || painter.username}（已认证）` : '-'
+})
 
 function uploadedImageUrl(file) {
   const response = file?.response
@@ -288,8 +302,20 @@ function onImageExceed() {
   ElMessage.warning('最多上传 6 张参考图')
 }
 
-function handleModeChange(mode) {
+async function handleModeChange(mode) {
   if (mode === 0) form.invitePainterId = null
+  else await loadInvitePainters()
+}
+
+async function loadInvitePainters() {
+  if (invitePainters.value.length || invitePaintersLoading.value) return
+  invitePaintersLoading.value = true
+  try {
+    const data = await getArtists({ page: 1, size: 50 })
+    invitePainters.value = data.records || []
+  } finally {
+    invitePaintersLoading.value = false
+  }
 }
 
 function isSubjectActive(subject) {

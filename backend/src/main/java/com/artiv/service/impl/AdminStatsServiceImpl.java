@@ -112,7 +112,7 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         response.put("userTrend", daily(range, userTrend, null));
         response.put("orderTrend", daily(range, orderTrend, completedTrend));
         response.put("userRoles", countBy(allUsers, user -> switch (user.getRole()) {
-            case 1 -> "企划方"; case 2 -> "画师"; case 3 -> "管理员"; default -> "未知";
+            case 1 -> "默认企划方工作台"; case 2 -> "默认画师工作台"; case 3 -> "管理员"; default -> "未知";
         }));
         response.put("certificationStatus", countBy(allUsers, user -> switch (user.getCertStatus()) {
             case 1 -> "审核中"; case 2 -> "已认证"; case 3 -> "已驳回"; default -> "未认证";
@@ -203,7 +203,7 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                 .eq(Stall::getDeleted, 0).eq(Stall::getStatus, 1).gt(Stall::getStock, 0));
         Map<String, Long> activeStalls = countBy(stalls, stall -> blankAs(stall.getCategory(), "未分类"));
         Set<Long> certifiedPainters = userMapper.selectList(new LambdaQueryWrapper<User>()
-                        .eq(User::getRole, 2).eq(User::getCertStatus, 2).eq(User::getStatus, 0).eq(User::getDeleted, 0))
+                        .eq(User::getCertStatus, 2).eq(User::getStatus, 0).eq(User::getDeleted, 0))
                 .stream().map(User::getId).collect(Collectors.toSet());
         List<Work> works = certifiedPainters.isEmpty() ? List.of() : workMapper.selectList(new LambdaQueryWrapper<Work>()
                 .in(Work::getUserId, certifiedPainters).eq(Work::getVisibility, 1).eq(Work::getDeleted, 0));
