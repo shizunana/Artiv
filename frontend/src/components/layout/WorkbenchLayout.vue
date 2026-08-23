@@ -109,39 +109,40 @@ function switchRole() {
 <style scoped>
 .workbench-page {
   min-height: 100vh;
-  background: #f5f6f8;
+  background: #f4f7f9;
   padding-top: var(--artiv-header-height);
-  padding-bottom: 48px;
+  padding-bottom: 64px;
 }
 
 /* ---------- 主体布局 ---------- */
 .wb-body {
   display: flex;
   align-items: flex-start;
-  gap: 15px;
-  margin-top: 20px;
+  gap: 24px;
+  margin-top: 34px;
 }
 
 /* ---------- 左侧工作台（参考站 dashboard-sidebar：282px 白卡片） ---------- */
 .wb-sidebar {
-  flex: 0 0 282px;
-  width: 282px;
+  flex: 0 0 250px;
+  width: 250px;
   background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 24px 20px;
+  border: 1px solid #e4ebf0;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgb(42 67 84 / 6%);
+  padding: 10px;
   display: flex;
   flex-direction: column;
   position: sticky;
-  top: 76px;
+  top: calc(var(--artiv-header-height) + 24px);
 }
 
 .wb-sidebar__user {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid #ececec;
+  padding: 16px 14px 18px;
+  border-bottom: 1px solid #edf1f4;
 }
 
 .wb-sidebar-avatar {
@@ -163,7 +164,8 @@ function switchRole() {
 }
 
 .wb-sidebar__name {
-  color: #707070;
+  color: #1d2a34;
+  font-size: 16px;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -173,7 +175,7 @@ function switchRole() {
 .wb-sidebar__tabs {
   display: flex;
   flex-direction: column;
-  margin-top: 12px;
+  margin-top: 8px;
   flex: 1;
 }
 
@@ -181,9 +183,10 @@ function switchRole() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 10px;
-  border-radius: 4px;
-  color: var(--artiv-text);
+  margin-top: 8px;
+  padding: 14px;
+  border-radius: 8px;
+  color: #53616d;
   font-size: 14px;
   transition: background 0.2s, color 0.2s;
 }
@@ -205,8 +208,9 @@ function switchRole() {
 }
 
 .wb-sidebar__foot {
-  border-top: 1px solid #ececec;
-  padding-top: 16px;
+  margin-top: 8px;
+  border-top: 1px solid #edf1f4;
+  padding: 16px 14px 4px;
 }
 
 .wb-switch {
@@ -229,7 +233,7 @@ function switchRole() {
 .wb-main {
   flex: 1;
   min-width: 0;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.08));
+  filter: none;
 }
 
 @media (max-width: 900px) {

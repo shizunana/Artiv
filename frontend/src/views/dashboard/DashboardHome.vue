@@ -101,14 +101,15 @@ onMounted(async () => {
 .dash-home {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 16px;
 }
 
 .wb-card {
   background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 24px;
+  border: 1px solid #e4ebf0;
+  border-radius: 12px;
+  box-shadow: 0 7px 24px rgb(42 67 84 / 5%);
+  padding: 24px 26px;
 }
 
 .wb-card__head {
@@ -121,7 +122,7 @@ onMounted(async () => {
 .wb-card__head h3 {
   margin: 0;
   font-size: 17px;
-  color: var(--artiv-text);
+  color: #24313b;
 }
 
 .wb-card__head a {
@@ -137,12 +138,13 @@ onMounted(async () => {
 
 .welcome-main h2 {
   margin: 0 0 10px;
-  font-size: 22px;
-  color: var(--artiv-text);
+  font-size: 25px;
+  color: #1b2934;
 }
 
 .welcome-main p {
-  color: var(--artiv-text-secondary);
+  color: #7a8791;
+  font-size: 14px;
   margin: 0 0 18px;
 }
 

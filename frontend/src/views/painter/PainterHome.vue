@@ -90,23 +90,26 @@ onMounted(async () => {
 .painter-home {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 16px;
 }
 
 .wb-card {
   background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 28px;
+  border: 1px solid #e4ebf0;
+  border-radius: 12px;
+  box-shadow: 0 7px 24px rgb(42 67 84 / 5%);
+  padding: 24px 26px;
 }
 
 .cert-card h2 {
   margin: 0 0 10px;
-  font-size: 20px;
+  color: #1b2934;
+  font-size: 25px;
 }
 
 .cert-card > p {
-  color: var(--artiv-text-secondary);
+  color: #7a8791;
+  font-size: 14px;
   line-height: 1.8;
   margin: 0 0 20px;
 }
@@ -157,25 +160,28 @@ onMounted(async () => {
 
 .welcome-card h2 {
   margin: 0 0 8px;
-  font-size: 20px;
+  color: #1b2934;
+  font-size: 25px;
 }
 
 .welcome-card p {
-  color: var(--artiv-text-secondary);
+  color: #7a8791;
+  font-size: 14px;
   margin: 0 0 18px;
 }
 
 .stat-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
+  gap: 16px;
 }
 
 .stat-card {
   background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 22px;
+  border: 1px solid #e4ebf0;
+  border-radius: 12px;
+  box-shadow: 0 7px 24px rgb(42 67 84 / 5%);
+  padding: 24px 26px;
   display: flex;
   flex-direction: column;
   gap: 6px;
