@@ -15,7 +15,7 @@
         </el-table-column>
         <el-table-column label="预算" width="130">
           <template #default="{ row }">
-            <strong class="budget">¥{{ formatAmount(row.budget) }}</strong>
+            <strong class="budget">{{ formatProjectBudget(row) }}</strong>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="100" align="center" header-align="center">
@@ -39,6 +39,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getInvitations } from '@/api/invitation'
+import { formatProjectBudget } from '@/utils/budget'
 
 const invitations = ref([])
 const router = useRouter()
@@ -52,13 +53,6 @@ async function load() {
   } finally {
     loading.value = false
   }
-}
-
-function formatAmount(value) {
-  const amount = Number(value || 0)
-  return Number.isInteger(amount)
-    ? amount.toLocaleString('zh-CN')
-    : amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function invitationStatus(value) {

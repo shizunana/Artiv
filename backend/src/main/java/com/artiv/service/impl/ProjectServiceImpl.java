@@ -64,8 +64,8 @@ public class ProjectServiceImpl implements ProjectService {
                 .like(StringUtils.hasText(tag), Project::getTags, tag)
                 .eq(StringUtils.hasText(category), Project::getCategory, category)
                 .like(StringUtils.hasText(subject), Project::getSubject, subject)
-                .ge(budgetMin != null, Project::getBudget, budgetMin)
-                .le(budgetMax != null, Project::getBudget, budgetMax);
+                .ge(budgetMin != null, Project::getBudgetMax, budgetMin)
+                .le(budgetMax != null, Project::getBudgetMin, budgetMax);
         if (deadlineWithin != null) {
             wrapper.le(Project::getDeadline, LocalDate.now().plusDays(deadlineWithin));
         }
@@ -73,7 +73,7 @@ public class ProjectServiceImpl implements ProjectService {
             wrapper.ge(Project::getDeadline, LocalDate.now().plusDays(deadlineAfter));
         }
         if ("budget".equals(sort)) {
-            wrapper.orderByDesc(Project::getBudget);
+            wrapper.orderByDesc(Project::getBudgetMax);
         } else {
             wrapper.orderByDesc(Project::getCreatedAt);
         }
@@ -81,10 +81,14 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public Page<Project> listMine(long page, long size, Long employerId) {
+    public Page<Project> listMine(long page, long size, Long employerId, Integer mode) {
+        if (mode != null && mode != 0 && mode != 1) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "合作方式不合法");
+        }
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
                 .eq(Project::getDeleted, 0)
                 .eq(Project::getEmployerId, employerId)
+                .eq(mode != null, Project::getMode, mode)
                 .orderByDesc(Project::getCreatedAt);
         Page<Project> result = projectMapper.selectPage(new Page<>(page, size), wrapper);
         attachInvitationStatuses(result.getRecords());
@@ -111,11 +115,14 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(2001, "截稿日期不能早于发布后 7 天");
         }
         LocalDateTime now = LocalDateTime.now();
+        BigDecimal[] budgetRange = resolveBudgetRange(request);
         Project project = new Project();
         project.setEmployerId(employerId);
         project.setTitle(request.getTitle().trim());
         project.setDescription(request.getDescription().trim());
-        project.setBudget(request.getBudget());
+        project.setBudget(budgetRange[1]);
+        project.setBudgetMin(budgetRange[0]);
+        project.setBudgetMax(budgetRange[1]);
         project.setDeadline(request.getDeadline());
         project.setTags(request.getTags() == null || request.getTags().isEmpty()
                 ? null : String.join(",", request.getTags()));
@@ -208,6 +215,22 @@ public class ProjectServiceImpl implements ProjectService {
         Invitation invitation = findInvitation(project.getId());
         project.setInvitationStatus(invitation == null ? null : invitation.getStatus());
         return project;
+    }
+
+    private BigDecimal[] resolveBudgetRange(ProjectRequest request) {
+        BigDecimal min = request.getBudgetMin();
+        BigDecimal max = request.getBudgetMax();
+        if (min == null && max == null && request.getBudget() != null) {
+            min = request.getBudget();
+            max = request.getBudget();
+        }
+        if (min == null || max == null) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "请填写完整的预算区间");
+        }
+        if (min.signum() <= 0 || max.signum() <= 0 || min.compareTo(max) > 0) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "预算区间不合法");
+        }
+        return new BigDecimal[]{min, max};
     }
 
     private User requireCertifiedPainter(Long painterId, Long employerId) {

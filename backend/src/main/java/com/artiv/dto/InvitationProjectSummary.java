@@ -19,6 +19,8 @@ public class InvitationProjectSummary {
     private String category;
 
     private BigDecimal budget;
+    private BigDecimal budgetMin;
+    private BigDecimal budgetMax;
 
     private Integer status;
 

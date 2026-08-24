@@ -6,7 +6,7 @@
       <el-table v-loading="loading" :data="records">
         <el-table-column label="企划" min-width="230"><template #default="{row}"><strong>{{ row.project.title }}</strong><div class="muted">#{{ row.project.id }} · {{ row.employer?.nickname || '-' }}</div></template></el-table-column>
         <el-table-column label="类型" width="110"><template #default="{row}">{{ row.project.category || '-' }}</template></el-table-column>
-        <el-table-column label="预算" width="110"><template #default="{row}">¥{{ row.project.budget }}</template></el-table-column>
+        <el-table-column label="预算" width="160"><template #default="{row}">{{ formatProjectBudget(row.project) }}</template></el-table-column>
         <el-table-column label="应征" width="80"><template #default="{row}">{{ row.applicationCount }}</template></el-table-column>
         <el-table-column label="治理状态" width="115"><template #default="{row}"><el-tag :type="row.project.moderationStatus===1?'danger':'success'">{{ row.project.moderationStatus===1?'违规下架':'正常' }}</el-tag></template></el-table-column>
         <el-table-column label="发布时间" min-width="165"><template #default="{row}">{{ formatDateTime(row.project.createdAt) }}</template></el-table-column>
@@ -23,6 +23,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getAdminProject, getAdminProjects, moderateProject } from '@/api/admin'
 import { formatDateTime } from '@/utils/date'
+import { formatProjectBudget } from '@/utils/budget'
 const query=reactive({page:1,size:20,keyword:'',status:null,moderationStatus:null});const records=ref([]);const total=ref(0);const loading=ref(false);const detailVisible=ref(false);const detailLoading=ref(false);const detail=ref({})
 async function load(){loading.value=true;try{const data=await getAdminProjects(query);records.value=data.records||[];total.value=data.total||0}finally{loading.value=false}}function search(){query.page=1;load()}
 async function moderate(project){const hiding=project.moderationStatus!==1;try{const {value}=await ElMessageBox.prompt(hiding?'请填写违规下架原因':'请填写管理员恢复说明',hiding?'确认违规下架':'确认恢复',{inputType:'textarea',inputValidator:v=>!!v?.trim()||'必须填写原因'});await moderateProject(project.id,{action:hiding?'HIDE':'RESTORE',reason:value});ElMessage.success(hiding?'企划已违规下架，已通知企划方':'企划已恢复展示');await load()}catch{}}

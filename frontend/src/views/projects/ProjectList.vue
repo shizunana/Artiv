@@ -84,7 +84,7 @@
             <span class="info-item"><el-icon><Calendar /></el-icon>{{ project.deadline || '-' }} 截稿</span>
             <span class="info-item"><el-icon><Postcard /></el-icon>{{ project.category || '-' }}</span>
             <span class="info-item"><span class="applicant-pawn" aria-hidden="true">♟︎</span>{{ project.applicationCount }} 人应征</span>
-            <span class="info-item info-budget">¥{{ project.budget }}</span>
+            <span class="info-item info-budget">{{ formatProjectBudget(project) }}</span>
           </div>
         </div>
       </div>
@@ -104,6 +104,7 @@ import { Calendar, Postcard, Search } from '@element-plus/icons-vue'
 import { getApplications, getProjects } from '@/api/project'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
+import { formatProjectBudget } from '@/utils/budget'
 import Pagination from '@/components/common/Pagination.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 

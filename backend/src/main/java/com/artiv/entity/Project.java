@@ -29,6 +29,12 @@ public class Project {
 
     private BigDecimal budget;
 
+    /** 预算区间下限（元）。 */
+    private BigDecimal budgetMin;
+
+    /** 预算区间上限（元）；legacy budget 同步保存该值。 */
+    private BigDecimal budgetMax;
+
     private LocalDate deadline;
 
     private String tags;

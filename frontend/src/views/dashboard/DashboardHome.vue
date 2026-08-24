@@ -35,7 +35,7 @@
       <el-table :data="projects" v-loading="loading" empty-text="还没有发布企划，点击右上角「发布需求」开始">
         <el-table-column prop="title" label="标题" min-width="180" />
         <el-table-column label="预算" width="110">
-          <template #default="{ row }">¥{{ row.budget }}</template>
+          <template #default="{ row }">{{ formatProjectBudget(row) }}</template>
         </el-table-column>
         <el-table-column label="合作方式" width="100">
           <template #default="{ row }">{{ row.mode === 1 ? '定向邀请' : '公开招募' }}</template>
@@ -72,6 +72,7 @@ import { getMyProjects } from '@/api/project'
 import { getOrders } from '@/api/order'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/date'
+import { formatProjectBudget } from '@/utils/budget'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 
 const router = useRouter()

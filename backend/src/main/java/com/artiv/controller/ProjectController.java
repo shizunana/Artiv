@@ -47,8 +47,9 @@ public class ProjectController {
     /** 我的企划（企划方工作台） */
     @GetMapping("/mine")
     public Result<Page<Project>> mine(@RequestParam(defaultValue = "1") long page,
-                                      @RequestParam(defaultValue = "10") long size) {
-        return Result.ok(projectService.listMine(page, size, UserContext.getUserId()));
+                                      @RequestParam(defaultValue = "10") long size,
+                                      @RequestParam(required = false) Integer mode) {
+        return Result.ok(projectService.listMine(page, size, UserContext.getUserId(), mode));
     }
 
     /** 发布企划：普通账号的注册主身份 role=1/2 不限制该能力。 */

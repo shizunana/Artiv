@@ -60,9 +60,9 @@
             />
           </el-form-item>
           <el-form-item label="稿酬预算（元/张）" required class="inline-item">
-            <el-input-number v-model="form.budgetMin" :min="0" :max="100000" placeholder="最低" />
+            <el-input-number v-model="form.budgetMin" :min="1" :max="100000" placeholder="最低" />
             <span class="range-sep">—</span>
-            <el-input-number v-model="form.budgetMax" :min="0" :max="100000" placeholder="最高" />
+            <el-input-number v-model="form.budgetMax" :min="1" :max="100000" placeholder="最高" />
           </el-form-item>
         </div>
       </div>
@@ -474,7 +474,7 @@ function next() {
       ElMessage.warning('请选择截稿日期')
       return
     }
-    if (!form.budgetMax || form.budgetMax <= 0 || form.budgetMin > form.budgetMax) {
+    if (!form.budgetMin || !form.budgetMax || form.budgetMin <= 0 || form.budgetMax <= 0 || form.budgetMin > form.budgetMax) {
       ElMessage.warning('请设置正确的预算区间')
       return
     }
@@ -511,6 +511,8 @@ async function submit() {
       title: form.title,
       description: form.description,
       budget: form.budgetMax,
+      budgetMin: form.budgetMin,
+      budgetMax: form.budgetMax,
       deadline: form.deadline,
       tags: form.tags,
       images: form.images.length ? form.images.join(',') : null,

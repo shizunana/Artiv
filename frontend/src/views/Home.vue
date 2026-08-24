@@ -69,7 +69,7 @@
               <div class="project-card__body">
                 <div class="project-card__topline">
                   <span>公开招募</span>
-                  <strong>¥{{ formatMoney(project.budget) }}</strong>
+                  <strong>{{ formatProjectBudget(project) }}</strong>
                 </div>
                 <h3>{{ project.title }}</h3>
                 <p>{{ project.description || '发布者暂未填写企划说明。' }}</p>
@@ -241,6 +241,7 @@ import { getStalls } from '@/api/stall'
 import { getWorks } from '@/api/work'
 import { getArtists } from '@/api/user'
 import { useUserStore } from '@/stores/user'
+import { formatProjectBudget } from '@/utils/budget'
 import heroShowcase01 from '@/assets/home/hero-showcase-01.png'
 import heroShowcase02 from '@/assets/home/hero-showcase-02.png'
 import heroShowcase03 from '@/assets/home/hero-showcase-03.png'

@@ -197,6 +197,8 @@ public class InvitationServiceImpl implements InvitationService {
         summary.setProjectTitle(project.getTitle());
         summary.setCategory(project.getCategory());
         summary.setBudget(project.getBudget());
+        summary.setBudgetMin(project.getBudgetMin());
+        summary.setBudgetMax(project.getBudgetMax());
         summary.setStatus(invitation.getStatus());
         summary.setRejectReason(invitation.getRejectReason());
         summary.setApplicationId(invitation.getApplicationId());

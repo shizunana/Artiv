@@ -15,7 +15,7 @@
           </div>
           <div class="summary-item">
             <span>单张稿酬预算</span>
-            <strong class="budget">￥ {{ project.budget }}</strong>
+            <strong class="budget">{{ formatProjectBudget(project, '￥') }}</strong>
           </div>
           <p class="recruit-countdown">{{ recruitCountdown }}</p>
           <div v-if="pendingInvitation" class="invitation-actions">
@@ -221,7 +221,7 @@
       </div>
       <div class="confirm-amount">
         <span>按应征报价托管</span>
-        <strong>¥{{ Number(orderingApplication?.application?.quote || project?.budget || 0).toFixed(2) }}</strong>
+        <strong>¥{{ Number(orderingApplication?.application?.quote || project?.budgetMax || project?.budget || 0).toFixed(2) }}</strong>
       </div>
       <p class="confirm-tip">确认后将从账户余额托管订单金额。此订单独立流转，不影响本企划向其他应征画师继续发单。</p>
       <template #footer>
@@ -257,6 +257,7 @@ import { acceptInvitation, getInvitationByProject, rejectInvitation } from '@/ap
 import { useUserStore } from '@/stores/user'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import { formatDateTime } from '@/utils/date'
+import { formatProjectBudget } from '@/utils/budget'
 import ProjectManageDialog from '@/components/projects/ProjectManageDialog.vue'
 
 const route = useRoute()

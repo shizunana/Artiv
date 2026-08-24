@@ -99,7 +99,7 @@
                   <el-tag size="small" :type="project.status === 0 ? 'success' : 'info'">{{ project.status === 0 ? '招募中' : '已完成' }}</el-tag>
                 </div>
                 <p>{{ project.description || '暂无需求描述' }}</p>
-                <div class="project-card-meta"><span>{{ project.category || '未分类' }}</span><strong>¥{{ project.budget }}</strong></div>
+                <div class="project-card-meta"><span>{{ project.category || '未分类' }}</span><strong>{{ formatProjectBudget(project) }}</strong></div>
               </div>
             </article>
           </div>
@@ -132,6 +132,7 @@ import { useUserStore } from '@/stores/user'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import ReviewList from '@/components/reviews/ReviewList.vue'
 import { followPainter, getPainterFollowStatus, unfollowPainter } from '@/api/social'
+import { formatProjectBudget } from '@/utils/budget'
 
 const route = useRoute()
 const router = useRouter()

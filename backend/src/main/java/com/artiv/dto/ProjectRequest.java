@@ -23,9 +23,14 @@ public class ProjectRequest {
     @NotBlank(message = "需求描述不能为空")
     private String description;
 
-    @NotNull(message = "预算不能为空")
     @DecimalMin(value = "0.01", message = "预算必须大于 0")
     private BigDecimal budget;
+
+    @DecimalMin(value = "0.01", message = "最低预算必须大于 0")
+    private BigDecimal budgetMin;
+
+    @DecimalMin(value = "0.01", message = "最高预算必须大于 0")
+    private BigDecimal budgetMax;
 
     @NotNull(message = "截稿日期不能为空")
     private LocalDate deadline;

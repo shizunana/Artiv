@@ -13,7 +13,7 @@ public interface ProjectService {
                                Integer deadlineWithin, Integer deadlineAfter, String tag,
                                String category, String subject);
 
-    Page<Project> listMine(long page, long size, Long employerId);
+    Page<Project> listMine(long page, long size, Long employerId, Integer mode);
 
     Project create(ProjectRequest request, Long employerId);
 

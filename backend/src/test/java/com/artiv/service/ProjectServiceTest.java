@@ -80,6 +80,34 @@ class ProjectServiceTest {
     }
 
     @Test
+    void createPersistsBudgetRangeAndKeepsLegacyBudgetAsMaximum() {
+        ProjectRequest request = validProjectRequest();
+        request.setBudget(null);
+        request.setBudgetMin(new BigDecimal("300.00"));
+        request.setBudgetMax(new BigDecimal("500.00"));
+
+        projectService.create(request, 1L);
+
+        ArgumentCaptor<Project> projectCaptor = ArgumentCaptor.forClass(Project.class);
+        verify(projectMapper).insert(projectCaptor.capture());
+        Project persisted = projectCaptor.getValue();
+        assertEquals(new BigDecimal("300.00"), persisted.getBudgetMin());
+        assertEquals(new BigDecimal("500.00"), persisted.getBudgetMax());
+        assertEquals(new BigDecimal("500.00"), persisted.getBudget());
+    }
+
+    @Test
+    void createRejectsReversedBudgetRange() {
+        ProjectRequest request = validProjectRequest();
+        request.setBudget(null);
+        request.setBudgetMin(new BigDecimal("800.00"));
+        request.setBudgetMax(new BigDecimal("500.00"));
+
+        assertThrows(com.artiv.common.BusinessException.class, () -> projectService.create(request, 1L));
+        verify(projectMapper, never()).insert(org.mockito.ArgumentMatchers.any(Project.class));
+    }
+
+    @Test
     void getByIdExposesOnlySafePublisherSummaryForPublicDetail() throws Exception {
         Project project = new Project();
         project.setId(7L);

@@ -145,6 +145,8 @@ CREATE TABLE `project` (
   `title`           VARCHAR(100)  NOT NULL COMMENT '标题',
   `description`     TEXT          NOT NULL COMMENT '需求描述',
   `budget`          DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '预算（元）',
+  `budget_min`      DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '预算区间下限（元）',
+  `budget_max`      DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '预算区间上限（元）',
   `deadline`        DATE          DEFAULT NULL COMMENT '截稿日期',
   `tags`            VARCHAR(255)  DEFAULT NULL COMMENT '标签，逗号分隔',
   `category`        VARCHAR(50)   DEFAULT NULL COMMENT '稿件类型（与橱窗分类一致）',
