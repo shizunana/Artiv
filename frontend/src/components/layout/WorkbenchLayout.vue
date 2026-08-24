@@ -5,7 +5,8 @@
 
     <div class="page-container wb-body">
       <!-- 左侧工作台卡片（参考站 dashboard-sidebar） -->
-      <aside class="wb-sidebar">
+      <div class="wb-side-column">
+        <aside class="wb-sidebar">
         <div class="wb-sidebar__user">
           <el-avatar :size="46" :src="userStore.user?.avatar" class="wb-sidebar-avatar">{{ avatarText }}</el-avatar>
           <div class="wb-sidebar__user-info">
@@ -55,7 +56,9 @@
             {{ switchingRole ? '正在切换…' : `切换到${oppositeRoleText}工作台` }}
           </button>
         </div>
-      </aside>
+        </aside>
+        <FavoriteShortcutCard v-if="workbench !== 'admin'" :workbench="workbench" />
+      </div>
 
       <!-- 主内容区（参考站 dashboard__main） -->
       <main class="wb-main">
@@ -71,6 +74,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowDown, Right } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import AppHeader from './AppHeader.vue'
+import FavoriteShortcutCard from '@/components/favorites/FavoriteShortcutCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -188,9 +192,18 @@ async function switchRole() {
 }
 
 /* ---------- 左侧工作台（参考站 dashboard-sidebar：282px 白卡片） ---------- */
-.wb-sidebar {
+.wb-side-column {
   flex: 0 0 250px;
   width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: sticky;
+  top: calc(var(--artiv-header-height) + 24px);
+}
+
+.wb-sidebar {
+  width: 100%;
   background: #fff;
   border: 1px solid #e4ebf0;
   border-radius: 12px;
@@ -198,8 +211,6 @@ async function switchRole() {
   padding: 10px;
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: calc(var(--artiv-header-height) + 24px);
 }
 
 .wb-sidebar__user {
@@ -360,7 +371,7 @@ async function switchRole() {
     flex-direction: column;
   }
 
-  .wb-sidebar {
+  .wb-side-column {
     flex: none;
     width: 100%;
     position: static;

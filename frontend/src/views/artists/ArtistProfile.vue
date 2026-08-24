@@ -23,11 +23,20 @@
             <el-tag v-for="tag in profile.tags" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
           </div>
         </div>
-        <div v-if="!isOwner && isPainter" class="profile-actions">
-          <template>
-            <el-button class="invite-button" type="warning" @click="showReserved('邀请画师')">邀请</el-button>
-            <el-button type="primary" @click="showReserved('关注画师')">关注</el-button>
-          </template>
+        <div v-if="!isOwner && isPainter && profile.certStatus === 2" class="profile-actions">
+          <el-button type="primary" :loading="followLoading" @click="toggleFollow">
+            {{ followed ? '已关注' : '关注' }}
+          </el-button>
+          <el-button class="invite-button" @click="openInvite">邀请</el-button>
+          <el-dropdown trigger="click" @command="showUnavailable">
+            <el-button class="more-button" circle aria-label="更多操作"><el-icon><MoreFilled /></el-icon></el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="加入黑名单">加入黑名单</el-dropdown-item>
+                <el-dropdown-item command="举报">举报</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </section>
 
@@ -108,6 +117,25 @@
     </main>
 
     <EmptyState v-else-if="!profileLoading" description="该用户主页暂不可访问" />
+    <el-dialog v-model="inviteVisible" title="邀请画师参与企划" width="520px" append-to-body>
+      <el-form label-position="top">
+        <el-form-item label="选择定向企划" required>
+          <el-select v-model="inviteForm.projectId" class="invite-project-select" placeholder="选择一个正在招募的定向企划" :loading="inviteProjectLoading">
+            <el-option v-for="project in invitableProjects" :key="project.id" :label="project.title" :value="project.id" />
+          </el-select>
+          <p v-if="!inviteProjectLoading && invitableProjects.length === 0" class="invite-empty">
+            暂无可发送邀请的定向企划，请先发布合作方式为“定向邀请”的企划。
+          </p>
+        </el-form-item>
+        <el-form-item label="邀请说明">
+          <el-input v-model="inviteForm.message" type="textarea" :rows="4" maxlength="300" show-word-limit placeholder="简单介绍合作内容（可选）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="inviteVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!inviteForm.projectId" :loading="inviting" @click="submitInvite">发送邀请</el-button>
+      </template>
+    </el-dialog>
     <el-image-viewer v-if="previewUrl" :url-list="[previewUrl]" hide-on-click-modal @close="previewUrl = ''" />
   </div>
 </template>
@@ -115,12 +143,16 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { MoreFilled } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { getPublicProfile, getPublicProfileProjects, getPublicProfileStalls, getPublicProfileWorks } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import ReviewList from '@/components/reviews/ReviewList.vue'
+import { getMyProjects } from '@/api/project'
+import { createInvitation } from '@/api/invitation'
+import { followPainter, getPainterFollowStatus, unfollowPainter } from '@/api/social'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,6 +168,13 @@ const hasMore = ref(true)
 const loadSentinel = ref(null)
 const previewUrl = ref('')
 const resourceError = ref(false)
+const followed = ref(false)
+const followLoading = ref(false)
+const inviteVisible = ref(false)
+const inviteProjectLoading = ref(false)
+const inviting = ref(false)
+const invitableProjects = ref([])
+const inviteForm = ref({ projectId: null, message: '' })
 let observer = null
 let requestVersion = 0
 let resourceRequestVersion = 0
@@ -180,6 +219,12 @@ async function loadProfile() {
     if (version !== requestVersion) return
     profile.value = data
     activeTab.value = isPainter.value ? 'works' : 'projects'
+    followed.value = false
+    if (userStore.isLoggedIn && !isOwner.value && isPainter.value && data.certStatus === 2) {
+      const state = await getPainterFollowStatus(profileId.value)
+      if (version !== requestVersion) return
+      followed.value = Boolean(state?.followed)
+    }
     await resetResources()
   } finally {
     if (version === requestVersion) profileLoading.value = false
@@ -241,7 +286,62 @@ async function loadResources(reset = false) {
 function switchRole() {
   router.replace({ name: 'ArtistProfile', params: { id: profileId.value }, query: { role: isPainter.value ? 'employer' : 'painter' } })
 }
-function showReserved(name) { ElMessage.info(`${name}功能已预留，暂未开放`) }
+function requireLogin() {
+  if (userStore.isLoggedIn) return true
+  router.push({ name: 'Login', query: { redirect: route.fullPath } })
+  return false
+}
+
+async function toggleFollow() {
+  if (!requireLogin() || followLoading.value) return
+  followLoading.value = true
+  try {
+    const state = followed.value
+      ? await unfollowPainter(profileId.value)
+      : await followPainter(profileId.value)
+    followed.value = Boolean(state?.followed)
+    ElMessage.success(followed.value ? '已关注该画师' : '已取消关注')
+  } finally {
+    followLoading.value = false
+  }
+}
+
+async function openInvite() {
+  if (!requireLogin()) return
+  inviteVisible.value = true
+  inviteForm.value = { projectId: null, message: '' }
+  inviteProjectLoading.value = true
+  try {
+    const data = await getMyProjects({ page: 1, size: 100 })
+    const now = Date.now()
+    invitableProjects.value = (data?.records || []).filter((project) => (
+      Number(project.mode) === 1
+      && Number(project.status) === 0
+      && Number(project.moderationStatus || 0) === 0
+      && (!project.recruitDeadline || new Date(project.recruitDeadline).getTime() >= now)
+    ))
+  } finally {
+    inviteProjectLoading.value = false
+  }
+}
+
+async function submitInvite() {
+  if (!inviteForm.value.projectId || inviting.value) return
+  inviting.value = true
+  try {
+    await createInvitation({
+      projectId: inviteForm.value.projectId,
+      painterId: profileId.value,
+      message: inviteForm.value.message.trim() || undefined,
+    })
+    inviteVisible.value = false
+    ElMessage.success('邀请已发送')
+  } finally {
+    inviting.value = false
+  }
+}
+
+function showUnavailable(name) { ElMessage.info(`${name}功能暂未开放`) }
 function formatRate(value) { return value === null || value === undefined ? '暂无' : `${value}%` }
 function previewWork(work) { previewUrl.value = work.image || '' }
 function projectCover(project) {
@@ -276,8 +376,11 @@ function goProject(id) { router.push({ name: 'ProjectDetail', params: { id } }) 
 .identity-title h1 { margin: 0; color: #202a35; font-size: 26px; }
 .identity-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .profile-actions { display: flex; gap: 10px; margin-left: auto; }
-.profile-actions :deep(.el-button) { min-width: 110px; }
-.invite-button { color: #fff; }
+.profile-actions :deep(.el-button:not(.more-button)) { min-width: 110px; }
+.invite-button { color: var(--artiv-primary); border-color: var(--artiv-primary); }
+.more-button { min-width: 34px !important; }
+.invite-project-select { width: 100%; }
+.invite-empty { margin: 8px 0 0; color: var(--artiv-text-secondary); font-size: 12px; line-height: 1.6; }
 .profile-introduction { padding: 20px 0 24px; }
 .profile-introduction h2 { margin: 0 0 10px; font-size: 16px; }
 .profile-introduction p { margin: 0; color: #505c6d; line-height: 1.8; white-space: pre-wrap; }

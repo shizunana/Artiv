@@ -114,6 +114,20 @@
           >
             {{ isOwner ? '修改橱窗' : canPurchase ? '立即下单' : !hasStock ? '无库存' : '已下架' }}
           </el-button>
+          <el-button
+            v-if="!isOwner"
+            type="warning"
+            plain
+            size="large"
+            round
+            class="stall-favorite-btn"
+            :disabled="stall.status !== 1"
+            :loading="favoriteLoading"
+            @click="toggleFavorite"
+          >
+            <FavoriteIcon :active="favorited" />
+            {{ favorited ? '已收藏橱窗' : '收藏橱窗' }}
+          </el-button>
           <p class="buy-tip">{{ isOwner ? '仅可调整库存并追加题材风格，其他交易信息保持不变' : '确认订单后托管固定金额，并建立与画师的沟通会话' }}</p>
         </aside>
       </div>
@@ -190,6 +204,8 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
+import FavoriteIcon from '@/components/common/FavoriteIcon.vue'
+import { favoriteStall, getStallFavoriteStatus, unfavoriteStall } from '@/api/social'
 
 const route = useRoute()
 const router = useRouter()
@@ -203,6 +219,8 @@ const editVisible = ref(false)
 const saving = ref(false)
 const changingStatus = ref(false)
 const deleting = ref(false)
+const favorited = ref(false)
+const favoriteLoading = ref(false)
 const subjectOptions = SUBJECT_OPTIONS
 const editForm = ref({ stock: 0, subjects: [] })
 
@@ -257,6 +275,15 @@ async function load() {
     } catch {
       painterProfile.value = null
     }
+    favorited.value = false
+    if (userStore.isLoggedIn && Number(userStore.user?.id) !== Number(stall.value.painterId)) {
+      try {
+        const state = await getStallFavoriteStatus(stall.value.id)
+        favorited.value = Boolean(state?.favorited)
+      } catch {
+        favorited.value = false
+      }
+    }
     document.title = `${stall.value.title} - 艺绘`
     if (route.query.edit === '1' && Number(userStore.user?.id) === Number(stall.value.painterId)) {
       openEdit()
@@ -299,6 +326,24 @@ function handlePrimaryAction() {
     return
   }
   if (canPurchase.value) openConfirm()
+}
+
+async function toggleFavorite() {
+  if (!userStore.isLoggedIn) {
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!stall.value || isOwner.value || favoriteLoading.value) return
+  favoriteLoading.value = true
+  try {
+    const state = favorited.value
+      ? await unfavoriteStall(stall.value.id)
+      : await favoriteStall(stall.value.id)
+    favorited.value = Boolean(state?.favorited)
+    ElMessage.success(favorited.value ? '橱窗已收藏' : '已取消收藏')
+  } finally {
+    favoriteLoading.value = false
+  }
 }
 
 function openEdit() {
@@ -665,6 +710,16 @@ onMounted(load)
   width: 100%;
   font-size: 16px;
 }
+
+.stall-favorite-btn {
+  width: 100%;
+  margin-left: 0;
+  color: var(--artiv-accent);
+  border-color: var(--artiv-accent);
+  font-size: 15px;
+}
+
+.stall-favorite-btn :deep(svg) { margin-right: 5px; }
 
 .buy-tip {
   text-align: center;

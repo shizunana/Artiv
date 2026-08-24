@@ -47,7 +47,7 @@
       <span v-else-if="works.length && !hasMore">已加载全部 {{ total }} 件作品</span>
     </div>
 
-    <el-dialog v-model="detailVisible" width="900px" top="7vh" append-to-body class="work-detail-dialog" :show-close="false">
+    <el-dialog v-model="detailVisible" width="900px" top="7vh" append-to-body class="work-detail-dialog" :show-close="false" @closed="handleDetailClosed">
       <template #header>
         <div class="detail-author">
           <el-avatar :size="52" :src="detail.authorAvatar">{{ authorInitial }}</el-avatar>
@@ -56,7 +56,13 @@
             <span v-if="detail.authorCertStatus === 2" class="cert-label">已认证画师</span>
             <p>{{ detail.authorBio || '这位画师暂未填写个人简介。' }}</p>
           </div>
-          <el-button type="primary" plain class="profile-button" @click="openProfilePlaceholder">进入主页</el-button>
+          <div class="detail-author__actions">
+            <el-button v-if="!isDetailOwner" class="work-favorite-button" :loading="favoriteLoading" @click="toggleFavorite">
+              <FavoriteIcon :active="favorited" />
+              {{ favorited ? '已收藏' : '收藏' }}
+            </el-button>
+            <el-button type="primary" plain class="profile-button" @click="openProfilePlaceholder">进入主页</el-button>
+          </div>
         </div>
       </template>
 
@@ -86,12 +92,18 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Search } from '@element-plus/icons-vue'
-import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
 import { getWorkDetail, getWorks } from '@/api/work'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
+import FavoriteIcon from '@/components/common/FavoriteIcon.vue'
+import { favoriteWork, getWorkFavoriteStatus, unfavoriteWork } from '@/api/social'
+import { useUserStore } from '@/stores/user'
 
+const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const works = ref([])
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -111,8 +123,11 @@ const columnCount = ref(getColumnCount())
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = reactive({})
+const favorited = ref(false)
+const favoriteLoading = ref(false)
 const detailTags = computed(() => (detail.subject || '').split(',').map(tag => tag.trim()).filter(Boolean))
 const authorInitial = computed(() => (detail.authorName || '画').slice(0, 1))
+const isDetailOwner = computed(() => Number(userStore.user?.id) === Number(detail.userId))
 const imageRatioCache = new Map()
 let loadObserver = null
 let loadVersion = 0
@@ -185,11 +200,43 @@ async function openWork(id) {
   Object.keys(detail).forEach(key => delete detail[key])
   try {
     Object.assign(detail, await getWorkDetail(id))
+    favorited.value = false
+    if (userStore.isLoggedIn && !isDetailOwner.value) {
+      try {
+        const state = await getWorkFavoriteStatus(id)
+        favorited.value = Boolean(state?.favorited)
+      } catch {
+        favorited.value = false
+      }
+    }
   } catch {
     detailVisible.value = false
   } finally {
     detailLoading.value = false
   }
+}
+
+async function toggleFavorite() {
+  if (!userStore.isLoggedIn) {
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!detail.id || isDetailOwner.value || favoriteLoading.value) return
+  favoriteLoading.value = true
+  try {
+    const state = favorited.value ? await unfavoriteWork(detail.id) : await favoriteWork(detail.id)
+    favorited.value = Boolean(state?.favorited)
+    ElMessage.success(favorited.value ? '作品已收藏' : '已取消收藏')
+  } finally {
+    favoriteLoading.value = false
+  }
+}
+
+function handleDetailClosed() {
+  if (route.name !== 'Works' || !route.query.workId) return
+  const query = { ...route.query }
+  delete query.workId
+  router.replace({ name: 'Works', query })
 }
 
 function openProfilePlaceholder() {
@@ -246,6 +293,7 @@ async function load(reset = false) {
 onMounted(() => {
   window.addEventListener('resize', handleResize)
   reload()
+  if (route.query.workId) openWork(route.query.workId)
   loadObserver = new IntersectionObserver((entries) => {
     if (entries.some(entry => entry.isIntersecting)) load(false)
   }, { rootMargin: '500px 0px' })
@@ -270,7 +318,7 @@ onBeforeUnmount(() => {
 .work-image { display: block; width: 100%; height: auto; min-height: 110px; transition: transform .25s ease; }
 .work-placeholder { display: grid; place-items: center; aspect-ratio: 1 / 1; background: linear-gradient(135deg, #e2f4fd, #efe8ff); color: #6d9db4; font-size: 42px; }
 .load-sentinel { display: flex; min-height: 48px; align-items: center; justify-content: center; color: var(--artiv-text-secondary); font-size: 13px; }
-.detail-author { display: flex; align-items: center; gap: 13px; padding-right: 38px; }.detail-author__copy { min-width: 0; flex: 1; }.detail-author__copy strong { color: var(--artiv-text); font-size: 17px; }.detail-author__copy p { overflow: hidden; margin: 5px 0 0; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.cert-label { margin-left: 8px; color: #2ca46e; font-size: 12px; }.profile-button { flex-shrink: 0; }.work-detail-content { min-height: 240px; }.work-detail-image { display: block; width: 100%; max-height: 62vh; object-fit: contain; background: #f4f7fa; }.work-detail-empty { display: grid; min-height: 300px; place-items: center; color: var(--artiv-text-secondary); background: #f4f7fa; }.work-detail-info { padding: 18px 22px 22px; }.work-detail-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--artiv-border); padding-bottom: 14px; }.work-detail-heading h2 { margin: 0; color: var(--artiv-text); font-size: 19px; }.work-detail-heading p { margin: 7px 0 0; color: var(--artiv-text-secondary); font-size: 12px; }.work-description { margin: 16px 0; color: var(--artiv-text); line-height: 1.8; white-space: pre-wrap; }.work-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }.tag-title { margin-right: 4px; color: var(--artiv-text-secondary); font-size: 13px; }.tag-empty { color: var(--artiv-text-secondary); font-size: 13px; }
+.detail-author { display: flex; align-items: center; gap: 13px; padding-right: 38px; }.detail-author__copy { min-width: 0; flex: 1; }.detail-author__copy strong { color: var(--artiv-text); font-size: 17px; }.detail-author__copy p { overflow: hidden; margin: 5px 0 0; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.cert-label { margin-left: 8px; color: #2ca46e; font-size: 12px; }.detail-author__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }.work-favorite-button :deep(.el-icon), .work-favorite-button :deep(svg) { margin-right: 4px; }.profile-button { flex-shrink: 0; }.work-detail-content { min-height: 240px; }.work-detail-image { display: block; width: 100%; max-height: 62vh; object-fit: contain; background: #f4f7fa; }.work-detail-empty { display: grid; min-height: 300px; place-items: center; color: var(--artiv-text-secondary); background: #f4f7fa; }.work-detail-info { padding: 18px 22px 22px; }.work-detail-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--artiv-border); padding-bottom: 14px; }.work-detail-heading h2 { margin: 0; color: var(--artiv-text); font-size: 19px; }.work-detail-heading p { margin: 7px 0 0; color: var(--artiv-text-secondary); font-size: 12px; }.work-description { margin: 16px 0; color: var(--artiv-text); line-height: 1.8; white-space: pre-wrap; }.work-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }.tag-title { margin-right: 4px; color: var(--artiv-text-secondary); font-size: 13px; }.tag-empty { color: var(--artiv-text-secondary); font-size: 13px; }
 @media (max-width: 1100px) { .list-page { width: 96vw; } }
 @media (max-width: 900px) { .list-page { width: 100%; }.waterfall-column { width: 33.333%; } }
 @media (max-width: 560px) { .work-controls { padding: 11px; }.search-input { width: 100%; }.waterfall-column { width: 50%; }.detail-author { padding-right: 24px; }.detail-author__copy p { white-space: normal; }.profile-button { padding: 8px 10px; } }
