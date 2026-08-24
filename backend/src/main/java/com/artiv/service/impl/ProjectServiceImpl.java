@@ -20,6 +20,7 @@ import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.ProjectService;
 import com.artiv.service.AccountRestrictionService;
+import com.artiv.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,8 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +48,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ApplicationMapper applicationMapper;
     private final OrderInfoMapper orderInfoMapper;
     private final AccountRestrictionService accountRestrictionService;
+    private final MessageService messageService;
 
     @Override
     public Page<Project> listProjects(long page, long size, String keyword, Integer status,
@@ -82,7 +86,9 @@ public class ProjectServiceImpl implements ProjectService {
                 .eq(Project::getDeleted, 0)
                 .eq(Project::getEmployerId, employerId)
                 .orderByDesc(Project::getCreatedAt);
-        return projectMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<Project> result = projectMapper.selectPage(new Page<>(page, size), wrapper);
+        attachInvitationStatuses(result.getRecords());
+        return result;
     }
 
     @Override
@@ -131,15 +137,22 @@ public class ProjectServiceImpl implements ProjectService {
 
         // 定向邀请：创建邀请记录
         if (project.getMode() == 1 && request.getInvitePainterId() != null) {
+            User employer = userMapper.selectById(employerId);
+            String employerName = employer == null || !StringUtils.hasText(employer.getNickname())
+                    ? "企划方 #" + employerId : employer.getNickname();
+            String invitationContent = "企划方【" + employerName + "】邀请您参与企划【" + project.getTitle()
+                    + "】，请进入企划详情查看并选择接受或拒绝。";
             Invitation invitation = new Invitation();
             invitation.setProjectId(project.getId());
             invitation.setPainterId(request.getInvitePainterId());
-            invitation.setMessage("企划方邀请您参与「" + project.getTitle() + "」");
+            invitation.setMessage(invitationContent);
             invitation.setStatus(0);
             invitation.setDeleted(0);
             invitation.setCreatedAt(now);
             invitation.setUpdatedAt(now);
             invitationMapper.insert(invitation);
+            messageService.createNotification(request.getInvitePainterId(), 0,
+                    "INVITATION_CREATED", project.getId(), invitationContent);
         }
         return project;
     }
@@ -192,6 +205,8 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
         project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));
+        Invitation invitation = findInvitation(project.getId());
+        project.setInvitationStatus(invitation == null ? null : invitation.getStatus());
         return project;
     }
 
@@ -214,6 +229,17 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
         Project project = requireOwned(id, employerId);
+        Invitation invitation = findInvitation(id);
+        if (Integer.valueOf(1).equals(project.getMode()) && invitation != null) {
+            if (Integer.valueOf(0).equals(invitation.getStatus()) && status == 4) {
+                throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(),
+                        "待处理的定向邀请不能撤回或下架");
+            }
+            if (Integer.valueOf(2).equals(invitation.getStatus()) && status == 0) {
+                throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(),
+                        "已拒绝的定向企划只能改为公开企划");
+            }
+        }
         if (Integer.valueOf(1).equals(project.getModerationStatus())) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "违规下架企划只能由管理员恢复");
         }
@@ -228,8 +254,39 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional
+    public Project publishPublic(Long id, Long employerId) {
+        Project project = requireOwned(id, employerId);
+        Invitation invitation = findInvitation(id);
+        if (!Integer.valueOf(1).equals(project.getMode()) || invitation == null
+                || !Integer.valueOf(2).equals(invitation.getStatus())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(),
+                    "只有已被拒绝的定向企划可以改为公开企划");
+        }
+        if (Integer.valueOf(1).equals(project.getModerationStatus())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(),
+                    "违规下架企划只能由管理员恢复");
+        }
+        project.setMode(0);
+        project.setStatus(0);
+        if (project.getRecruitDeadline() == null || project.getRecruitDeadline().isBefore(LocalDateTime.now())) {
+            project.setRecruitDeadline(LocalDateTime.now().plusDays(10));
+        }
+        project.setUpdatedAt(LocalDateTime.now());
+        projectMapper.updateById(project);
+        project.setInvitationStatus(invitation.getStatus());
+        return project;
+    }
+
+    @Override
     public void delete(Long id, Long employerId) {
         Project project = requireOwned(id, employerId);
+        Invitation invitation = findInvitation(id);
+        if (Integer.valueOf(1).equals(project.getMode()) && invitation != null
+                && Integer.valueOf(0).equals(invitation.getStatus())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(),
+                    "待处理的定向邀请不能撤回或删除企划");
+        }
         long relatedOrders = orderInfoMapper.selectCount(
                 new LambdaQueryWrapper<OrderInfo>().eq(OrderInfo::getProjectId, id));
         if (relatedOrders > 0) {
@@ -240,6 +297,35 @@ public class ProjectServiceImpl implements ProjectService {
         project.setUpdatedAt(LocalDateTime.now());
         projectMapper.updateById(project);
         projectMapper.deleteById(id);
+    }
+
+    private Invitation findInvitation(Long projectId) {
+        return invitationMapper.selectOne(new LambdaQueryWrapper<Invitation>()
+                .eq(Invitation::getProjectId, projectId)
+                .eq(Invitation::getDeleted, 0)
+                .orderByDesc(Invitation::getCreatedAt)
+                .last("LIMIT 1"));
+    }
+
+    private void attachInvitationStatuses(List<Project> projects) {
+        List<Long> projectIds = projects.stream()
+                .filter(project -> Integer.valueOf(1).equals(project.getMode()))
+                .map(Project::getId)
+                .toList();
+        if (projectIds.isEmpty()) {
+            return;
+        }
+        Map<Long, Invitation> invitationByProject = invitationMapper.selectList(
+                        new LambdaQueryWrapper<Invitation>()
+                                .in(Invitation::getProjectId, projectIds)
+                                .eq(Invitation::getDeleted, 0))
+                .stream()
+                .collect(Collectors.toMap(Invitation::getProjectId, Function.identity(),
+                        (first, second) -> first.getCreatedAt().isAfter(second.getCreatedAt()) ? first : second));
+        projects.forEach(project -> {
+            Invitation invitation = invitationByProject.get(project.getId());
+            project.setInvitationStatus(invitation == null ? null : invitation.getStatus());
+        });
     }
 
     private Project requireOwned(Long id, Long employerId) {

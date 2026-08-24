@@ -21,5 +21,7 @@ public interface ProjectService {
 
     Project changeStatus(Long id, Integer status, Long employerId);
 
+    Project publishPublic(Long id, Long employerId);
+
     void delete(Long id, Long employerId);
 }

@@ -52,6 +52,10 @@ public class Project {
     /** 合作方式：0 公开招募、1 定向邀请 */
     private Integer mode;
 
+    /** 定向邀请状态，仅用于企划详情和本人企划列表，不落 project 表。 */
+    @TableField(exist = false)
+    private Integer invitationStatus;
+
     /** 招募截止时间 */
     private LocalDateTime recruitDeadline;
 

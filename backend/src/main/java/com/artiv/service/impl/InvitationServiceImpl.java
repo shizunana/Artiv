@@ -110,6 +110,8 @@ public class InvitationServiceImpl implements InvitationService {
                 + "】的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。";
         messageService.createInvitationAcceptedConversation(
                 project.getEmployerId(), painterId, project.getId(), content);
+        messageService.createNotification(project.getEmployerId(), 0,
+                "INVITATION_ACCEPTED", project.getId(), content);
         return invitationMapper.selectById(invitation.getId());
     }
 
@@ -134,6 +136,9 @@ public class InvitationServiceImpl implements InvitationService {
         if (updated != 1) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "邀请已被处理，请刷新后重试");
         }
+        project.setStatus(4);
+        project.setUpdatedAt(now);
+        projectMapper.updateById(project);
         String content = "画师【" + displayName(painter) + "】婉拒了您的企划【" + project.getTitle()
                 + "】的邀请，婉拒理由【" + reason + "】";
         messageService.createNotification(project.getEmployerId(), 0,

@@ -19,8 +19,8 @@
           </div>
           <p class="recruit-countdown">{{ recruitCountdown }}</p>
           <div v-if="pendingInvitation" class="invitation-actions">
-            <el-button class="invite-accept-button" type="primary" @click="invitationAcceptVisible = true">接受</el-button>
-            <el-button class="invite-reject-button" @click="invitationRejectVisible = true">拒绝</el-button>
+            <el-button class="invite-accept-button" type="primary" @click="invitationAcceptVisible = true">接受邀请</el-button>
+            <el-button class="invite-reject-button" @click="invitationRejectVisible = true">拒绝邀请</el-button>
           </div>
           <el-button
             v-else-if="showApplyButton"
@@ -97,7 +97,7 @@
           </header>
 
           <div v-if="applicants.length" class="applicant-list">
-            <article v-for="item in applicants" :key="item.application.id" class="applicant-card">
+            <article v-for="item in applicants" :key="item.application?.id || `invitation-${item.invitationId}`" class="applicant-card">
               <div v-if="showOwnerActions(item)" class="applicant-actions">
                 <el-button size="small" :loading="startingChatId === item.painter.id" @click="openChat(item)">私信</el-button>
                 <el-button
@@ -122,13 +122,17 @@
                 </div>
               </button>
 
-              <div class="quote-block">
+              <div v-if="item.application" class="quote-block">
                 <span>应征报价</span>
                 <strong>￥ {{ item.application.quote }}</strong>
               </div>
+              <div v-else class="quote-block invitation-waiting">
+                <span>邀请状态</span>
+                <strong>等待回应</strong>
+              </div>
 
               <div class="applicant-works">
-                <template v-for="index in 4" :key="`${item.application.id}-${index}`">
+                <template v-for="index in 4" :key="`${item.application?.id || item.invitationId}-${index}`">
                   <el-image
                     v-if="item.works?.[index - 1]?.image"
                     class="work-thumbnail"
@@ -260,7 +264,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const project = ref(null)
 const employer = ref(null)
-const loading = ref(false)
+const loading = ref(true)
 const applicants = ref([])
 const applicantTotal = ref(0)
 const loadingApplicants = ref(false)
@@ -368,14 +372,14 @@ const requirementItems = computed(() => [
   { label: '发布权限', value: requirements.value.publishPermission || '需与画师商议' },
 ])
 
-const painterName = (item) => item.painter?.nickname || `画师 #${item.application.painterId}`
+const painterName = (item) => item.painter?.nickname || `画师 #${item.application?.painterId || item.painter?.id || ''}`
 const painterBio = (item) => {
   const bio = String(item.painter?.bio || '这位画师还没有填写个人简介。').trim()
   const characters = Array.from(bio)
   return characters.length > 20 ? `${characters.slice(0, 20).join('')}...` : bio
 }
 const painterTags = (item) => String(item.painter?.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean)
-const showOwnerActions = () => isOwner.value
+const showOwnerActions = (item) => isOwner.value && Boolean(item?.application)
 const hasActiveProjectOrder = (item) => item?.hasActiveOrder === true
 
 function handleApplyButton() {
@@ -468,7 +472,7 @@ async function submitInvitationReject() {
     await rejectInvitation(currentInvitation.value.invitationId, { reason: invitationRejectForm.reason.trim() })
     ElMessage.success('已婉拒邀请，理由已通知企划方')
     invitationRejectVisible.value = false
-    await loadInvitation()
+    await loadProject()
   } catch (error) {
     ElMessage.error(error.message || '拒绝邀请失败')
   } finally {

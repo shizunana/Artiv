@@ -69,6 +69,12 @@ public class ProjectController {
         return Result.ok(projectService.changeStatus(id, status, UserContext.getUserId()));
     }
 
+    /** 被拒绝的定向企划改为公开招募企划。 */
+    @PutMapping("/{id}/publish-public")
+    public Result<Project> publishPublic(@PathVariable Long id) {
+        return Result.ok(projectService.publishPublic(id, UserContext.getUserId()));
+    }
+
     /** 仅无任何关联订单的企划允许删除。 */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

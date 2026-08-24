@@ -18,19 +18,29 @@
         </div>
       </div>
       <el-alert
-        title="下架不会影响已建立的企划订单，订单双方仍可查看企划详情。"
+        :title="manageTip"
         type="info"
         :closable="false"
         show-icon
       />
       <div class="manage-actions">
         <el-button
-          v-if="Number(project.status) === 0"
+          v-if="pendingDirectedInvitation"
+          disabled
+        >等待画师回应</el-button>
+        <el-button
+          v-else-if="rejectedDirectedInvitation"
+          type="primary"
+          :loading="saving"
+          @click="publishPublic"
+        >改为公开企划</el-button>
+        <el-button
+          v-else-if="Number(project.status) === 0"
           :loading="saving"
           @click="changeStatus(4)"
         >下架企划</el-button>
         <el-button v-else type="primary" :loading="saving" @click="changeStatus(0)">重新上架</el-button>
-        <el-button type="danger" plain :loading="deleting" @click="removeProject">删除企划</el-button>
+        <el-button type="danger" plain :disabled="pendingDirectedInvitation" :loading="deleting" @click="removeProject">删除企划</el-button>
       </div>
       <p class="delete-tip">只有从未产生过任何订单的企划才能删除；已取消或已完成订单也计入关联记录。</p>
     </div>
@@ -40,7 +50,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { changeProjectStatus, deleteProject } from '@/api/project'
+import { changeProjectStatus, deleteProject, publishProjectPublic } from '@/api/project'
 
 const props = defineProps({ modelValue: Boolean, project: { type: Object, default: null } })
 const emit = defineEmits(['update:modelValue', 'changed', 'deleted'])
@@ -56,12 +66,31 @@ const cover = computed(() => {
   } catch { /* 兼容逗号分隔的历史数据 */ }
   return String(value).split(',').map((item) => item.trim()).find(Boolean) || ''
 })
+const pendingDirectedInvitation = computed(() => Number(props.project?.mode) === 1 && Number(props.project?.invitationStatus) === 0)
+const rejectedDirectedInvitation = computed(() => Number(props.project?.mode) === 1 && Number(props.project?.invitationStatus) === 2)
+const manageTip = computed(() => {
+  if (pendingDirectedInvitation.value) return '定向邀请等待回应期间不能撤回、下架或删除企划。'
+  if (rejectedDirectedInvitation.value) return '画师已拒绝邀请。你可以将企划改为公开招募并重新进入企划大厅。'
+  return '下架不会影响已建立的企划订单，订单双方仍可查看企划详情。'
+})
 
 async function changeStatus(status) {
   saving.value = true
   try {
     const updated = await changeProjectStatus(props.project.id, status)
     ElMessage.success(status === 0 ? '企划已重新上架' : '企划已下架')
+    emit('changed', updated)
+    emit('update:modelValue', false)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function publishPublic() {
+  saving.value = true
+  try {
+    const updated = await publishProjectPublic(props.project.id)
+    ElMessage.success('企划已改为公开招募并重新上架')
     emit('changed', updated)
     emit('update:modelValue', false)
   } finally {

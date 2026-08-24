@@ -52,6 +52,9 @@ class ProjectServiceTest {
     @Mock
     private AccountRestrictionService accountRestrictionService;
 
+    @Mock
+    private MessageService messageService;
+
     @InjectMocks
     private ProjectServiceImpl projectService;
 
@@ -149,6 +152,57 @@ class ProjectServiceTest {
 
         verify(projectMapper).insert(org.mockito.ArgumentMatchers.any(Project.class));
         verify(invitationMapper).insert(org.mockito.ArgumentMatchers.any(com.artiv.entity.Invitation.class));
+    }
+
+    @Test
+    void directedProjectCreatesMatchingInvitationNotification() {
+        ProjectRequest request = validProjectRequest();
+        request.setMode(1);
+        request.setInvitePainterId(16L);
+        User painter = new User();
+        painter.setId(16L);
+        painter.setCertStatus(2);
+        painter.setStatus(0);
+        painter.setDeleted(0);
+        User employer = new User();
+        employer.setId(1L);
+        employer.setNickname("企划阿明");
+        when(userMapper.selectById(16L)).thenReturn(painter);
+        when(userMapper.selectById(1L)).thenReturn(employer);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            invocation.getArgument(0, Project.class).setId(7L);
+            return 1;
+        }).when(projectMapper).insert(org.mockito.ArgumentMatchers.any(Project.class));
+
+        projectService.create(request, 1L);
+
+        verify(messageService).createNotification(
+                16L, 0, "INVITATION_CREATED", 7L,
+                "企划方【企划阿明】邀请您参与企划【Project title】，请进入企划详情查看并选择接受或拒绝。"
+        );
+    }
+
+    @Test
+    void rejectedDirectedProjectCanBePublishedAsPublic() {
+        Project project = new Project();
+        project.setId(9L);
+        project.setEmployerId(12L);
+        project.setMode(1);
+        project.setStatus(4);
+        project.setModerationStatus(0);
+        project.setDeleted(0);
+        com.artiv.entity.Invitation invitation = new com.artiv.entity.Invitation();
+        invitation.setProjectId(9L);
+        invitation.setStatus(2);
+        invitation.setDeleted(0);
+        when(projectMapper.selectById(9L)).thenReturn(project);
+        when(invitationMapper.selectOne(org.mockito.ArgumentMatchers.any())).thenReturn(invitation);
+
+        Project result = projectService.publishPublic(9L, 12L);
+
+        assertEquals(0, result.getMode());
+        assertEquals(0, result.getStatus());
+        verify(projectMapper).updateById(project);
     }
 
     @Test

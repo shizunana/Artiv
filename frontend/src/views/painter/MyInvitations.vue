@@ -18,6 +18,13 @@
             <strong class="budget">¥{{ formatAmount(row.budget) }}</strong>
           </template>
         </el-table-column>
+        <el-table-column label="状态" width="100" align="center" header-align="center">
+          <template #default="{ row }">
+            <el-tag :type="invitationStatus(row.status).type" size="small">
+              {{ invitationStatus(row.status).text }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="企划详情" width="110" align="center" header-align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openProject(row.projectId)">查看详细</el-button>
@@ -52,6 +59,14 @@ function formatAmount(value) {
   return Number.isInteger(amount)
     ? amount.toLocaleString('zh-CN')
     : amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function invitationStatus(value) {
+  return {
+    0: { text: '待处理', type: 'warning' },
+    1: { text: '已接受', type: 'success' },
+    2: { text: '已拒绝', type: 'info' },
+  }[Number(value)] || { text: '未知', type: 'info' }
 }
 
 function openProject(projectId) {

@@ -464,6 +464,9 @@ async function readAll() {
 }
 
 function notificationTitle(notice) {
+  if (notice.subtype === 'INVITATION_CREATED') return '收到定向邀请'
+  if (notice.subtype === 'INVITATION_ACCEPTED') return '邀请已被接受'
+  if (notice.subtype === 'INVITATION_REJECTED') return '邀请已被婉拒'
   if (notice.subtype === 'APPLICATION_CREATED') return '收到新的企划应征'
   if (notice.subtype === 'APPLICATION_SELECTED') return '应征已被选定'
   if (notice.subtype === 'STALL_PURCHASED') return '已购买橱窗'

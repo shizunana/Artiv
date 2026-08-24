@@ -143,6 +143,47 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void directedPendingInvitationAppearsInApplicantListAndCount() {
+        Project project = new Project();
+        project.setId(9L);
+        project.setEmployerId(1L);
+        project.setMode(1);
+        project.setStatus(0);
+        project.setModerationStatus(0);
+        project.setDeleted(0);
+        when(projectMapper.selectById(9L)).thenReturn(project);
+        var applications = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<Application>(1, 10);
+        applications.setRecords(java.util.List.of());
+        applications.setTotal(0);
+        when(applicationMapper.selectPage(any(), any())).thenReturn(applications);
+        com.artiv.entity.Invitation invitation = new com.artiv.entity.Invitation();
+        invitation.setId(21L);
+        invitation.setProjectId(9L);
+        invitation.setPainterId(2L);
+        invitation.setStatus(0);
+        invitation.setDeleted(0);
+        when(invitationMapper.selectOne(any())).thenReturn(invitation);
+        User painter = new User();
+        painter.setId(2L);
+        painter.setNickname("Enana");
+        User employer = new User();
+        employer.setId(1L);
+        employer.setStatus(0);
+        employer.setDeleted(0);
+        when(userMapper.selectById(1L)).thenReturn(employer);
+        when(userMapper.selectById(2L)).thenReturn(painter);
+        when(workMapper.selectList(any())).thenReturn(java.util.List.of());
+
+        var result = applicationService.listApplicantDetails(1, 10, 9L, 1L);
+
+        assertEquals(1, result.getTotal());
+        assertEquals(21L, result.getRecords().getFirst().getInvitationId());
+        assertEquals(0, result.getRecords().getFirst().getInvitationStatus());
+        assertEquals(2L, result.getRecords().getFirst().getPainter().getId());
+        assertEquals(null, result.getRecords().getFirst().getApplication());
+    }
+
+    @Test
     void listMineIncludesProjectTitleAndReferenceImages() {
         Application application = new Application();
         application.setId(5L);

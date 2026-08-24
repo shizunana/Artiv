@@ -32,6 +32,10 @@ export function changeProjectStatus(id, status) {
   return request.put(`/projects/${id}/status`, null, { params: { status } })
 }
 
+export function publishProjectPublic(id) {
+  return request.put(`/projects/${id}/publish-public`)
+}
+
 export function getApplications(projectId, params) {
   return request.get(`/projects/${projectId}/applications`, { params })
 }

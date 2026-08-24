@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -63,33 +64,78 @@ public class ApplicationServiceImpl implements ApplicationService {
                         .eq(Application::getProjectId, projectId)
                         .in(Application::getStatus, 0, 1)
                         .orderByDesc(Application::getCreatedAt));
-        Page<ApplicationDetail> result = new Page<>(page, size, applications.getTotal());
-        Map<Long, ReviewStatistics> reviewStatistics = java.util.Optional.ofNullable(reviewService.getStatistics(
-                applications.getRecords().stream().map(Application::getPainterId).distinct().toList(), "painter"))
-                .orElse(Map.of());
-        result.setRecords(applications.getRecords().stream().map(application -> {
-            ApplicationDetail detail = new ApplicationDetail();
-            detail.setApplication(application);
-            detail.setPainter(toPainterSummary(userMapper.selectById(application.getPainterId()),
-                    reviewStatistics.get(application.getPainterId())));
-            List<Work> works = workMapper.selectList(new LambdaQueryWrapper<Work>()
-                    .eq(Work::getUserId, application.getPainterId())
-                    .eq(Work::getDeleted, 0)
-                    .eq(Work::getVisibility, 1)
-                    .orderByDesc(Work::getCreatedAt)
-                    .last("LIMIT 4"));
-            detail.setWorks(works);
-            OrderInfo activeOrder = orderInfoMapper.selectOne(new LambdaQueryWrapper<OrderInfo>()
-                    .eq(OrderInfo::getApplicationId, application.getId())
-                    .eq(OrderInfo::getDeleted, 0)
-                    .in(OrderInfo::getStatus, 0, 1, 2, 5)
-                    .orderByDesc(OrderInfo::getCreatedAt)
+        Invitation directedInvitation = null;
+        if (Integer.valueOf(1).equals(project.getMode())) {
+            directedInvitation = invitationMapper.selectOne(new LambdaQueryWrapper<Invitation>()
+                    .eq(Invitation::getProjectId, projectId)
+                    .eq(Invitation::getDeleted, 0)
+                    .orderByDesc(Invitation::getCreatedAt)
                     .last("LIMIT 1"));
-            detail.setHasActiveOrder(activeOrder != null);
-            detail.setActiveOrderId(activeOrder == null ? null : activeOrder.getId());
-            return detail;
-        }).toList());
+        }
+        List<Long> painterIds = new ArrayList<>(applications.getRecords().stream()
+                .map(Application::getPainterId)
+                .distinct()
+                .toList());
+        boolean showPendingInvitation = directedInvitation != null
+                && Integer.valueOf(0).equals(directedInvitation.getStatus())
+                && applications.getRecords().isEmpty();
+        if (showPendingInvitation && !painterIds.contains(directedInvitation.getPainterId())) {
+            painterIds.add(directedInvitation.getPainterId());
+        }
+        Map<Long, ReviewStatistics> reviewStatistics = java.util.Optional.ofNullable(reviewService.getStatistics(
+                painterIds, "painter"))
+                .orElse(Map.of());
+        Integer directedStatus = directedInvitation == null ? null : directedInvitation.getStatus();
+        List<ApplicationDetail> records = new ArrayList<>(applications.getRecords().stream()
+                .map(application -> toApplicationDetail(application, directedStatus, reviewStatistics))
+                .toList());
+        if (showPendingInvitation && page == 1 && size > 0) {
+            records.add(toPendingInvitationDetail(directedInvitation, reviewStatistics));
+        }
+        long total = showPendingInvitation ? 1 : applications.getTotal();
+        Page<ApplicationDetail> result = new Page<>(page, size, total);
+        result.setRecords(records);
         return result;
+    }
+
+    private ApplicationDetail toApplicationDetail(Application application, Integer invitationStatus,
+                                                  Map<Long, ReviewStatistics> reviewStatistics) {
+        ApplicationDetail detail = new ApplicationDetail();
+        detail.setApplication(application);
+        detail.setInvitationStatus(invitationStatus);
+        detail.setPainter(toPainterSummary(userMapper.selectById(application.getPainterId()),
+                reviewStatistics.get(application.getPainterId())));
+        detail.setWorks(listPublicWorks(application.getPainterId()));
+        OrderInfo activeOrder = orderInfoMapper.selectOne(new LambdaQueryWrapper<OrderInfo>()
+                .eq(OrderInfo::getApplicationId, application.getId())
+                .eq(OrderInfo::getDeleted, 0)
+                .in(OrderInfo::getStatus, 0, 1, 2, 5)
+                .orderByDesc(OrderInfo::getCreatedAt)
+                .last("LIMIT 1"));
+        detail.setHasActiveOrder(activeOrder != null);
+        detail.setActiveOrderId(activeOrder == null ? null : activeOrder.getId());
+        return detail;
+    }
+
+    private ApplicationDetail toPendingInvitationDetail(Invitation invitation,
+                                                         Map<Long, ReviewStatistics> reviewStatistics) {
+        ApplicationDetail detail = new ApplicationDetail();
+        detail.setInvitationId(invitation.getId());
+        detail.setInvitationStatus(invitation.getStatus());
+        detail.setPainter(toPainterSummary(userMapper.selectById(invitation.getPainterId()),
+                reviewStatistics.get(invitation.getPainterId())));
+        detail.setWorks(listPublicWorks(invitation.getPainterId()));
+        detail.setHasActiveOrder(false);
+        return detail;
+    }
+
+    private List<Work> listPublicWorks(Long painterId) {
+        return workMapper.selectList(new LambdaQueryWrapper<Work>()
+                .eq(Work::getUserId, painterId)
+                .eq(Work::getDeleted, 0)
+                .eq(Work::getVisibility, 1)
+                .orderByDesc(Work::getCreatedAt)
+                .last("LIMIT 4"));
     }
 
     @Override
