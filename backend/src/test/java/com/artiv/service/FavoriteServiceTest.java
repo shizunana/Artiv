@@ -1,21 +1,28 @@
 package com.artiv.service;
 
 import com.artiv.common.BusinessException;
+import com.artiv.dto.FavoriteStallItem;
+import com.artiv.dto.StallSalesCount;
 import com.artiv.entity.Stall;
 import com.artiv.entity.StallFavorite;
 import com.artiv.entity.Work;
 import com.artiv.entity.WorkFavorite;
 import com.artiv.mapper.StallFavoriteMapper;
 import com.artiv.mapper.StallMapper;
+import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.WorkFavoriteMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.impl.FavoriteServiceImpl;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,6 +40,7 @@ class FavoriteServiceTest {
     @Mock private StallFavoriteMapper stallFavoriteMapper;
     @Mock private WorkMapper workMapper;
     @Mock private StallMapper stallMapper;
+    @Mock private OrderInfoMapper orderInfoMapper;
     @Mock private AccountRestrictionService accountRestrictionService;
 
     @InjectMocks private FavoriteServiceImpl favoriteService;
@@ -99,6 +107,28 @@ class FavoriteServiceTest {
         verify(workFavoriteMapper).delete(any());
         verify(stallFavoriteMapper).delete(any());
         verify(accountRestrictionService, never()).requireAvailable(any(), any());
+    }
+
+    @Test
+    void listFavoriteStallsKeepsFiltersAndFillsCompletedSalesInBatch() {
+        FavoriteStallItem item = new FavoriteStallItem();
+        item.setStallId(9L);
+        Page<FavoriteStallItem> expected = new Page<>(1, 20);
+        expected.setRecords(List.of(item));
+        when(stallFavoriteMapper.selectMine(any(Page.class), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(expected);
+        StallSalesCount salesCount = new StallSalesCount();
+        salesCount.setStallId(9L);
+        salesCount.setSoldCount(4L);
+        when(orderInfoMapper.selectCompletedSalesByStallIds(List.of(9L)))
+                .thenReturn(List.of(salesCount));
+
+        Page<FavoriteStallItem> result = favoriteService.listStalls(
+                1, 20, 3L, "头像", "关键词", "priceAsc", "日系",
+                new BigDecimal("100"), new BigDecimal("500"), "24小时");
+
+        assertEquals(4L, result.getRecords().get(0).getSoldCount());
+        verify(orderInfoMapper).selectCompletedSalesByStallIds(List.of(9L));
     }
 
     private Work work(Long id, Long userId, int visibility) {

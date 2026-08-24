@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Select;
 public interface WorkFavoriteMapper extends BaseMapper<WorkFavorite> {
 
     @Select("""
+            <script>
             SELECT w.id AS work_id,
                    w.user_id,
                    w.title,
@@ -28,7 +29,22 @@ public interface WorkFavoriteMapper extends BaseMapper<WorkFavorite> {
               AND w.visibility = 1
               AND u.deleted = 0
               AND u.status = 0
+            <if test="category != null and category != ''">
+              AND w.category = #{category}
+            </if>
+            <if test="keyword != null and keyword != ''">
+              AND (w.title LIKE CONCAT('%', #{keyword}, '%')
+                OR w.description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <foreach collection="subjects" item="subject">
+              AND w.subject LIKE CONCAT('%', #{subject}, '%')
+            </foreach>
             ORDER BY f.created_at DESC, f.id DESC
+            </script>
             """)
-    Page<FavoriteWorkItem> selectMine(Page<FavoriteWorkItem> page, @Param("userId") Long userId);
+    Page<FavoriteWorkItem> selectMine(Page<FavoriteWorkItem> page,
+                                      @Param("userId") Long userId,
+                                      @Param("category") String category,
+                                      @Param("subjects") java.util.List<String> subjects,
+                                      @Param("keyword") String keyword);
 }

@@ -10,6 +10,39 @@ import java.util.List;
 
 public interface WorkMapper extends BaseMapper<Work> {
 
+    /** 作品广场“热门”排序：一次聚合收藏数，再按收藏数与发布时间稳定倒序。 */
+    @Select("""
+            <script>
+            SELECT w.*
+            FROM work w
+            LEFT JOIN (
+                SELECT work_id, COUNT(*) AS favorite_count
+                FROM work_favorite
+                GROUP BY work_id
+            ) favorite_summary ON favorite_summary.work_id = w.id
+            WHERE w.deleted = 0
+              AND w.visibility = 1
+            <if test="category != null and category != ''">
+              AND w.category = #{category}
+            </if>
+            <if test="keyword != null and keyword != ''">
+              AND (w.title LIKE CONCAT('%', #{keyword}, '%')
+                OR w.description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <foreach collection="subjects" item="subject">
+              AND w.subject LIKE CONCAT('%', #{subject}, '%')
+            </foreach>
+            ORDER BY COALESCE(favorite_summary.favorite_count, 0) DESC,
+                     w.created_at DESC,
+                     w.id DESC
+            </script>
+            """)
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<Work> selectPopularPage(
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<Work> page,
+            @Param("category") String category,
+            @Param("subjects") List<String> subjects,
+            @Param("keyword") String keyword);
+
     /**
      * 使用窗口函数只读取当前页每名画师最近的若干公开作品，避免把其全部作品载入内存。
      */

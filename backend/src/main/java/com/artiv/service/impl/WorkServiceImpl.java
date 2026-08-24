@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +28,12 @@ public class WorkServiceImpl implements WorkService {
 
     @Override
     public Page<Work> listWorks(long page, long size, String category, String subject, String keyword, String sort) {
+        long safePage = Math.max(1, page);
+        long safeSize = Math.min(50, Math.max(1, size));
+        if ("popular".equals(sort)) {
+            return workMapper.selectPopularPage(new Page<>(safePage, safeSize),
+                    category, splitValues(subject), keyword);
+        }
         LambdaQueryWrapper<Work> wrapper = new LambdaQueryWrapper<Work>()
                 .eq(Work::getDeleted, 0)
                 .eq(Work::getVisibility, 1)
@@ -47,7 +55,18 @@ public class WorkServiceImpl implements WorkService {
         } else {
             wrapper.orderByDesc(Work::getCreatedAt);
         }
-        return workMapper.selectPage(new Page<>(page, size), wrapper);
+        return workMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
+    }
+
+    private List<String> splitValues(String values) {
+        if (!StringUtils.hasText(values)) {
+            return List.of();
+        }
+        return Arrays.stream(values.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
     }
 
     @Override

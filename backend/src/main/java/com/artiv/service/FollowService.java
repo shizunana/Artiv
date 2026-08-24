@@ -1,7 +1,7 @@
 package com.artiv.service;
 
 import com.artiv.dto.FollowStateResponse;
-import com.artiv.dto.FollowedPainterItem;
+import com.artiv.dto.ArtistSummary;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 public interface FollowService {
@@ -11,5 +11,5 @@ public interface FollowService {
 
     FollowStateResponse getPainterState(Long painterId, Long userId);
 
-    Page<FollowedPainterItem> listPainters(long page, long size, Long userId);
+    Page<ArtistSummary> listPainters(long page, long size, Long userId, String subjects, String keyword);
 }

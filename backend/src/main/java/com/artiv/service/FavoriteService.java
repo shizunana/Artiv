@@ -12,7 +12,8 @@ public interface FavoriteService {
 
     FavoriteStateResponse getWorkState(Long workId, Long userId);
 
-    Page<FavoriteWorkItem> listWorks(long page, long size, Long userId);
+    Page<FavoriteWorkItem> listWorks(long page, long size, Long userId,
+                                     String category, String subject, String keyword);
 
     FavoriteStateResponse favoriteStall(Long stallId, Long userId);
 
@@ -20,5 +21,8 @@ public interface FavoriteService {
 
     FavoriteStateResponse getStallState(Long stallId, Long userId);
 
-    Page<FavoriteStallItem> listStalls(long page, long size, Long userId);
+    Page<FavoriteStallItem> listStalls(long page, long size, Long userId,
+                                       String category, String keyword, String sort, String subject,
+                                       java.math.BigDecimal priceMin, java.math.BigDecimal priceMax,
+                                       String deliverTime);
 }

@@ -25,8 +25,12 @@ public class FavoriteController {
 
     @GetMapping("/works")
     public Result<Page<FavoriteWorkItem>> works(@RequestParam(defaultValue = "1") long page,
-                                                @RequestParam(defaultValue = "12") long size) {
-        return Result.ok(favoriteService.listWorks(page, size, UserContext.getUserId()));
+                                                @RequestParam(defaultValue = "12") long size,
+                                                @RequestParam(required = false) String category,
+                                                @RequestParam(required = false) String subject,
+                                                @RequestParam(required = false) String keyword) {
+        return Result.ok(favoriteService.listWorks(
+                page, size, UserContext.getUserId(), category, subject, keyword));
     }
 
     @GetMapping("/works/{workId}/status")
@@ -46,8 +50,16 @@ public class FavoriteController {
 
     @GetMapping("/stalls")
     public Result<Page<FavoriteStallItem>> stalls(@RequestParam(defaultValue = "1") long page,
-                                                  @RequestParam(defaultValue = "12") long size) {
-        return Result.ok(favoriteService.listStalls(page, size, UserContext.getUserId()));
+                                                  @RequestParam(defaultValue = "12") long size,
+                                                  @RequestParam(required = false) String category,
+                                                  @RequestParam(required = false) String keyword,
+                                                  @RequestParam(required = false) String sort,
+                                                  @RequestParam(required = false) String subject,
+                                                  @RequestParam(required = false) java.math.BigDecimal priceMin,
+                                                  @RequestParam(required = false) java.math.BigDecimal priceMax,
+                                                  @RequestParam(required = false) String deliverTime) {
+        return Result.ok(favoriteService.listStalls(page, size, UserContext.getUserId(),
+                category, keyword, sort, subject, priceMin, priceMax, deliverTime));
     }
 
     @GetMapping("/stalls/{stallId}/status")

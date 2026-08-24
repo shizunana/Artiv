@@ -5,12 +5,14 @@ import com.artiv.common.ResultCode;
 import com.artiv.dto.FavoriteStallItem;
 import com.artiv.dto.FavoriteStateResponse;
 import com.artiv.dto.FavoriteWorkItem;
+import com.artiv.dto.StallSalesCount;
 import com.artiv.entity.Stall;
 import com.artiv.entity.StallFavorite;
 import com.artiv.entity.Work;
 import com.artiv.entity.WorkFavorite;
 import com.artiv.mapper.StallFavoriteMapper;
 import com.artiv.mapper.StallMapper;
+import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.WorkFavoriteMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.AccountRestrictionService;
@@ -23,6 +25,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +39,7 @@ public class FavoriteServiceImpl implements FavoriteService {
     private final StallFavoriteMapper stallFavoriteMapper;
     private final WorkMapper workMapper;
     private final StallMapper stallMapper;
+    private final OrderInfoMapper orderInfoMapper;
     private final AccountRestrictionService accountRestrictionService;
 
     @Override
@@ -71,8 +79,10 @@ public class FavoriteServiceImpl implements FavoriteService {
     }
 
     @Override
-    public Page<FavoriteWorkItem> listWorks(long page, long size, Long userId) {
-        return workFavoriteMapper.selectMine(new Page<>(safePage(page), safeSize(size)), userId);
+    public Page<FavoriteWorkItem> listWorks(long page, long size, Long userId,
+                                            String category, String subject, String keyword) {
+        return workFavoriteMapper.selectMine(new Page<>(safePage(page), safeSize(size)), userId,
+                normalize(category), splitValues(subject), normalize(keyword));
     }
 
     @Override
@@ -112,8 +122,46 @@ public class FavoriteServiceImpl implements FavoriteService {
     }
 
     @Override
-    public Page<FavoriteStallItem> listStalls(long page, long size, Long userId) {
-        return stallFavoriteMapper.selectMine(new Page<>(safePage(page), safeSize(size)), userId);
+    public Page<FavoriteStallItem> listStalls(long page, long size, Long userId,
+                                              String category, String keyword, String sort, String subject,
+                                              java.math.BigDecimal priceMin, java.math.BigDecimal priceMax,
+                                              String deliverTime) {
+        Page<FavoriteStallItem> result = stallFavoriteMapper.selectMine(
+                new Page<>(safePage(page), safeSize(size)), userId,
+                normalize(category), normalize(keyword), normalize(sort), normalize(subject),
+                priceMin, priceMax, normalize(deliverTime));
+        fillSoldCounts(result.getRecords());
+        return result;
+    }
+
+    private void fillSoldCounts(List<FavoriteStallItem> stalls) {
+        if (stalls == null || stalls.isEmpty()) {
+            return;
+        }
+        List<Long> stallIds = stalls.stream().map(FavoriteStallItem::getStallId).distinct().toList();
+        List<StallSalesCount> salesCounts = orderInfoMapper.selectCompletedSalesByStallIds(stallIds);
+        Map<Long, StallSalesCount> summaries = salesCounts == null ? Map.of() : salesCounts.stream()
+                .collect(Collectors.toMap(StallSalesCount::getStallId, Function.identity()));
+        stalls.forEach(stall -> {
+            StallSalesCount summary = summaries.get(stall.getStallId());
+            stall.setSoldCount(summary == null || summary.getSoldCount() == null ? 0L : summary.getSoldCount());
+        });
+    }
+
+    private List<String> splitValues(String values) {
+        if (!org.springframework.util.StringUtils.hasText(values)) {
+            return List.of();
+        }
+        return Arrays.stream(values.split(","))
+                .map(String::trim)
+                .filter(org.springframework.util.StringUtils::hasText)
+                .distinct()
+                .toList();
+    }
+
+    private String normalize(String value) {
+        return org.springframework.util.StringUtils.hasText(value) && !"all".equals(value)
+                ? value.trim() : null;
     }
 
     private Work requirePublicWork(Long workId) {

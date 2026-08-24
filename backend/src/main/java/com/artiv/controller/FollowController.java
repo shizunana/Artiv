@@ -1,8 +1,8 @@
 package com.artiv.controller;
 
 import com.artiv.common.Result;
+import com.artiv.dto.ArtistSummary;
 import com.artiv.dto.FollowStateResponse;
-import com.artiv.dto.FollowedPainterItem;
 import com.artiv.security.UserContext;
 import com.artiv.service.FollowService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -23,9 +23,11 @@ public class FollowController {
     private final FollowService followService;
 
     @GetMapping
-    public Result<Page<FollowedPainterItem>> list(@RequestParam(defaultValue = "1") long page,
-                                                  @RequestParam(defaultValue = "12") long size) {
-        return Result.ok(followService.listPainters(page, size, UserContext.getUserId()));
+    public Result<Page<ArtistSummary>> list(@RequestParam(defaultValue = "1") long page,
+                                            @RequestParam(defaultValue = "12") long size,
+                                            @RequestParam(required = false) String subjects,
+                                            @RequestParam(required = false) String keyword) {
+        return Result.ok(followService.listPainters(page, size, UserContext.getUserId(), subjects, keyword));
     }
 
     @GetMapping("/{painterId}/status")

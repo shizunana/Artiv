@@ -1,6 +1,6 @@
 <template>
   <nav class="favorite-shortcuts" aria-label="收藏快捷入口">
-    <button v-for="item in items" :key="item.type" type="button" @click="open(item.type)">
+    <button v-for="item in items" :key="item.route.name" type="button" @click="open(item.route)">
       <el-icon><component :is="item.icon" /></el-icon>
       <span>{{ item.label }}</span>
     </button>
@@ -11,16 +11,15 @@
 import { Picture, Shop, User } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
-const props = defineProps({ workbench: { type: String, required: true } })
 const router = useRouter()
 const items = [
-  { type: 'painters', label: '画师收藏', icon: User },
-  { type: 'works', label: '作品收藏', icon: Picture },
-  { type: 'stalls', label: '橱窗收藏', icon: Shop },
+  { label: '画师收藏', icon: User, route: { name: 'Artists', query: { view: 'following' } } },
+  { label: '作品收藏', icon: Picture, route: { name: 'Works', query: { view: 'favorites' } } },
+  { label: '橱窗收藏', icon: Shop, route: { name: 'Stalls', query: { view: 'favorites' } } },
 ]
 
-function open(type) {
-  router.push({ path: `/${props.workbench}/favorites`, query: { type } })
+function open(route) {
+  router.push(route)
 }
 </script>
 

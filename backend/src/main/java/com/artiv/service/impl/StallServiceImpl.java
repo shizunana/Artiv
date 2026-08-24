@@ -132,17 +132,27 @@ public class StallServiceImpl implements StallService {
         }
     }
 
-    /** 填充画师昵称 */
+    /** 批量填充画师昵称和头像，避免橱窗列表逐条查询用户。 */
     private void fillPainterNames(java.util.List<Stall> stalls) {
         if (stalls == null || stalls.isEmpty()) {
             return;
         }
+        List<Long> painterIds = stalls.stream()
+                .map(Stall::getPainterId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (painterIds.isEmpty()) {
+            return;
+        }
+        List<User> painters = userMapper.selectBatchIds(painterIds);
+        Map<Long, User> painterById = (painters == null ? List.<User>of() : painters).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
         for (Stall stall : stalls) {
-            if (stall.getPainterId() != null) {
-                User painter = userMapper.selectById(stall.getPainterId());
-                if (painter != null) {
-                    stall.setPainterName(painter.getNickname());
-                }
+            User painter = painterById.get(stall.getPainterId());
+            if (painter != null) {
+                stall.setPainterName(painter.getNickname());
+                stall.setPainterAvatar(painter.getAvatar());
             }
         }
     }

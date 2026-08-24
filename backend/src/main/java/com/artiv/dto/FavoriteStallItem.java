@@ -17,5 +17,6 @@ public class FavoriteStallItem {
     private String deliverTime;
     private String painterNickname;
     private String painterAvatar;
+    private Long soldCount;
     private LocalDateTime favoritedAt;
 }

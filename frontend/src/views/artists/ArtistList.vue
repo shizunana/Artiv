@@ -2,30 +2,36 @@
   <div class="artist-page">
     <main class="artist-main page-container">
       <section class="artist-toolbar" aria-label="画师筛选">
-        <el-select
-          v-model="filters.subjects"
-          class="subject-select"
-          multiple
-          collapse-tags
-          collapse-tags-tooltip
-          clearable
-          placeholder="题材风格（可多选）"
-          @change="reloadArtists"
-        >
-          <el-option v-for="item in subjectOptions" :key="item" :label="item" :value="item" />
-        </el-select>
+        <nav class="artist-view-tabs" aria-label="画师浏览范围">
+          <button type="button" :class="{ 'is-active': viewMode === 'recommended' }" @click="setViewMode('recommended')">推荐</button>
+          <button type="button" :class="{ 'is-active': viewMode === 'following' }" @click="setViewMode('following')">关注</button>
+        </nav>
+        <div class="artist-filter-row">
+          <el-select
+            v-model="filters.subjects"
+            class="subject-select"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            clearable
+            placeholder="题材风格（可多选）"
+            @change="reloadArtists"
+          >
+            <el-option v-for="item in subjectOptions" :key="item" :label="item" :value="item" />
+          </el-select>
 
-        <el-input
-          v-model="filters.keyword"
-          class="artist-search"
-          clearable
-          placeholder="搜索画师昵称、账号、简介或题材风格"
-          @keyup.enter="reloadArtists"
-          @clear="reloadArtists"
-        >
-          <template #prefix>⌕</template>
-        </el-input>
-        <el-button type="primary" @click="reloadArtists">搜索</el-button>
+          <el-input
+            v-model="filters.keyword"
+            class="artist-search"
+            clearable
+            placeholder="搜索画师昵称、账号、简介或题材风格"
+            @keyup.enter="reloadArtists"
+            @clear="reloadArtists"
+          >
+            <template #prefix>⌕</template>
+          </el-input>
+          <el-button type="primary" @click="reloadArtists">搜索</el-button>
+        </div>
       </section>
 
       <div v-loading="loading" class="artist-results">
@@ -74,7 +80,7 @@
 
         <EmptyState
           v-if="!loading && artists.length === 0"
-          description="没有找到符合条件的认证画师，请调整筛选条件"
+          :description="viewMode === 'following' ? '暂未关注符合条件的画师' : '没有找到符合条件的认证画师，请调整筛选条件'"
         />
         <div ref="loadSentinel" class="artist-load-sentinel" aria-live="polite">
           <span v-if="loadingMore">正在加载更多画师…</span>
@@ -86,14 +92,18 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { getArtists } from '@/api/user'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
+import { getFollowedPainters } from '@/api/social'
+import { useUserStore } from '@/stores/user'
 
+const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const loading = ref(false)
 const loadingMore = ref(false)
 const artists = ref([])
@@ -107,6 +117,7 @@ const filters = reactive({
   subjects: [],
   keyword: '',
 })
+const viewMode = ref(route.query.view === 'following' ? 'following' : 'recommended')
 let loadObserver = null
 let loadVersion = 0
 
@@ -124,6 +135,14 @@ function reloadArtists() {
   loadArtists(true)
 }
 
+function setViewMode(value) {
+  if (viewMode.value === value) return
+  const query = { ...route.query }
+  if (value === 'following') query.view = 'following'
+  else delete query.view
+  router.push({ name: 'Artists', query })
+}
+
 async function loadArtists(reset = false) {
   if (!reset && (loading.value || loadingMore.value || !hasMore.value)) return
   const version = reset ? ++loadVersion : loadVersion
@@ -138,7 +157,12 @@ async function loadArtists(reset = false) {
     loadingMore.value = true
   }
   try {
-    const data = await getArtists({
+    if (viewMode.value === 'following' && !userStore.isLoggedIn) {
+      router.push({ name: 'Login', query: { redirect: route.fullPath } })
+      return
+    }
+    const listArtists = viewMode.value === 'following' ? getFollowedPainters : getArtists
+    const data = await listArtists({
       page: targetPage,
       size,
       subjects: filters.subjects.length ? filters.subjects.join(',') : undefined,
@@ -163,6 +187,16 @@ async function loadArtists(reset = false) {
   }
 }
 
+watch(
+  () => route.query.view,
+  (value) => {
+    const next = value === 'following' ? 'following' : 'recommended'
+    if (next === viewMode.value) return
+    viewMode.value = next
+    reloadArtists()
+  },
+)
+
 function splitTags(value) {
   return (value || '').split(',').map((item) => item.trim()).filter(Boolean)
 }
@@ -185,16 +219,55 @@ function goProfile(id) {
 }
 
 .artist-toolbar {
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(320px, 1fr) auto;
-  gap: 12px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: 18px 20px;
   margin-bottom: 14px;
   background: #fff;
   border: 1px solid var(--artiv-border);
   border-radius: 8px;
   box-shadow: 0 4px 18px rgba(42, 63, 84, 0.04);
+}
+
+.artist-view-tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.artist-view-tabs button {
+  position: relative;
+  padding: 0 4px 12px;
+  border: 0;
+  color: var(--artiv-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+}
+
+.artist-view-tabs button.is-active {
+  color: var(--artiv-primary);
+  font-weight: 600;
+}
+
+.artist-view-tabs button.is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--artiv-primary);
+  content: '';
+}
+
+.artist-filter-row {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(320px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
 }
 
 .subject-select,
@@ -361,7 +434,7 @@ function goProfile(id) {
 }
 
 @media (max-width: 1000px) {
-  .artist-toolbar {
+  .artist-filter-row {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -379,7 +452,7 @@ function goProfile(id) {
     padding-top: 24px;
   }
 
-  .artist-toolbar {
+  .artist-filter-row {
     grid-template-columns: 1fr;
   }
 

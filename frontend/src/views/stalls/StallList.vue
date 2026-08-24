@@ -1,5 +1,9 @@
 <template>
   <div class="list-page page-container">
+    <header v-if="favoritesMode" class="favorite-heading">
+      <h1>我收藏的橱窗</h1>
+      <span>以下内容来自您已收藏且仍在上架的橱窗</span>
+    </header>
     <!-- 分类 Tab（参考站 stalls/list） -->
     <div class="category-bar">
       <span
@@ -92,7 +96,7 @@
       </article>
     </div>
 
-    <EmptyState v-if="!loading && stalls.length === 0" description="暂无符合条件的橱窗" />
+    <EmptyState v-if="!loading && stalls.length === 0" :description="favoritesMode ? '暂未收藏符合条件的橱窗' : '暂无符合条件的橱窗'" />
     <div class="pager">
       <Pagination v-model:page="page" v-model:size="size" :total="total" @change="load" />
     </div>
@@ -100,16 +104,19 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { getStalls } from '@/api/stall'
-import { getPublicProfile } from '@/api/user'
+import { getFavoriteStalls } from '@/api/social'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import { useUserStore } from '@/stores/user'
 
+const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const stalls = ref([])
 const loading = ref(false)
 const page = ref(1)
@@ -121,6 +128,7 @@ const sort = ref('newest')
 const subject = ref('all')
 const priceRange = ref('all')
 const deliverTime = ref('all')
+const favoritesMode = ref(route.query.view === 'favorites')
 
 const categories = ['全部', ...CATEGORY_OPTIONS]
 const subjectOptions = SUBJECT_OPTIONS
@@ -147,6 +155,10 @@ function soldText(stall) {
 async function load() {
   loading.value = true
   try {
+    if (favoritesMode.value && !userStore.isLoggedIn) {
+      router.push({ name: 'Login', query: { redirect: route.fullPath } })
+      return
+    }
     const params = { page: page.value, size: size.value }
     if (activeCategory.value !== '全部') params.category = activeCategory.value
     if (keyword.value) params.keyword = keyword.value
@@ -158,21 +170,14 @@ async function load() {
       if (max) params.priceMax = Number(max)
     }
     if (deliverTime.value !== 'all') params.deliverTime = deliverTime.value
-    const data = await getStalls(params)
-    const records = data.records || []
-    const painterIds = [...new Set(records.map((stall) => stall.painterId).filter(Boolean))]
-    const profileEntries = await Promise.all(painterIds.map(async (painterId) => {
-      try {
-        return [painterId, await getPublicProfile(painterId, 'painter')]
-      } catch {
-        return [painterId, null]
-      }
-    }))
-    const profiles = new Map(profileEntries)
-    stalls.value = records.map((stall) => ({
-      ...stall,
-      painterAvatar: profiles.get(stall.painterId)?.avatar || ''
-    }))
+    const data = favoritesMode.value ? await getFavoriteStalls(params) : await getStalls(params)
+    stalls.value = (data.records || []).map(stall => favoritesMode.value
+      ? {
+          ...stall,
+          id: stall.stallId,
+          painterName: stall.painterNickname,
+        }
+      : stall)
     total.value = data.total || 0
   } finally {
     loading.value = false
@@ -180,6 +185,17 @@ async function load() {
 }
 
 onMounted(load)
+
+watch(
+  () => route.query.view,
+  value => {
+    const next = value === 'favorites'
+    if (next === favoritesMode.value) return
+    favoritesMode.value = next
+    page.value = 1
+    load()
+  },
+)
 </script>
 
 <style scoped>
@@ -189,18 +205,37 @@ onMounted(load)
   max-width: 1100px;
 }
 
+.favorite-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 6px 0 2px;
+}
+
+.favorite-heading h1 {
+  margin: 0;
+  color: var(--artiv-text-primary);
+  font-size: 26px;
+}
+
+.favorite-heading span {
+  color: var(--artiv-text-secondary);
+  font-size: 13px;
+}
+
 /* ---------- 分类区 ---------- */
 .category-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  padding: 14px 0;
+  gap: 8px;
+  padding: 10px 0;
   border-bottom: 1px solid var(--artiv-border);
 }
 
 .category-tab {
-  padding: 7px 18px;
+  padding: 6px 14px;
   border-radius: 18px;
   background: #fff;
   border: 1px solid var(--artiv-border);
@@ -225,14 +260,14 @@ onMounted(load)
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 0;
+  gap: 9px;
+  padding: 10px 0;
   flex-wrap: nowrap;
   justify-content: flex-start;
 }
 
 .search-input {
-  width: 240px;
+  width: 220px;
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -242,12 +277,12 @@ onMounted(load)
 }
 
 .sort-select {
-  width: 150px;
+  width: 140px;
   flex-shrink: 0;
 }
 
 .filter-select {
-  width: 140px;
+  width: 130px;
   flex-shrink: 0;
 }
 

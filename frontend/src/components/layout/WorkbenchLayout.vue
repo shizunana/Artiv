@@ -57,7 +57,7 @@
           </button>
         </div>
         </aside>
-        <FavoriteShortcutCard v-if="workbench !== 'admin'" :workbench="workbench" />
+        <FavoriteShortcutCard v-if="workbench !== 'admin'" />
       </div>
 
       <!-- 主内容区（参考站 dashboard__main） -->

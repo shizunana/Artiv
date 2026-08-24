@@ -64,6 +64,17 @@ public class ArtistServiceImpl implements ArtistService {
             return new Page<>(safePage, safeSize, painterPage.getTotal());
         }
 
+        List<ArtistSummary> records = buildSummaries(painters);
+        Page<ArtistSummary> result = new Page<>(safePage, safeSize, painterPage.getTotal());
+        result.setRecords(records);
+        return result;
+    }
+
+    @Override
+    public List<ArtistSummary> buildSummaries(List<User> painters) {
+        if (painters == null || painters.isEmpty()) {
+            return List.of();
+        }
         List<Long> painterIds = painters.stream().map(User::getId).toList();
         List<Work> publicWorks = workMapper.selectPublicPreviews(painterIds, PREVIEW_LIMIT);
         Map<Long, List<Work>> worksByPainter = publicWorks.stream()
@@ -74,14 +85,11 @@ public class ArtistServiceImpl implements ArtistService {
         Map<Long, ReviewStatistics> reviewStatistics = java.util.Optional.ofNullable(
                 reviewService.getStatistics(painterIds, "painter")).orElse(Map.of());
 
-        List<ArtistSummary> records = painters.stream()
+        return painters.stream()
                 .map(painter -> toSummary(painter, worksByPainter.getOrDefault(painter.getId(), List.of()),
                         categoriesByPainter.getOrDefault(painter.getId(), List.of()),
                         reviewStatistics.get(painter.getId())))
                 .toList();
-        Page<ArtistSummary> result = new Page<>(safePage, safeSize, painterPage.getTotal());
-        result.setRecords(records);
-        return result;
     }
 
     private ArtistSummary toSummary(User painter, List<Work> works, List<String> categories,

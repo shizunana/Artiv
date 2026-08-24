@@ -38,6 +38,17 @@ class WorkServiceTest {
     }
 
     @Test
+    void popularListUsesFavoriteAggregationQuery() {
+        Page<Work> expected = new Page<>(1, 12);
+        when(workMapper.selectPopularPage(any(Page.class), any(), any(), any())).thenReturn(expected);
+
+        Page<Work> result = workService.listWorks(1, 12, "立绘", "女性,日系", "角色", "popular");
+
+        verify(workMapper).selectPopularPage(any(Page.class), any(), any(), any());
+        assertEquals(expected, result);
+    }
+
+    @Test
     void createDefaultsVisibilityToPublicForCompatibility() {
         Work work = new Work();
         work.setTitle("新作品");

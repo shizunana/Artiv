@@ -1,6 +1,11 @@
 <template>
   <div class="list-page page-container">
     <section class="work-controls" aria-label="作品搜索">
+      <nav class="work-view-tabs" aria-label="作品浏览范围">
+        <button type="button" :class="{ 'is-active': viewMode === 'latest' }" @click="setViewMode('latest')">最新</button>
+        <button type="button" :class="{ 'is-active': viewMode === 'popular' }" @click="setViewMode('popular')">热门</button>
+        <button type="button" :class="{ 'is-active': viewMode === 'favorites' }" @click="setViewMode('favorites')">我收藏的</button>
+      </nav>
       <el-input v-model="keyword" clearable class="search-input" placeholder="搜索作品标题、作品说明" @keyup.enter="reload" @clear="reload">
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
@@ -25,13 +30,6 @@
             </el-select>
           </section>
 
-          <section class="filter-group filter-group--last">
-            <h3>发布时间</h3>
-            <div class="sort-options">
-              <button type="button" class="sort-option" :class="{ 'is-active': sort === 'newest' }" @click="setSort('newest')">最新发布</button>
-              <button type="button" class="sort-option" :class="{ 'is-active': sort === 'oldest' }" @click="setSort('oldest')">最早发布</button>
-            </div>
-          </section>
         </aside>
 
         <article v-for="work in column" :key="work.id" class="work-card" :aria-label="work.title" @click="openWork(work.id)">
@@ -41,7 +39,7 @@
       </section>
     </div>
 
-    <EmptyState v-if="!loading && works.length === 0" description="暂无符合筛选条件的公开作品" />
+    <EmptyState v-if="!loading && works.length === 0" :description="viewMode === 'favorites' ? '暂未收藏符合条件的作品' : '暂无符合筛选条件的公开作品'" />
     <div ref="loadSentinel" class="load-sentinel" aria-live="polite">
       <span v-if="loadingMore">正在加载更多作品…</span>
       <span v-else-if="works.length && !hasMore">已加载全部 {{ total }} 件作品</span>
@@ -90,7 +88,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
@@ -98,7 +96,7 @@ import { getWorkDetail, getWorks } from '@/api/work'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
 import FavoriteIcon from '@/components/common/FavoriteIcon.vue'
-import { favoriteWork, getWorkFavoriteStatus, unfavoriteWork } from '@/api/social'
+import { favoriteWork, getFavoriteWorks, getWorkFavoriteStatus, unfavoriteWork } from '@/api/social'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -115,7 +113,7 @@ const loadSentinel = ref(null)
 const activeCategory = ref('全部')
 const selectedSubjects = ref([])
 const keyword = ref('')
-const sort = ref('newest')
+const viewMode = ref(normalizeView(route.query.view))
 const categories = ['全部', ...CATEGORY_OPTIONS]
 const subjectOptions = SUBJECT_OPTIONS
 const waterfallColumns = ref([])
@@ -185,13 +183,21 @@ function setCategory(category) {
   reload()
 }
 
-function setSort(value) {
-  sort.value = value
-  reload()
-}
-
 function reload() {
   load(true)
+}
+
+function normalizeView(value) {
+  return value === 'popular' || value === 'favorites' ? value : 'latest'
+}
+
+function setViewMode(value) {
+  if (viewMode.value === value) return
+  const query = { ...route.query }
+  delete query.workId
+  if (value === 'latest') delete query.view
+  else query.view = value
+  router.push({ name: 'Works', query })
 }
 
 async function openWork(id) {
@@ -227,6 +233,11 @@ async function toggleFavorite() {
     const state = favorited.value ? await unfavoriteWork(detail.id) : await favoriteWork(detail.id)
     favorited.value = Boolean(state?.favorited)
     ElMessage.success(favorited.value ? '作品已收藏' : '已取消收藏')
+    if (!favorited.value && viewMode.value === 'favorites') {
+      works.value = works.value.filter(work => Number(work.id) !== Number(detail.id))
+      total.value = Math.max(0, total.value - 1)
+      await arrangeWorks()
+    }
   } finally {
     favoriteLoading.value = false
   }
@@ -265,13 +276,29 @@ async function load(reset = false) {
     loadingMore.value = true
   }
   try {
-    const params = { page: targetPage, size, sort: sort.value }
+    if (viewMode.value === 'favorites' && !userStore.isLoggedIn) {
+      router.push({ name: 'Login', query: { redirect: route.fullPath } })
+      return
+    }
+    const params = { page: targetPage, size }
     if (activeCategory.value !== '全部') params.category = activeCategory.value
     if (selectedSubjects.value.length > 0) params.subject = selectedSubjects.value.join(',')
     if (keyword.value.trim()) params.keyword = keyword.value.trim()
-    const data = await getWorks(params)
+    let data
+    if (viewMode.value === 'favorites') {
+      data = await getFavoriteWorks(params)
+    } else {
+      data = await getWorks({ ...params, sort: viewMode.value === 'popular' ? 'popular' : 'newest' })
+    }
     if (version !== loadVersion) return
-    const records = data.records || []
+    const records = (data.records || []).map(work => viewMode.value === 'favorites'
+      ? {
+          ...work,
+          id: work.workId,
+          authorName: work.authorNickname,
+          authorAvatar: work.authorAvatar,
+        }
+      : work)
     if (reset) {
       works.value = records
     } else {
@@ -300,6 +327,17 @@ onMounted(() => {
   if (loadSentinel.value) loadObserver.observe(loadSentinel.value)
 })
 
+watch(
+  () => route.query.view,
+  value => {
+    const next = normalizeView(value)
+    if (next === viewMode.value) return
+    viewMode.value = next
+    detailVisible.value = false
+    reload()
+  },
+)
+
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
   loadObserver?.disconnect()
@@ -309,10 +347,11 @@ onBeforeUnmount(() => {
 <style scoped>
 .list-page { position: relative; z-index: 0; box-sizing: border-box; width: 88vw; max-width: 1600px; min-height: 60vh; padding: 16px 16px 48px; }
 .list-page::before { position: fixed; z-index: -1; inset: var(--artiv-header-height) 0 0; background: #e6eaee; content: ''; }
-.work-controls { display: flex; justify-content: flex-end; box-sizing: border-box; width: 100%; margin: 0 0 12px; padding: 10px 12px; border: 1px solid rgba(219, 226, 235, .9); border-radius: 12px; background: rgba(255, 255, 255, .92); box-shadow: 0 5px 18px rgba(48, 73, 99, .06); }.search-input { width: 320px; }.search-input :deep(.el-input__wrapper) { border-radius: 20px; background: #f8fafc; }
+.work-controls { display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; width: 100%; margin: 0 0 12px; padding: 10px 12px; border: 1px solid rgba(219, 226, 235, .9); border-radius: 12px; background: rgba(255, 255, 255, .92); box-shadow: 0 5px 18px rgba(48, 73, 99, .06); }.search-input { width: 320px; }.search-input :deep(.el-input__wrapper) { border-radius: 20px; background: #f8fafc; }
+.work-view-tabs { display: flex; align-self: stretch; gap: 26px; }.work-view-tabs button { position: relative; padding: 0 4px; border: 0; color: var(--artiv-text-secondary); background: transparent; cursor: pointer; font: inherit; font-size: 14px; }.work-view-tabs button.is-active { color: var(--artiv-primary); font-weight: 600; }.work-view-tabs button.is-active::after { position: absolute; right: 0; bottom: -10px; left: 0; height: 2px; border-radius: 2px; background: var(--artiv-primary); content: ''; }
 .work-waterfall { display: flex; align-items: flex-start; min-height: 160px; margin: 0 -7.5px; }
 .waterfall-column { width: 20%; min-width: 0; padding: 0 7.5px; }
-.filter-panel { box-sizing: border-box; width: 100%; margin: 0 0 15px; padding: 19px 18px; border: 1px solid rgba(219, 226, 235, .95); border-radius: 10px; background: rgba(255, 255, 255, .96); box-shadow: 0 5px 16px rgba(48, 73, 99, .07); }.filter-group { padding: 0 0 16px; margin: 0 0 16px; border-bottom: 1px solid #edf0f4; }.filter-group--last { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; }.filter-group h3 { margin: 0 0 12px; color: var(--artiv-text); font-size: 15px; font-weight: 600; }.category-options { display: flex; flex-wrap: wrap; gap: 9px; }.category-option, .sort-option { padding: 7px 11px; border: 1px solid #dfe5ec; border-radius: 15px; background: #f8fafc; color: var(--artiv-text-secondary); cursor: pointer; font: inherit; font-size: 12px; line-height: 1; }.category-option:hover, .category-option.is-active, .sort-option:hover, .sort-option.is-active { color: var(--artiv-primary); border-color: var(--artiv-primary); background: #edf9ff; }.subject-select { width: 100%; }.subject-select :deep(.el-select__wrapper) { min-height: 38px; }.sort-options { display: flex; flex-wrap: wrap; gap: 9px; }
+.filter-panel { box-sizing: border-box; width: 100%; min-height: 330px; margin: 0 0 15px; padding: 24px 20px; border: 1px solid rgba(219, 226, 235, .95); border-radius: 10px; background: rgba(255, 255, 255, .96); box-shadow: 0 5px 16px rgba(48, 73, 99, .07); }.filter-group { padding: 0 0 24px; margin: 0 0 24px; border-bottom: 1px solid #edf0f4; }.filter-group:last-child { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; }.filter-group h3 { margin: 0 0 15px; color: var(--artiv-text); font-size: 16px; font-weight: 600; }.category-options { display: flex; flex-wrap: wrap; gap: 10px; }.category-option { padding: 8px 13px; border: 1px solid #dfe5ec; border-radius: 16px; background: #f8fafc; color: var(--artiv-text-secondary); cursor: pointer; font: inherit; font-size: 13px; line-height: 1; }.category-option:hover, .category-option.is-active { color: var(--artiv-primary); border-color: var(--artiv-primary); background: #edf9ff; }.subject-select { width: 100%; }.subject-select :deep(.el-select__wrapper) { min-height: 42px; }
 .work-card { position: relative; margin: 0 0 15px; overflow: hidden; border-radius: 8px; background: #dfe5ee; cursor: zoom-in; }
 .work-card:hover .work-image { transform: scale(1.015); }
 .work-image { display: block; width: 100%; height: auto; min-height: 110px; transition: transform .25s ease; }
@@ -321,5 +360,5 @@ onBeforeUnmount(() => {
 .detail-author { display: flex; align-items: center; gap: 13px; padding-right: 38px; }.detail-author__copy { min-width: 0; flex: 1; }.detail-author__copy strong { color: var(--artiv-text); font-size: 17px; }.detail-author__copy p { overflow: hidden; margin: 5px 0 0; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.cert-label { margin-left: 8px; color: #2ca46e; font-size: 12px; }.detail-author__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }.work-favorite-button :deep(.el-icon), .work-favorite-button :deep(svg) { margin-right: 4px; }.profile-button { flex-shrink: 0; }.work-detail-content { min-height: 240px; }.work-detail-image { display: block; width: 100%; max-height: 62vh; object-fit: contain; background: #f4f7fa; }.work-detail-empty { display: grid; min-height: 300px; place-items: center; color: var(--artiv-text-secondary); background: #f4f7fa; }.work-detail-info { padding: 18px 22px 22px; }.work-detail-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--artiv-border); padding-bottom: 14px; }.work-detail-heading h2 { margin: 0; color: var(--artiv-text); font-size: 19px; }.work-detail-heading p { margin: 7px 0 0; color: var(--artiv-text-secondary); font-size: 12px; }.work-description { margin: 16px 0; color: var(--artiv-text); line-height: 1.8; white-space: pre-wrap; }.work-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }.tag-title { margin-right: 4px; color: var(--artiv-text-secondary); font-size: 13px; }.tag-empty { color: var(--artiv-text-secondary); font-size: 13px; }
 @media (max-width: 1100px) { .list-page { width: 96vw; } }
 @media (max-width: 900px) { .list-page { width: 100%; }.waterfall-column { width: 33.333%; } }
-@media (max-width: 560px) { .work-controls { padding: 11px; }.search-input { width: 100%; }.waterfall-column { width: 50%; }.detail-author { padding-right: 24px; }.detail-author__copy p { white-space: normal; }.profile-button { padding: 8px 10px; } }
+@media (max-width: 560px) { .work-controls { flex-direction: column; align-items: stretch; gap: 14px; padding: 11px; }.work-view-tabs { min-height: 34px; }.work-view-tabs button.is-active::after { bottom: -4px; }.search-input { width: 100%; }.waterfall-column { width: 50%; }.detail-author { padding-right: 24px; }.detail-author__copy p { white-space: normal; }.profile-button { padding: 8px 10px; } }
 </style>

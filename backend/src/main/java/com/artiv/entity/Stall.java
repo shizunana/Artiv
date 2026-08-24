@@ -60,6 +60,10 @@ public class Stall {
     @TableField(exist = false)
     private String painterName;
 
+    /** 画师头像（非表字段，列表/详情批量填充） */
+    @TableField(exist = false)
+    private String painterAvatar;
+
     /** 是否存在尚未结束的关联订单（非表字段，仅用于“我的橱窗”操作提示） */
     @TableField(exist = false)
     private Boolean hasUnfinishedOrders;

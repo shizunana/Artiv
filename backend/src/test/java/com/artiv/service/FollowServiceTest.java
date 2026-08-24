@@ -1,11 +1,13 @@
 package com.artiv.service;
 
 import com.artiv.common.BusinessException;
+import com.artiv.dto.ArtistSummary;
 import com.artiv.entity.User;
 import com.artiv.entity.UserFollow;
 import com.artiv.mapper.UserFollowMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.impl.FollowServiceImpl;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +29,7 @@ class FollowServiceTest {
 
     @Mock private UserFollowMapper userFollowMapper;
     @Mock private UserMapper userMapper;
+    @Mock private ArtistService artistService;
     @Mock private AccountRestrictionService accountRestrictionService;
 
     @InjectMocks private FollowServiceImpl followService;
@@ -68,6 +71,25 @@ class FollowServiceTest {
         assertFalse(state.isFollowed());
         verify(userFollowMapper).delete(any());
         verify(accountRestrictionService, never()).requireAvailable(any(), any());
+    }
+
+    @Test
+    void listFollowedPaintersUsesDatabasePageThenBuildsPublicSummaries() {
+        User followed = painter(16L, 1, 2);
+        Page<User> userPage = new Page<>(1, 10);
+        userPage.setTotal(1);
+        userPage.setRecords(java.util.List.of(followed));
+        ArtistSummary summary = new ArtistSummary();
+        summary.setId(16L);
+        when(userFollowMapper.selectMine(any(Page.class), any(), any(), any())).thenReturn(userPage);
+        when(artistService.buildSummaries(java.util.List.of(followed)))
+                .thenReturn(java.util.List.of(summary));
+
+        Page<ArtistSummary> result = followService.listPainters(1, 10, 3L, "日系,女性", "测试");
+
+        assertEquals(1, result.getTotal());
+        assertEquals(16L, result.getRecords().get(0).getId());
+        verify(artistService).buildSummaries(java.util.List.of(followed));
     }
 
     private User painter(Long id, int role, int certStatus) {

@@ -2,13 +2,14 @@ package com.artiv.service.impl;
 
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
+import com.artiv.dto.ArtistSummary;
 import com.artiv.dto.FollowStateResponse;
-import com.artiv.dto.FollowedPainterItem;
 import com.artiv.entity.User;
 import com.artiv.entity.UserFollow;
 import com.artiv.mapper.UserFollowMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.AccountRestrictionService;
+import com.artiv.service.ArtistService;
 import com.artiv.service.FollowService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -18,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +29,7 @@ public class FollowServiceImpl implements FollowService {
     private final UserFollowMapper userFollowMapper;
     private final UserMapper userMapper;
     private final AccountRestrictionService accountRestrictionService;
+    private final ArtistService artistService;
 
     @Override
     @Transactional
@@ -65,8 +69,25 @@ public class FollowServiceImpl implements FollowService {
     }
 
     @Override
-    public Page<FollowedPainterItem> listPainters(long page, long size, Long userId) {
-        return userFollowMapper.selectMine(new Page<>(safePage(page), safeSize(size)), userId);
+    public Page<ArtistSummary> listPainters(long page, long size, Long userId, String subjects, String keyword) {
+        List<String> requestedSubjects = splitValues(subjects);
+        String normalizedKeyword = org.springframework.util.StringUtils.hasText(keyword) ? keyword.trim() : null;
+        Page<User> painters = userFollowMapper.selectMine(
+                new Page<>(safePage(page), safeSize(size)), userId, requestedSubjects, normalizedKeyword);
+        Page<ArtistSummary> result = new Page<>(painters.getCurrent(), painters.getSize(), painters.getTotal());
+        result.setRecords(artistService.buildSummaries(painters.getRecords()));
+        return result;
+    }
+
+    private List<String> splitValues(String values) {
+        if (!org.springframework.util.StringUtils.hasText(values)) {
+            return List.of();
+        }
+        return Arrays.stream(values.split(","))
+                .map(String::trim)
+                .filter(org.springframework.util.StringUtils::hasText)
+                .distinct()
+                .toList();
     }
 
     private boolean isFollowing(Long painterId, Long userId) {
