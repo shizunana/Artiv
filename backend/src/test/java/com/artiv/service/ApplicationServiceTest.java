@@ -7,6 +7,7 @@ import com.artiv.entity.Project;
 import com.artiv.entity.User;
 import com.artiv.entity.Work;
 import com.artiv.mapper.ApplicationMapper;
+import com.artiv.mapper.InvitationMapper;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
@@ -30,6 +31,9 @@ class ApplicationServiceTest {
 
     @Mock
     private ApplicationMapper applicationMapper;
+
+    @Mock
+    private InvitationMapper invitationMapper;
 
     @Mock
     private OrderInfoMapper orderInfoMapper;
@@ -60,6 +64,9 @@ class ApplicationServiceTest {
         Project project = new Project();
         project.setId(8L);
         project.setEmployerId(1L);
+        project.setMode(0);
+        project.setStatus(0);
+        project.setModerationStatus(0);
         project.setDeleted(0);
         when(projectMapper.selectById(8L)).thenReturn(project);
 
@@ -67,7 +74,7 @@ class ApplicationServiceTest {
         applications.setRecords(java.util.List.of());
         when(applicationMapper.selectPage(any(), any())).thenReturn(applications);
 
-        var result = applicationService.listApplicantDetails(1, 10, 8L);
+        var result = applicationService.listApplicantDetails(1, 10, 8L, null);
 
         assertEquals(0, result.getRecords().size());
         verify(applicationMapper).selectPage(any(), any());
@@ -84,6 +91,9 @@ class ApplicationServiceTest {
         Project project = new Project();
         project.setId(8L);
         project.setEmployerId(1L);
+        project.setMode(0);
+        project.setStatus(0);
+        project.setModerationStatus(0);
         project.setDeleted(0);
         when(projectMapper.selectById(8L)).thenReturn(project);
         Application application = new Application();
@@ -98,7 +108,7 @@ class ApplicationServiceTest {
         var works = java.util.List.of(new Work(), new Work(), new Work(), new Work());
         when(workMapper.selectList(any())).thenReturn(works);
 
-        var result = applicationService.listApplicantDetails(1, 10, 8L);
+        var result = applicationService.listApplicantDetails(1, 10, 8L, null);
 
         assertEquals(painter.getId(), result.getRecords().getFirst().getPainter().getId());
         assertEquals(4, result.getRecords().getFirst().getWorks().size());
@@ -108,6 +118,9 @@ class ApplicationServiceTest {
     void listApplicantDetailsIncludesActiveProjectOrderState() {
         Project project = new Project();
         project.setId(8L);
+        project.setMode(0);
+        project.setStatus(0);
+        project.setModerationStatus(0);
         project.setDeleted(0);
         when(projectMapper.selectById(8L)).thenReturn(project);
         Application application = new Application();
@@ -124,7 +137,7 @@ class ApplicationServiceTest {
         activeOrder.setStatus(1);
         when(orderInfoMapper.selectOne(any())).thenReturn(activeOrder);
 
-        var result = applicationService.listApplicantDetails(1, 10, 8L);
+        var result = applicationService.listApplicantDetails(1, 10, 8L, null);
 
         assertEquals(true, result.getRecords().getFirst().getHasActiveOrder());
     }

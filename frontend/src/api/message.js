@@ -32,6 +32,10 @@ export function getUnreadCount() {
   return request.get('/messages/unread-count')
 }
 
+export function getUnreadSummary() {
+  return request.get('/messages/unread-summary')
+}
+
 export function getNotifications(params) {
   return request.get('/messages/notifications', { params })
 }

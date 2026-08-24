@@ -7,11 +7,13 @@ import com.artiv.entity.Application;
 
 public interface ApplicationService {
 
-    Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId);
+    Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId, Long viewerId);
 
     Page<MyApplicationItem> listMine(long page, long size, Long painterId);
 
     Application create(Application application);
+
+    Application createFromInvitation(Long projectId, Long painterId, java.math.BigDecimal quote);
 
     Application select(Long id, Long employerId);
 

@@ -117,25 +117,6 @@
     </main>
 
     <EmptyState v-else-if="!profileLoading" description="该用户主页暂不可访问" />
-    <el-dialog v-model="inviteVisible" title="邀请画师参与企划" width="520px" append-to-body>
-      <el-form label-position="top">
-        <el-form-item label="选择定向企划" required>
-          <el-select v-model="inviteForm.projectId" class="invite-project-select" placeholder="选择一个正在招募的定向企划" :loading="inviteProjectLoading">
-            <el-option v-for="project in invitableProjects" :key="project.id" :label="project.title" :value="project.id" />
-          </el-select>
-          <p v-if="!inviteProjectLoading && invitableProjects.length === 0" class="invite-empty">
-            暂无可发送邀请的定向企划，请先发布合作方式为“定向邀请”的企划。
-          </p>
-        </el-form-item>
-        <el-form-item label="邀请说明">
-          <el-input v-model="inviteForm.message" type="textarea" :rows="4" maxlength="300" show-word-limit placeholder="简单介绍合作内容（可选）" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="inviteVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!inviteForm.projectId" :loading="inviting" @click="submitInvite">发送邀请</el-button>
-      </template>
-    </el-dialog>
     <el-image-viewer v-if="previewUrl" :url-list="[previewUrl]" hide-on-click-modal @close="previewUrl = ''" />
   </div>
 </template>
@@ -150,8 +131,6 @@ import { getPublicProfile, getPublicProfileProjects, getPublicProfileStalls, get
 import { useUserStore } from '@/stores/user'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import ReviewList from '@/components/reviews/ReviewList.vue'
-import { getMyProjects } from '@/api/project'
-import { createInvitation } from '@/api/invitation'
 import { followPainter, getPainterFollowStatus, unfollowPainter } from '@/api/social'
 
 const route = useRoute()
@@ -170,11 +149,6 @@ const previewUrl = ref('')
 const resourceError = ref(false)
 const followed = ref(false)
 const followLoading = ref(false)
-const inviteVisible = ref(false)
-const inviteProjectLoading = ref(false)
-const inviting = ref(false)
-const invitableProjects = ref([])
-const inviteForm = ref({ projectId: null, message: '' })
 let observer = null
 let requestVersion = 0
 let resourceRequestVersion = 0
@@ -308,37 +282,7 @@ async function toggleFollow() {
 
 async function openInvite() {
   if (!requireLogin()) return
-  inviteVisible.value = true
-  inviteForm.value = { projectId: null, message: '' }
-  inviteProjectLoading.value = true
-  try {
-    const data = await getMyProjects({ page: 1, size: 100 })
-    const now = Date.now()
-    invitableProjects.value = (data?.records || []).filter((project) => (
-      Number(project.mode) === 1
-      && Number(project.status) === 0
-      && Number(project.moderationStatus || 0) === 0
-      && (!project.recruitDeadline || new Date(project.recruitDeadline).getTime() >= now)
-    ))
-  } finally {
-    inviteProjectLoading.value = false
-  }
-}
-
-async function submitInvite() {
-  if (!inviteForm.value.projectId || inviting.value) return
-  inviting.value = true
-  try {
-    await createInvitation({
-      projectId: inviteForm.value.projectId,
-      painterId: profileId.value,
-      message: inviteForm.value.message.trim() || undefined,
-    })
-    inviteVisible.value = false
-    ElMessage.success('邀请已发送')
-  } finally {
-    inviting.value = false
-  }
+  router.push({ name: 'ProjectNew', query: { invitePainterId: profileId.value } })
 }
 
 function showUnavailable(name) { ElMessage.info(`${name}功能暂未开放`) }
@@ -379,8 +323,6 @@ function goProject(id) { router.push({ name: 'ProjectDetail', params: { id } }) 
 .profile-actions :deep(.el-button:not(.more-button)) { min-width: 110px; }
 .invite-button { color: var(--artiv-primary); border-color: var(--artiv-primary); }
 .more-button { min-width: 34px !important; }
-.invite-project-select { width: 100%; }
-.invite-empty { margin: 8px 0 0; color: var(--artiv-text-secondary); font-size: 12px; line-height: 1.6; }
 .profile-introduction { padding: 20px 0 24px; }
 .profile-introduction h2 { margin: 0 0 10px; font-size: 16px; }
 .profile-introduction p { margin: 0; color: #505c6d; line-height: 1.8; white-space: pre-wrap; }

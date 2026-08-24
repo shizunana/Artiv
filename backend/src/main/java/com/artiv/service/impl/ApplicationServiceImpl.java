@@ -9,11 +9,13 @@ import com.artiv.dto.ApplicationDetail;
 import com.artiv.dto.MyApplicationItem;
 import com.artiv.dto.ReviewStatistics;
 import com.artiv.entity.Application;
+import com.artiv.entity.Invitation;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Project;
 import com.artiv.entity.User;
 import com.artiv.entity.Work;
 import com.artiv.mapper.ApplicationMapper;
+import com.artiv.mapper.InvitationMapper;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
@@ -24,6 +26,7 @@ import com.artiv.service.AccountRestrictionService;
 import com.artiv.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,6 +41,7 @@ import java.util.stream.Collectors;
 public class ApplicationServiceImpl implements ApplicationService {
 
     private final ApplicationMapper applicationMapper;
+    private final InvitationMapper invitationMapper;
     private final OrderInfoMapper orderInfoMapper;
     private final ProjectMapper projectMapper;
     private final UserMapper userMapper;
@@ -47,11 +51,12 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final ReviewService reviewService;
 
     @Override
-    public Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId) {
+    public Page<ApplicationDetail> listApplicantDetails(long page, long size, Long projectId, Long viewerId) {
         Project project = projectMapper.selectById(projectId);
         if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
+        requireApplicantListAccess(project, viewerId);
         Page<Application> applications = applicationMapper.selectPage(new Page<>(page, size),
                 new LambdaQueryWrapper<Application>()
                         .eq(Application::getDeleted, 0)
@@ -120,7 +125,23 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
+    @Transactional
     public Application create(Application application) {
+        return createInternal(application, false);
+    }
+
+    @Override
+    @Transactional
+    public Application createFromInvitation(Long projectId, Long painterId, BigDecimal quote) {
+        Application application = new Application();
+        application.setProjectId(projectId);
+        application.setPainterId(painterId);
+        application.setIntro("接受定向邀请");
+        application.setQuote(quote);
+        return createInternal(application, true);
+    }
+
+    private Application createInternal(Application application, boolean fromInvitation) {
         accountRestrictionService.requireAvailable(application.getPainterId(), "应征企划");
         Project project = projectMapper.selectById(application.getProjectId());
         if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
@@ -132,6 +153,12 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (!Integer.valueOf(0).equals(project.getStatus())
                 || (project.getRecruitDeadline() != null && project.getRecruitDeadline().isBefore(LocalDateTime.now()))) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "该企划已停止应征");
+        }
+        if (Integer.valueOf(1).equals(project.getMode()) && !fromInvitation) {
+            throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "定向企划只能由受邀画师通过邀请入口接受");
+        }
+        if (fromInvitation && !Integer.valueOf(1).equals(project.getMode())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "当前企划不是定向邀请企划");
         }
         if (project.getEmployerId().equals(application.getPainterId())) {
             throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "不能应征自己发布的企划");
@@ -156,9 +183,17 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .eq(Application::getProjectId, application.getProjectId())
                 .eq(Application::getPainterId, application.getPainterId())
                 .eq(Application::getDeleted, 0));
-        if (existing != null && (Integer.valueOf(0).equals(existing.getStatus())
+        if (!fromInvitation && existing != null && (Integer.valueOf(0).equals(existing.getStatus())
                 || Integer.valueOf(1).equals(existing.getStatus()))) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "你已经应征过该企划");
+        }
+
+        if (fromInvitation && existing != null && (Integer.valueOf(0).equals(existing.getStatus())
+                || Integer.valueOf(1).equals(existing.getStatus()))) {
+            existing.setQuote(application.getQuote());
+            existing.setUpdatedAt(LocalDateTime.now());
+            applicationMapper.updateById(existing);
+            return existing;
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -179,13 +214,15 @@ public class ApplicationServiceImpl implements ApplicationService {
             application.setUpdatedAt(now);
             applicationMapper.insert(application);
         }
-        messageService.createNotification(
-                project.getEmployerId(),
-                1,
-                "APPLICATION_CREATED",
-                project.getId(),
-                "画师 #" + application.getPainterId() + " 应征了你的企划「" + project.getTitle() + "」。"
-        );
+        if (!fromInvitation) {
+            messageService.createNotification(
+                    project.getEmployerId(),
+                    1,
+                    "APPLICATION_CREATED",
+                    project.getId(),
+                    "画师 #" + application.getPainterId() + " 应征了你的企划「" + project.getTitle() + "」。"
+            );
+        }
         return application;
     }
 
@@ -256,5 +293,38 @@ public class ApplicationServiceImpl implements ApplicationService {
         summary.setAverageScore(statistics == null ? null : statistics.getAverageScore());
         summary.setReviewCount(statistics == null ? 0 : statistics.getReviewCount());
         return summary;
+    }
+
+    private void requireApplicantListAccess(Project project, Long viewerId) {
+        boolean publicProject = Integer.valueOf(0).equals(project.getMode())
+                && Integer.valueOf(0).equals(project.getStatus())
+                && Integer.valueOf(0).equals(project.getModerationStatus());
+        if (publicProject) {
+            return;
+        }
+        if (viewerId == null) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        boolean owner = viewerId.equals(project.getEmployerId());
+        boolean invitedPainter = invitationMapper.selectCount(new LambdaQueryWrapper<Invitation>()
+                .eq(Invitation::getProjectId, project.getId())
+                .eq(Invitation::getPainterId, viewerId)
+                .eq(Invitation::getDeleted, 0)) > 0;
+        boolean applicant = applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
+                .eq(Application::getProjectId, project.getId())
+                .eq(Application::getPainterId, viewerId)
+                .eq(Application::getDeleted, 0)) > 0;
+        boolean orderParticipant = orderInfoMapper.selectCount(new LambdaQueryWrapper<OrderInfo>()
+                .eq(OrderInfo::getProjectId, project.getId())
+                .eq(OrderInfo::getDeleted, 0)
+                .and(wrapper -> wrapper.eq(OrderInfo::getEmployerId, viewerId)
+                        .or().eq(OrderInfo::getPainterId, viewerId))) > 0;
+        User viewer = userMapper.selectById(viewerId);
+        boolean administrator = viewer != null && Integer.valueOf(3).equals(viewer.getRole())
+                && Integer.valueOf(0).equals(viewer.getStatus())
+                && Integer.valueOf(0).equals(viewer.getDeleted());
+        if (!owner && !invitedPainter && !applicant && !orderParticipant && !administrator) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
     }
 }

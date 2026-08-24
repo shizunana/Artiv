@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.common.BusinessException;
 import com.artiv.dto.PrivateMessageRequest;
 import com.artiv.dto.ConversationSummary;
+import com.artiv.dto.MessageUnreadSummary;
 import com.artiv.entity.Application;
 import com.artiv.entity.Message;
 import com.artiv.entity.OrderInfo;
@@ -178,6 +179,17 @@ class MessageServiceTest {
     }
 
     @Test
+    void unreadSummarySeparatesConversationAndNotificationCounts() {
+        when(messageMapper.selectCount(any())).thenReturn(4L, 7L);
+
+        MessageUnreadSummary summary = messageService.countUnreadSummary(16L);
+
+        assertEquals(11L, summary.totalUnreadCount());
+        assertEquals(4L, summary.conversationUnreadCount());
+        assertEquals(7L, summary.notificationUnreadCount());
+    }
+
+    @Test
     void employerStartsProjectConversationForPendingApplicant() {
         Project project = ownedProject();
         when(projectMapper.selectById(8L)).thenReturn(project);
@@ -204,6 +216,27 @@ class MessageServiceTest {
         messageService.startProjectConversation(1L, 8L, 2L);
 
         verify(messageMapper).insert(any(Message.class));
+    }
+
+    @Test
+    void invitationAcceptanceStartsConversationWithPainterAuthoredSystemPrompt() {
+        when(projectMapper.selectById(8L)).thenReturn(ownedProject());
+        when(applicationMapper.selectOne(any())).thenReturn(pendingApplication());
+        when(messageMapper.selectOne(any())).thenReturn(null);
+
+        messageService.createInvitationAcceptedConversation(
+                1L, 2L, 8L, "画师【Enana】接受了邀请。"
+        );
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(messageMapper).insert(captor.capture());
+        Message message = captor.getValue();
+        assertEquals(2L, message.getFromId());
+        assertEquals(1L, message.getToId());
+        assertEquals(8L, message.getProjectId());
+        assertEquals("INVITATION_ACCEPTED", message.getSubtype());
+        assertEquals("8:1_2:APPLICATION_CONVERSATION_STARTED", message.getStarterKey());
+        assertEquals("画师【Enana】接受了邀请。", message.getContent());
     }
 
     @Test

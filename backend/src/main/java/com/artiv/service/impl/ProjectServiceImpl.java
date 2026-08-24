@@ -22,6 +22,7 @@ import com.artiv.service.ProjectService;
 import com.artiv.service.AccountRestrictionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
@@ -85,6 +86,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional
     public Project create(ProjectRequest request, Long employerId) {
         accountRestrictionService.requireAvailable(employerId, "发布企划");
         int mode = request.getMode() == null ? 0 : request.getMode();
@@ -159,27 +161,34 @@ public class ProjectServiceImpl implements ProjectService {
         if (project == null || project.getDeleted() == 1) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
-        boolean active = Integer.valueOf(0).equals(project.getStatus())
-                && !Integer.valueOf(1).equals(project.getModerationStatus());
+        boolean publiclyVisible = Integer.valueOf(0).equals(project.getMode())
+                && Integer.valueOf(0).equals(project.getStatus())
+                && Integer.valueOf(0).equals(project.getModerationStatus());
         boolean owner = viewerId != null && viewerId.equals(project.getEmployerId());
+        boolean invitedPainter = viewerId != null && invitationMapper.selectCount(
+                new LambdaQueryWrapper<Invitation>()
+                        .eq(Invitation::getProjectId, id)
+                        .eq(Invitation::getPainterId, viewerId)
+                        .eq(Invitation::getDeleted, 0)) > 0;
         boolean participant = viewerId != null && orderInfoMapper.selectCount(
                 new LambdaQueryWrapper<OrderInfo>()
                         .eq(OrderInfo::getProjectId, id)
+                        .eq(OrderInfo::getDeleted, 0)
                         .and(wrapper -> wrapper.eq(OrderInfo::getEmployerId, viewerId)
                                 .or().eq(OrderInfo::getPainterId, viewerId))) > 0;
-        boolean existingApplicant = viewerId != null && Integer.valueOf(1).equals(project.getModerationStatus())
-                && applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
+        boolean existingApplicant = viewerId != null && applicationMapper.selectCount(
+                new LambdaQueryWrapper<Application>()
                 .eq(Application::getProjectId, id)
                 .eq(Application::getPainterId, viewerId)
                 .eq(Application::getDeleted, 0)) > 0;
         boolean administrator = false;
-        if (!active && viewerId != null) {
+        if (!publiclyVisible && viewerId != null) {
             User viewer = userMapper.selectById(viewerId);
             administrator = viewer != null && Integer.valueOf(3).equals(viewer.getRole())
                     && Integer.valueOf(0).equals(viewer.getStatus())
                     && Integer.valueOf(0).equals(viewer.getDeleted());
         }
-        if (!active && !owner && !participant && !existingApplicant && !administrator) {
+        if (!publiclyVisible && !owner && !invitedPainter && !participant && !existingApplicant && !administrator) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
         project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));

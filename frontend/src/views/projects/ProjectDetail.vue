@@ -18,8 +18,12 @@
             <strong class="budget">￥ {{ project.budget }}</strong>
           </div>
           <p class="recruit-countdown">{{ recruitCountdown }}</p>
+          <div v-if="pendingInvitation" class="invitation-actions">
+            <el-button class="invite-accept-button" type="primary" @click="invitationAcceptVisible = true">接受</el-button>
+            <el-button class="invite-reject-button" @click="invitationRejectVisible = true">拒绝</el-button>
+          </div>
           <el-button
-            v-if="showApplyButton"
+            v-else-if="showApplyButton"
             class="apply-button"
             type="primary"
             :disabled="applyButtonDisabled"
@@ -27,8 +31,11 @@
           >
             {{ applyButtonText }}
           </el-button>
+          <el-button v-else-if="acceptedInvitation && currentApplication" class="apply-button" type="primary" plain @click="openQuoteDialog(currentApplication)">更改报价</el-button>
+          <el-button v-else-if="acceptedInvitation" class="apply-button" disabled>已接受邀请</el-button>
+          <el-button v-else-if="rejectedInvitation" class="apply-button" disabled>已婉拒邀请</el-button>
           <el-button v-if="isOwner" class="manage-button" @click="manageDialogVisible = true">变更企划</el-button>
-          <el-button class="back-button" @click="router.push({ name: 'Projects' })">返回企划列表</el-button>
+          <el-button class="back-button" @click="goBack">{{ backButtonText }}</el-button>
         </section>
       </aside>
 
@@ -159,6 +166,32 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="invitationAcceptVisible" title="接受定向邀请" width="420px" @closed="resetInvitationAcceptForm">
+      <el-form ref="invitationAcceptFormRef" :model="invitationAcceptForm" :rules="invitationAcceptRules" label-position="top">
+        <el-form-item label="报价（元）" prop="quote">
+          <el-input-number v-model="invitationAcceptForm.quote" :min="0.01" :precision="2" :step="100" controls-position="right" />
+        </el-form-item>
+        <p class="application-hint">确认后将以该报价应征此企划，并与企划方建立会话。</p>
+      </el-form>
+      <template #footer>
+        <el-button @click="invitationAcceptVisible = false">取消</el-button>
+        <el-button type="primary" :loading="respondingInvitation" @click="submitInvitationAccept">确认邀请</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="invitationRejectVisible" title="婉拒定向邀请" width="480px" @closed="resetInvitationRejectForm">
+      <el-form ref="invitationRejectFormRef" :model="invitationRejectForm" :rules="invitationRejectRules" label-position="top">
+        <el-form-item label="婉拒理由" prop="reason">
+          <el-input v-model="invitationRejectForm.reason" type="textarea" :rows="5" maxlength="500" show-word-limit placeholder="请向企划方说明无法参与本次企划的原因" />
+        </el-form-item>
+        <p class="application-hint">婉拒后不会建立会话，理由将通过系统消息发送给企划方。</p>
+      </el-form>
+      <template #footer>
+        <el-button @click="invitationRejectVisible = false">取消</el-button>
+        <el-button type="danger" :loading="respondingInvitation" @click="submitInvitationReject">确认拒绝</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="quoteDialogVisible" title="更改应征" width="420px">
       <el-form label-position="top">
         <el-form-item label="新报价（元）">
@@ -216,6 +249,7 @@ import {
   updateApplicationQuote,
 } from '@/api/project'
 import { startProjectConversation } from '@/api/message'
+import { acceptInvitation, getInvitationByProject, rejectInvitation } from '@/api/invitation'
 import { useUserStore } from '@/stores/user'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import { formatDateTime } from '@/utils/date'
@@ -251,11 +285,32 @@ const applicationRules = {
     { type: 'number', min: 0.01, message: '报价必须大于 0', trigger: 'change' },
   ],
 }
+const currentInvitation = ref(null)
+const invitationAcceptVisible = ref(false)
+const invitationAcceptFormRef = ref()
+const invitationAcceptForm = reactive({ quote: undefined })
+const invitationRejectVisible = ref(false)
+const invitationRejectFormRef = ref()
+const invitationRejectForm = reactive({ reason: '' })
+const respondingInvitation = ref(false)
+const invitationAcceptRules = {
+  quote: [
+    { required: true, message: '请填写报价', trigger: 'change' },
+    { type: 'number', min: 0.01, message: '报价必须大于 0', trigger: 'change' },
+  ],
+}
+const invitationRejectRules = {
+  reason: [{ required: true, whitespace: true, message: '请填写婉拒理由', trigger: 'blur' }],
+}
 
 const employerName = computed(() => employer.value?.nickname || `企划方 #${project.value?.employerId || ''}`)
 const currentUserId = computed(() => Number(userStore.user?.id || 0))
 const isOwner = computed(() => currentUserId.value > 0 && currentUserId.value === Number(project.value?.employerId))
 const currentApplication = computed(() => applicants.value.find((item) => Number(item.painter?.id) === currentUserId.value))
+const isDirectedProject = computed(() => Number(project.value?.mode) === 1)
+const pendingInvitation = computed(() => isDirectedProject.value && Number(currentInvitation.value?.status) === 0)
+const acceptedInvitation = computed(() => isDirectedProject.value && Number(currentInvitation.value?.status) === 1)
+const rejectedInvitation = computed(() => isDirectedProject.value && Number(currentInvitation.value?.status) === 2)
 const certificationReady = ref(!userStore.isLoggedIn)
 const isCertifiedPainter = computed(() => Number(userStore.user?.certStatus || 0) === 2)
 const canApply = computed(() => certificationReady.value
@@ -269,6 +324,7 @@ const applyButtonDisabled = computed(() => currentApplication.value
   ? Number(currentApplication.value.application.status) !== 0
   : !canApply.value)
 const showApplyButton = computed(() => !isOwner.value
+  && !isDirectedProject.value
   && (!userStore.isLoggedIn || (certificationReady.value && isCertifiedPainter.value)))
 const applyButtonText = computed(() => {
   if (!userStore.isLoggedIn) return '登录后应征企划'
@@ -276,6 +332,7 @@ const applyButtonText = computed(() => {
   if (recruitExpired.value || Number(project.value?.status) !== 0) return '应征已截止'
   return '应征企划'
 })
+const backButtonText = computed(() => isDirectedProject.value && !isOwner.value ? '返回收到的邀请' : '返回企划列表')
 const projectImages = computed(() => String(project.value?.images || '').split(',').map((item) => item.trim()).filter(Boolean))
 const projectSubjects = computed(() => String(project.value?.subject || '').split(',').map((item) => item.trim()).filter(Boolean))
 const projectPhases = computed(() => {
@@ -329,8 +386,26 @@ function handleApplyButton() {
   }
 }
 
+function goBack() {
+  if (isDirectedProject.value && !isOwner.value) {
+    router.push({ name: 'PainterInvitations' })
+    return
+  }
+  router.push({ name: 'Projects' })
+}
+
 function resetApplicationForm() {
   applicationFormRef.value?.resetFields()
+}
+
+function resetInvitationAcceptForm() {
+  invitationAcceptFormRef.value?.resetFields()
+  invitationAcceptForm.quote = undefined
+}
+
+function resetInvitationRejectForm() {
+  invitationRejectFormRef.value?.resetFields()
+  invitationRejectForm.reason = ''
 }
 
 function openPainterProfile(id) {
@@ -356,6 +431,48 @@ async function submitApplication() {
     ElMessage.error(error.message || '应征提交失败')
   } finally {
     submittingApplication.value = false
+  }
+}
+
+async function loadInvitation() {
+  currentInvitation.value = null
+  if (!userStore.isLoggedIn || isOwner.value || !isDirectedProject.value) return
+  try {
+    currentInvitation.value = await getInvitationByProject(project.value.id)
+  } catch {
+    currentInvitation.value = null
+  }
+}
+
+async function submitInvitationAccept() {
+  const valid = await invitationAcceptFormRef.value?.validate().catch(() => false)
+  if (!valid || !currentInvitation.value?.invitationId) return
+  respondingInvitation.value = true
+  try {
+    await acceptInvitation(currentInvitation.value.invitationId, { quote: invitationAcceptForm.quote })
+    ElMessage.success('已接受邀请并建立会话')
+    invitationAcceptVisible.value = false
+    await Promise.all([loadInvitation(), loadApplicants()])
+  } catch (error) {
+    ElMessage.error(error.message || '接受邀请失败')
+  } finally {
+    respondingInvitation.value = false
+  }
+}
+
+async function submitInvitationReject() {
+  const valid = await invitationRejectFormRef.value?.validate().catch(() => false)
+  if (!valid || !currentInvitation.value?.invitationId) return
+  respondingInvitation.value = true
+  try {
+    await rejectInvitation(currentInvitation.value.invitationId, { reason: invitationRejectForm.reason.trim() })
+    ElMessage.success('已婉拒邀请，理由已通知企划方')
+    invitationRejectVisible.value = false
+    await loadInvitation()
+  } catch (error) {
+    ElMessage.error(error.message || '拒绝邀请失败')
+  } finally {
+    respondingInvitation.value = false
   }
 }
 
@@ -395,6 +512,7 @@ function withdrawCurrentApplication() {
 }
 
 function openQuoteDialog(item) {
+  if (!item?.application) return
   quoteForm.id = item.application.id
   quoteForm.quote = Number(item.application.quote)
   quoteDialogVisible.value = true
@@ -470,7 +588,7 @@ async function loadProject() {
   try {
     project.value = await getProject(route.params.id)
     employer.value = project.value?.employer || null
-    await loadApplicants()
+    await Promise.all([loadInvitation(), loadApplicants()])
   } catch (error) {
     ElMessage.error(error.message || '企划加载失败')
   } finally {
@@ -512,6 +630,9 @@ onMounted(async () => {
 .recruit-countdown { margin: 22px 0 10px; color: #8b939b; font-size: 12px; text-align: center; }
 .apply-button, .manage-button, .back-button { width: 100%; }
 .apply-button { height: 42px; font-size: 15px; }
+.invitation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.invitation-actions :deep(.el-button) { width: 100%; height: 42px; margin: 0; font-size: 15px; }
+.invite-reject-button { color: #f56c6c; border-color: #f3b8b8; }
 .manage-button, .back-button { margin-top: 12px; margin-left: 0 !important; }
 .project-main-card { min-height: 650px; padding: 32px; }
 .project-heading { padding-bottom: 24px; border-bottom: 1px solid #edf0f3; }

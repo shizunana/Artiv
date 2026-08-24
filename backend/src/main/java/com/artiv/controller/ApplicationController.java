@@ -35,7 +35,7 @@ public class ApplicationController {
     public Result<Page<ApplicationDetail>> byProject(@PathVariable Long projectId,
                                                      @RequestParam(defaultValue = "1") long page,
                                                      @RequestParam(defaultValue = "10") long size) {
-        return Result.ok(applicationService.listApplicantDetails(page, size, projectId));
+        return Result.ok(applicationService.listApplicantDetails(page, size, projectId, UserContext.getUserId()));
     }
 
     @PostMapping("/projects/{projectId}/applications")

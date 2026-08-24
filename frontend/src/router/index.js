@@ -40,7 +40,10 @@ const routes = [
       { path: '', name: 'DashboardHome', component: () => import('@/views/dashboard/DashboardHome.vue'), meta: { title: '工作台主页' } },
       { path: 'projects', name: 'DashboardProjects', component: () => import('@/views/dashboard/MyProjects.vue'), meta: { title: '我的企划' } },
       { path: 'projects/new', name: 'ProjectNew', component: () => import('@/views/dashboard/ProjectNew.vue'), meta: { title: '发布企划' } },
-      { path: 'projects/:id/applications', name: 'ProjectApplications', component: () => import('@/views/dashboard/Applications.vue'), meta: { title: '应征管理' } },
+      {
+        path: 'projects/:id/applications',
+        redirect: to => ({ name: 'ProjectDetail', params: { id: to.params.id } }),
+      },
       { path: 'orders', name: 'DashboardOrders', component: () => import('@/views/orders/OrderList.vue'), meta: { title: '订单管理' } },
       { path: 'orders/:id', name: 'DashboardOrderDetail', component: () => import('@/views/orders/OrderDetail.vue'), meta: { title: '订单详情' } },
       { path: 'messages', name: 'DashboardMessages', redirect: to => ({ name: 'Messages', query: to.query, hash: to.hash }) },

@@ -82,7 +82,9 @@ class ProjectServiceTest {
         project.setId(7L);
         project.setEmployerId(12L);
         project.setDeleted(0);
+        project.setMode(0);
         project.setStatus(0);
+        project.setModerationStatus(0);
         when(projectMapper.selectById(7L)).thenReturn(project);
 
         User publisher = new User();
@@ -118,7 +120,9 @@ class ProjectServiceTest {
         project.setId(7L);
         project.setEmployerId(12L);
         project.setDeleted(0);
+        project.setMode(0);
         project.setStatus(0);
+        project.setModerationStatus(0);
         when(projectMapper.selectById(7L)).thenReturn(project);
         when(userMapper.selectById(12L)).thenReturn(null);
 

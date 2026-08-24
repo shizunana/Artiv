@@ -10,10 +10,20 @@
           <button type="button" :class="{ active: activeTab === 'conversations' }" @click="selectMessageSection('conversations')">
             <el-icon><ChatDotRound /></el-icon>
             <span>我的消息</span>
+            <span
+              v-if="messageStore.conversationUnreadCount"
+              class="message-nav__unread"
+              :aria-label="`${messageStore.conversationUnreadCount} 条会话未读`"
+            >{{ displayUnreadCount(messageStore.conversationUnreadCount) }}</span>
           </button>
           <button type="button" :class="{ active: activeTab === 'notifications' }" @click="selectMessageSection('notifications')">
             <el-icon><Bell /></el-icon>
             <span>系统消息</span>
+            <span
+              v-if="messageStore.notificationUnreadCount"
+              class="message-nav__unread"
+              :aria-label="`${messageStore.notificationUnreadCount} 条系统消息未读`"
+            >{{ displayUnreadCount(messageStore.notificationUnreadCount) }}</span>
           </button>
         </nav>
         <div class="message-nav__divider" />
@@ -194,6 +204,7 @@ let stopSocket
 
 const conversationId = (item) => String(item.withUserId)
 const sameConversation = (first, second) => first && conversationId(first) === conversationId(second)
+const displayUnreadCount = (value) => Number(value) > 99 ? '99+' : String(Number(value) || 0)
 
 async function loadConversations({ silent = false } = {}) {
   if (!silent) loadingConversations.value = true
@@ -469,7 +480,7 @@ function notificationTitle(notice) {
 
 function notificationAction(notice) {
   if (notice.orderId) return '查看订单'
-  if (notice.subtype === 'APPLICATION_CREATED') return '查看应征'
+  if (notice.subtype === 'APPLICATION_CREATED') return '查看企划'
   if (notice.subtype === 'APPLICATION_SELECTED' || notice.subtype?.startsWith('PROJECT_MODERATION_')) return '查看企划'
   if (notice.subtype?.startsWith('CERTIFICATION_')) return '查看认证'
   if (notice.subtype?.startsWith('REVIEW_')) return '查看评价'
@@ -482,9 +493,6 @@ async function openNotification(notice) {
   await messageStore.fetchUnreadCount()
   if (notice.orderId) {
     router.push({ name: userStore.workbenchRole === 2 ? 'PainterOrderDetail' : 'DashboardOrderDetail', params: { id: notice.orderId } })
-  } else if (notice.subtype === 'APPLICATION_CREATED' && notice.projectId) {
-    if (userStore.workbenchRole !== 1) await userStore.switchRole(1)
-    router.push({ name: 'ProjectApplications', params: { id: notice.projectId } })
   } else if (notice.projectId) {
     router.push({ name: 'ProjectDetail', params: { id: notice.projectId } })
   } else if (notice.subtype?.startsWith('CERTIFICATION_')) {
@@ -565,6 +573,7 @@ onUnmounted(() => {
 .message-nav__items button:hover { color: var(--artiv-primary); background: #f4fbff; }
 .message-nav__items button.active { color: var(--artiv-primary); background: var(--artiv-primary-light); font-weight: 600; }
 .message-nav__items .el-icon, .message-nav__setting .el-icon { font-size: 17px; }
+.message-nav__unread { display: inline-flex; min-width: 18px; height: 18px; align-items: center; justify-content: center; margin-left: auto; padding: 0 5px; border-radius: 999px; background: #f56c6c; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; }
 .message-nav__divider { height: 1px; margin: 2px 14px 0; background: #edf1f4; }
 .message-nav__setting { margin: 8px 10px 10px; width: calc(100% - 20px); color: #a6afb9; cursor: not-allowed; }
 .message-nav__setting small { margin-left: auto; color: #b6bec6; font-size: 10px; }

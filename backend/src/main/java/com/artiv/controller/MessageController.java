@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.Result;
 import com.artiv.dto.ConversationSummary;
+import com.artiv.dto.MessageUnreadSummary;
 import com.artiv.dto.PrivateMessageRequest;
 import com.artiv.entity.Message;
 import com.artiv.mapper.MessageMapper;
@@ -66,6 +67,11 @@ public class MessageController {
     @GetMapping("/unread-count")
     public Result<Long> unreadCount() {
         return Result.ok(messageService.countUnread(UserContext.getUserId()));
+    }
+
+    @GetMapping("/unread-summary")
+    public Result<MessageUnreadSummary> unreadSummary() {
+        return Result.ok(messageService.countUnreadSummary(UserContext.getUserId()));
     }
 
     @GetMapping("/notifications")

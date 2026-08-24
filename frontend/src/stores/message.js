@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getConversations, getNotifications, getUnreadCount, markAllNotificationsRead } from '@/api/message'
+import { getConversations, getNotifications, getUnreadSummary, markAllNotificationsRead } from '@/api/message'
 
 export const useMessageStore = defineStore('message', {
   state: () => ({
@@ -7,6 +7,8 @@ export const useMessageStore = defineStore('message', {
     conversations: [],
     notifications: [],
     unreadCount: 0,
+    conversationUnreadCount: 0,
+    notificationUnreadCount: 0,
     wsConnected: false,
   }),
   actions: {
@@ -16,7 +18,10 @@ export const useMessageStore = defineStore('message', {
       return data
     },
     async fetchUnreadCount() {
-      this.unreadCount = await getUnreadCount()
+      const summary = await getUnreadSummary()
+      this.unreadCount = Number(summary?.totalUnreadCount || 0)
+      this.conversationUnreadCount = Number(summary?.conversationUnreadCount || 0)
+      this.notificationUnreadCount = Number(summary?.notificationUnreadCount || 0)
       return this.unreadCount
     },
     async fetchNotifications(params) {
@@ -31,9 +36,7 @@ export const useMessageStore = defineStore('message', {
     },
     /** WebSocket 收到新消息时调用 */
     onNewMessage(message) {
-      if (!message.readAt) {
-        this.unreadCount += 1
-      }
+      if (!message.readAt) this.fetchUnreadCount()
       this.fetchConversations({ page: 1, size: 30 })
       this.fetchNotifications({ page: 1, size: 30 })
     },

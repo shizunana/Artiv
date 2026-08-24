@@ -4,10 +4,14 @@ export function getInvitations(params) {
   return request.get('/invitations', { params })
 }
 
-export function createInvitation(data) {
-  return request.post('/invitations', data)
+export function getInvitationByProject(projectId) {
+  return request.get(`/invitations/project/${projectId}`)
 }
 
-export function respondInvitation(id, status) {
-  return request.put(`/invitations/${id}/respond`, null, { params: { status } })
+export function acceptInvitation(id, data) {
+  return request.post(`/invitations/${id}/accept`, data)
+}
+
+export function rejectInvitation(id, data) {
+  return request.post(`/invitations/${id}/reject`, data)
 }

@@ -110,21 +110,24 @@
               <el-radio :value="0">公开招募（全员可见）</el-radio>
               <el-radio :value="1">定向邀请（仅被邀画师可见）</el-radio>
             </el-radio-group>
-            <el-select
+            <button
               v-if="form.mode === 1"
-              v-model="form.invitePainterId"
-              class="invite-select"
-              filterable
-              :loading="invitePaintersLoading"
-              placeholder="选择被邀请的画师"
+              type="button"
+              class="invite-picker-trigger"
+              @click="openInvitePainterDialog"
             >
-              <el-option
-                v-for="painter in invitePainters"
-                :key="painter.id"
-                :label="`${painter.nickname || painter.username}（已认证）`"
-                :value="painter.id"
-              />
-            </el-select>
+              <span class="invite-picker-trigger__icon">
+                <el-avatar v-if="selectedInvitePainter" :size="40" :src="selectedInvitePainter.avatar || undefined">
+                  {{ (selectedInvitePainter.nickname || selectedInvitePainter.username || '画').slice(0, 1) }}
+                </el-avatar>
+                <el-icon v-else><User /></el-icon>
+              </span>
+              <span class="invite-picker-trigger__content">
+                <strong>{{ selectedInvitePainter ? invitedPainterName : '可选择一位画师发布定向企划' }}</strong>
+                <small>{{ selectedInvitePainter ? '企划内容仅被该画师可见，点击可更换' : '企划内容仅被选择画师可见' }}</small>
+              </span>
+              <el-icon class="invite-picker-trigger__arrow"><ArrowRight /></el-icon>
+            </button>
           </section>
         </el-form>
       </div>
@@ -205,25 +208,93 @@
         <el-button v-else type="primary" round :loading="submitting" @click="submit">发布企划</el-button>
       </div>
     </div>
+
+    <el-dialog
+      v-model="inviteDialogVisible"
+      title="选择定向邀请画师"
+      width="600px"
+      top="8vh"
+      append-to-body
+      destroy-on-close
+      @closed="resetInvitePainterDialog"
+    >
+      <div class="invite-dialog-body">
+        <el-input
+          v-model="inviteSearchKeyword"
+          clearable
+          maxlength="50"
+          placeholder="搜索画师名字"
+          @keyup.enter="searchInvitePainters"
+        >
+          <template #prefix><el-icon><Search /></el-icon></template>
+          <template #append>
+            <el-button :loading="invitePaintersLoading" @click="searchInvitePainters">搜索</el-button>
+          </template>
+        </el-input>
+
+        <section class="invite-search-section" v-loading="invitePaintersLoading">
+          <h4 v-if="inviteSearchPerformed">搜索结果</h4>
+          <div v-if="invitePainters.length" class="invite-painter-results">
+            <button
+              v-for="painter in invitePainters"
+              :key="painter.id"
+              type="button"
+              class="invite-painter-option"
+              :class="{ 'is-selected': pendingInvitePainterId === painter.id }"
+              @click="pendingInvitePainterId = painter.id"
+            >
+              <el-avatar :size="44" :src="painter.avatar">
+                {{ (painter.nickname || painter.username || '画').slice(0, 1) }}
+              </el-avatar>
+              <span class="invite-painter-option__content">
+                <strong>{{ painter.nickname || painter.username }}</strong>
+                <small>{{ painter.bio || '暂无个人简介' }}</small>
+              </span>
+              <el-icon v-if="pendingInvitePainterId === painter.id" class="invite-painter-option__check"><Check /></el-icon>
+            </button>
+          </div>
+          <el-empty
+            v-else-if="inviteSearchPerformed && !invitePaintersLoading"
+            :image-size="72"
+            description="未找到对应的已认证画师"
+          />
+          <p v-else class="invite-search-placeholder">输入画师名字并搜索后，才会显示可邀请的已认证画师。</p>
+        </section>
+      </div>
+
+      <template #footer>
+        <el-button @click="inviteDialogVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!pendingInvitePainterId" @click="confirmInvitePainter">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { ArrowRight, Check, Plus, Search, User } from '@element-plus/icons-vue'
 import { createProject } from '@/api/project'
 import { uploadFile } from '@/api/upload'
-import { getArtists } from '@/api/user'
+import { getArtists, getPublicProfile } from '@/api/user'
+import { useUserStore } from '@/stores/user'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 import CreativePhaseEditor from '@/components/common/CreativePhaseEditor.vue'
 
+const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const step = ref(0)
 const submitting = ref(false)
 const invitePainters = ref([])
 const invitePaintersLoading = ref(false)
+const inviteDialogVisible = ref(false)
+const inviteSearchKeyword = ref('')
+const inviteSearchPerformed = ref(false)
+const pendingInvitePainterId = ref(null)
+const selectedInvitePainter = ref(null)
+let inviteSearchVersion = 0
 
 const subjectCards = ['不限', ...SUBJECT_OPTIONS]
 const formatOptions = ['JPG', 'PNG', 'PSD', 'GIF', 'AI', 'SVG', 'TIF', '其他']
@@ -257,8 +328,25 @@ const subjectSummary = computed(() => form.subjects.length ? form.subjects.join(
 const formatSummary = computed(() => form.requirements.formats.length ? form.requirements.formats.join(' / ') : '-')
 const phaseSummary = computed(() => form.phases.map((phase) => phase.name.trim()).filter(Boolean).join(' → '))
 const invitedPainterName = computed(() => {
-  const painter = invitePainters.value.find((item) => item.id === form.invitePainterId)
-  return painter ? `${painter.nickname || painter.username}（已认证）` : '-'
+  const painter = selectedInvitePainter.value
+  return painter ? (painter.nickname || painter.username) : '-'
+})
+
+onMounted(async () => {
+  const painterId = Number(route.query.invitePainterId)
+  if (!Number.isInteger(painterId) || painterId <= 0) return
+  try {
+    const painter = await getPublicProfile(painterId, 'painter')
+    if (Number(painter?.certStatus) !== 2) {
+      ElMessage.warning('只能邀请已认证画师')
+      return
+    }
+    form.mode = 1
+    form.invitePainterId = painterId
+    selectedInvitePainter.value = { ...painter, id: painterId }
+  } catch {
+    ElMessage.warning('无法读取该画师资料，请重新选择')
+  }
 })
 
 function uploadedImageUrl(file) {
@@ -302,20 +390,55 @@ function onImageExceed() {
   ElMessage.warning('最多上传 6 张参考图')
 }
 
-async function handleModeChange(mode) {
-  if (mode === 0) form.invitePainterId = null
-  else await loadInvitePainters()
+function handleModeChange(mode) {
+  if (mode !== 0) return
+  form.invitePainterId = null
+  selectedInvitePainter.value = null
 }
 
-async function loadInvitePainters() {
-  if (invitePainters.value.length || invitePaintersLoading.value) return
-  invitePaintersLoading.value = true
-  try {
-    const data = await getArtists({ page: 1, size: 50 })
-    invitePainters.value = data.records || []
-  } finally {
-    invitePaintersLoading.value = false
+function openInvitePainterDialog() {
+  resetInvitePainterDialog()
+  inviteDialogVisible.value = true
+}
+
+function resetInvitePainterDialog() {
+  inviteSearchVersion += 1
+  inviteSearchKeyword.value = ''
+  inviteSearchPerformed.value = false
+  invitePainters.value = []
+  pendingInvitePainterId.value = null
+  invitePaintersLoading.value = false
+}
+
+async function searchInvitePainters() {
+  const keyword = inviteSearchKeyword.value.trim()
+  if (!keyword) {
+    inviteSearchPerformed.value = false
+    invitePainters.value = []
+    pendingInvitePainterId.value = null
+    return
   }
+  const version = ++inviteSearchVersion
+  invitePaintersLoading.value = true
+  inviteSearchPerformed.value = true
+  invitePainters.value = []
+  pendingInvitePainterId.value = null
+  try {
+    const data = await getArtists({ page: 1, size: 20, keyword })
+    if (version !== inviteSearchVersion) return
+    const currentUserId = Number(userStore.user?.id || 0)
+    invitePainters.value = (data.records || []).filter((painter) => Number(painter.id) !== currentUserId)
+  } finally {
+    if (version === inviteSearchVersion) invitePaintersLoading.value = false
+  }
+}
+
+function confirmInvitePainter() {
+  const painter = invitePainters.value.find((item) => item.id === pendingInvitePainterId.value)
+  if (!painter) return
+  selectedInvitePainter.value = painter
+  form.invitePainterId = painter.id
+  inviteDialogVisible.value = false
 }
 
 function isSubjectActive(subject) {
@@ -535,11 +658,143 @@ async function submit() {
   margin: 0 0 14px;
 }
 
-.invite-select {
-  display: block;
-  width: 320px;
+.invite-picker-trigger {
+  display: flex;
+  align-items: center;
+  width: 400px;
   max-width: 100%;
   margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #f7f8fa;
+  color: var(--artiv-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color .18s, background .18s;
+}
+
+.invite-picker-trigger:hover {
+  border-color: var(--artiv-primary);
+  background: #f4fbff;
+}
+
+.invite-picker-trigger__icon {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  margin-right: 12px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 21px;
+}
+
+.invite-picker-trigger__content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.invite-picker-trigger__content strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invite-picker-trigger__content small {
+  color: var(--artiv-text-secondary);
+  font-size: 12px;
+}
+
+.invite-picker-trigger__arrow {
+  margin-left: 12px;
+  color: var(--artiv-text-secondary);
+}
+
+.invite-dialog-body {
+  min-height: 390px;
+}
+
+.invite-search-section {
+  min-height: 310px;
+  margin-top: 18px;
+}
+
+.invite-search-section h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.invite-search-placeholder {
+  margin: 38px 0 0;
+  color: var(--artiv-text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.invite-painter-results {
+  display: flex;
+  max-height: 300px;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.invite-painter-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--artiv-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--artiv-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color .18s, background .18s;
+}
+
+.invite-painter-option:hover,
+.invite-painter-option.is-selected {
+  border-color: var(--artiv-primary);
+  background: #f4fbff;
+}
+
+.invite-painter-option__content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 12px;
+}
+
+.invite-painter-option__content strong,
+.invite-painter-option__content small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invite-painter-option__content strong {
+  font-size: 14px;
+}
+
+.invite-painter-option__content small {
+  color: var(--artiv-text-secondary);
+  font-size: 12px;
+}
+
+.invite-painter-option__check {
+  margin-left: 12px;
+  color: var(--artiv-primary);
 }
 
 .advanced-body {

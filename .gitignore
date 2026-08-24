@@ -29,6 +29,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # ---- 后端 ----
+.m2/
 target/
 *.class
 *.jar

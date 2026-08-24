@@ -2,6 +2,7 @@ package com.artiv.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.dto.ConversationSummary;
+import com.artiv.dto.MessageUnreadSummary;
 import com.artiv.dto.PrivateMessageRequest;
 import com.artiv.entity.Message;
 import com.artiv.entity.OrderInfo;
@@ -18,11 +19,15 @@ public interface MessageService {
 
     long countUnread(Long userId);
 
+    MessageUnreadSummary countUnreadSummary(Long userId);
+
     Page<Message> listNotifications(Long userId, long page, long size);
 
     Message createNotification(Long toUserId, Integer type, String subtype, Long projectId, String content);
 
     Message startProjectConversation(Long employerId, Long projectId, Long painterId);
+
+    Message createInvitationAcceptedConversation(Long employerId, Long painterId, Long projectId, String content);
 
     void createStallPurchaseCommunication(OrderInfo order, Stall stall);
 

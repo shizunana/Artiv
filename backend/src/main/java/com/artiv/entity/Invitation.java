@@ -26,6 +26,13 @@ public class Invitation {
     /** 状态：0 待处理、1 已接受、2 已拒绝 */
     private Integer status;
 
+    /** 接受邀请后创建或恢复的普通应征记录 */
+    private Long applicationId;
+
+    private String rejectReason;
+
+    private LocalDateTime respondedAt;
+
     private Integer deleted;
 
     private LocalDateTime createdAt;

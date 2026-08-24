@@ -200,12 +200,17 @@ CREATE TABLE `invitation` (
   `painter_id`  BIGINT       NOT NULL COMMENT '被邀画师用户ID',
   `message`     VARCHAR(500) DEFAULT NULL COMMENT '邀请附言',
   `status`      TINYINT      NOT NULL DEFAULT 0 COMMENT '状态：0 待处理、1 已接受、2 已拒绝',
+  `application_id` BIGINT    DEFAULT NULL COMMENT '接受邀请后创建或恢复的应征ID',
+  `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '婉拒理由',
+  `responded_at` DATETIME    DEFAULT NULL COMMENT '处理时间',
   `deleted`     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_invitation_project` (`project_id`),
   UNIQUE KEY `uk_project_painter` (`project_id`, `painter_id`),
-  KEY `idx_painter` (`painter_id`)
+  KEY `idx_painter` (`painter_id`),
+  KEY `idx_invitation_application` (`application_id`)
 ) ENGINE = InnoDB COMMENT = '定向邀请表';
 
 -- -----------------------------------------------------

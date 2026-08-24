@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.ConversationSummary;
+import com.artiv.dto.MessageUnreadSummary;
 import com.artiv.dto.PrivateMessageRequest;
 import com.artiv.entity.Application;
 import com.artiv.entity.Message;
@@ -173,6 +174,25 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
+    public MessageUnreadSummary countUnreadSummary(Long userId) {
+        long conversationUnreadCount = messageMapper.selectCount(new LambdaQueryWrapper<Message>()
+                .eq(Message::getDeleted, 0)
+                .eq(Message::getToId, userId)
+                .eq(Message::getType, TYPE_PRIVATE)
+                .isNull(Message::getReadAt));
+        long notificationUnreadCount = messageMapper.selectCount(new LambdaQueryWrapper<Message>()
+                .eq(Message::getDeleted, 0)
+                .eq(Message::getToId, userId)
+                .ne(Message::getType, TYPE_PRIVATE)
+                .isNull(Message::getReadAt));
+        return new MessageUnreadSummary(
+                conversationUnreadCount + notificationUnreadCount,
+                conversationUnreadCount,
+                notificationUnreadCount
+        );
+    }
+
+    @Override
     public Page<Message> listNotifications(Long userId, long page, long size) {
         return messageMapper.selectPage(new Page<>(page, size), new LambdaQueryWrapper<Message>()
                 .eq(Message::getDeleted, 0)
@@ -227,6 +247,36 @@ public class MessageServiceImpl implements MessageService {
         message.setConversationKey(conversationKey(employerId, painterId));
         message.setStarterKey(projectConversationStarterKey(projectId, employerId, painterId));
         message.setContent("企划方已发起沟通，双方可在这里继续沟通需求。");
+        try {
+            saveAndPush(message, "NEW_MESSAGE");
+            return message;
+        } catch (DuplicateKeyException duplicateKeyException) {
+            Message starter = findProjectConversationStarter(employerId, painterId, projectId);
+            if (starter != null) {
+                return starter;
+            }
+            throw duplicateKeyException;
+        }
+    }
+
+    @Override
+    public Message createInvitationAcceptedConversation(Long employerId, Long painterId,
+                                                         Long projectId, String content) {
+        Project project = requireOwnedProject(employerId, projectId);
+        requireActiveApplication(project.getId(), painterId);
+        Message existing = findProjectConversationStarter(employerId, painterId, projectId);
+        if (existing != null) {
+            return existing;
+        }
+        Message message = new Message();
+        message.setFromId(painterId);
+        message.setToId(employerId);
+        message.setProjectId(projectId);
+        message.setType(TYPE_PRIVATE);
+        message.setSubtype("INVITATION_ACCEPTED");
+        message.setConversationKey(conversationKey(employerId, painterId));
+        message.setStarterKey(projectConversationStarterKey(projectId, employerId, painterId));
+        message.setContent(content);
         try {
             saveAndPush(message, "NEW_MESSAGE");
             return message;

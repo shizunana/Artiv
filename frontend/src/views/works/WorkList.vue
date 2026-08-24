@@ -13,7 +13,7 @@
 
     <div v-loading="loading" class="work-waterfall" aria-label="作品瀑布流">
       <section v-for="(column, index) in waterfallColumns" :key="index" class="waterfall-column">
-        <aside v-if="index === 0" class="filter-panel" aria-label="作品筛选">
+        <aside v-if="index === 0" ref="filterPanelRef" class="filter-panel" aria-label="作品筛选">
           <section class="filter-group">
             <h3>作品分类</h3>
             <div class="category-options">
@@ -88,7 +88,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
@@ -118,6 +118,7 @@ const categories = ['全部', ...CATEGORY_OPTIONS]
 const subjectOptions = SUBJECT_OPTIONS
 const waterfallColumns = ref([])
 const columnCount = ref(getColumnCount())
+const filterPanelRef = ref(null)
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = reactive({})
@@ -130,6 +131,7 @@ const imageRatioCache = new Map()
 let loadObserver = null
 let loadVersion = 0
 let arrangeVersion = 0
+let filterPanelReserve = 0
 
 function getColumnCount() {
   if (window.innerWidth <= 560) return 2
@@ -155,12 +157,24 @@ function getImageRatio(src) {
   })
 }
 
+function measureFilterPanelReserve() {
+  const panel = Array.isArray(filterPanelRef.value) ? filterPanelRef.value[0] : filterPanelRef.value
+  if (!panel) return 0
+  const width = panel.getBoundingClientRect().width
+  if (!width) return 0
+  const marginBottom = Number.parseFloat(window.getComputedStyle(panel).marginBottom) || 0
+  return (panel.getBoundingClientRect().height + marginBottom) / width
+}
+
 async function arrangeWorks() {
   const version = ++arrangeVersion
   const ratios = await Promise.all(works.value.map(work => getImageRatio(work.image)))
   if (version !== arrangeVersion) return
   const columnHeights = Array(columnCount.value).fill(0)
   const columns = Array.from({ length: columnCount.value }, () => [])
+  const currentPanelReserve = measureFilterPanelReserve()
+  if (currentPanelReserve > 0) filterPanelReserve = currentPanelReserve
+  if (columnHeights.length > 0) columnHeights[0] = filterPanelReserve
 
   works.value.forEach((work, index) => {
     const targetIndex = columnHeights.indexOf(Math.min(...columnHeights))
@@ -168,6 +182,13 @@ async function arrangeWorks() {
     columnHeights[targetIndex] += 1 / ratios[index] + .07
   })
   waterfallColumns.value = columns
+  await nextTick()
+  if (version !== arrangeVersion) return
+  const measuredPanelReserve = measureFilterPanelReserve()
+  if (measuredPanelReserve > 0 && Math.abs(measuredPanelReserve - filterPanelReserve) > .01) {
+    filterPanelReserve = measuredPanelReserve
+    await arrangeWorks()
+  }
 }
 
 function handleResize() {
