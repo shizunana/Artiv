@@ -33,6 +33,11 @@ public class Invitation {
 
     private LocalDateTime respondedAt;
 
+    /** 画师是否已从“收到的邀请”中隐藏该提醒：0 否、1 是 */
+    private Integer painterHidden;
+
+    private LocalDateTime painterHiddenAt;
+
     private Integer deleted;
 
     private LocalDateTime createdAt;

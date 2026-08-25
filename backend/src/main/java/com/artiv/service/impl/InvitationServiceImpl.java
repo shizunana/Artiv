@@ -41,12 +41,23 @@ public class InvitationServiceImpl implements InvitationService {
     private final AccountRestrictionService accountRestrictionService;
 
     @Override
-    public Page<InvitationProjectSummary> listMine(long page, long size, Long userId) {
+    public Page<InvitationProjectSummary> listMine(long page, long size, Long userId, Integer status) {
+        if (status != null && (status < 0 || status > 2)) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "邀请状态筛选参数不正确");
+        }
+        LambdaQueryWrapper<Invitation> query = new LambdaQueryWrapper<Invitation>()
+                .eq(Invitation::getPainterId, userId)
+                .eq(Invitation::getPainterHidden, 0)
+                .eq(Invitation::getDeleted, 0);
+        if (status == null) {
+            query.orderByAsc(Invitation::getStatus)
+                    .orderByDesc(Invitation::getCreatedAt);
+        } else {
+            query.eq(Invitation::getStatus, status)
+                    .orderByDesc(Invitation::getCreatedAt);
+        }
         Page<Invitation> invitations = invitationMapper.selectPage(new Page<>(page, size),
-                new LambdaQueryWrapper<Invitation>()
-                        .eq(Invitation::getPainterId, userId)
-                        .eq(Invitation::getDeleted, 0)
-                        .orderByDesc(Invitation::getCreatedAt));
+                query);
         List<Long> projectIds = invitations.getRecords().stream()
                 .map(Invitation::getProjectId)
                 .distinct()
@@ -144,6 +155,30 @@ public class InvitationServiceImpl implements InvitationService {
         messageService.createNotification(project.getEmployerId(), 0,
                 "INVITATION_REJECTED", project.getId(), content);
         return invitationMapper.selectById(invitation.getId());
+    }
+
+    @Override
+    @Transactional
+    public void hideReminder(Long id, Long painterId) {
+        Invitation invitation = invitationMapper.selectById(id);
+        if (invitation == null || !Integer.valueOf(0).equals(invitation.getDeleted())
+                || !painterId.equals(invitation.getPainterId())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        if (Integer.valueOf(1).equals(invitation.getPainterHidden())) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        int updated = invitationMapper.update(null, new LambdaUpdateWrapper<Invitation>()
+                .eq(Invitation::getId, id)
+                .eq(Invitation::getPainterId, painterId)
+                .eq(Invitation::getDeleted, 0)
+                .set(Invitation::getPainterHidden, 1)
+                .set(Invitation::getPainterHiddenAt, now)
+                .set(Invitation::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
     }
 
     private Invitation requirePendingMine(Long id, Long painterId) {

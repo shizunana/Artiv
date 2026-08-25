@@ -10,6 +10,7 @@ import com.artiv.security.UserContext;
 import com.artiv.service.InvitationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,8 +28,9 @@ public class InvitationController {
 
     @GetMapping
     public Result<Page<InvitationProjectSummary>> mine(@RequestParam(defaultValue = "1") long page,
-                                                        @RequestParam(defaultValue = "10") long size) {
-        return Result.ok(invitationService.listMine(page, size, UserContext.getUserId()));
+                                                        @RequestParam(defaultValue = "10") long size,
+                                                        @RequestParam(required = false) Integer status) {
+        return Result.ok(invitationService.listMine(page, size, UserContext.getUserId(), status));
     }
 
     @GetMapping("/project/{projectId}")
@@ -46,5 +48,11 @@ public class InvitationController {
     public Result<Invitation> reject(@PathVariable Long id,
                                      @Valid @RequestBody InvitationRejectRequest request) {
         return Result.ok(invitationService.reject(id, request, UserContext.getUserId()));
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> hideReminder(@PathVariable Long id) {
+        invitationService.hideReminder(id, UserContext.getUserId());
+        return Result.ok();
     }
 }

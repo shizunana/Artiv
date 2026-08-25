@@ -1,8 +1,10 @@
 package com.artiv.service;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.artiv.common.BusinessException;
 import com.artiv.dto.InvitationAcceptRequest;
@@ -26,6 +28,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -122,6 +126,62 @@ class InvitationServiceTest {
         assertEquals(4, projectCaptor.getValue().getStatus());
     }
 
+    @Test
+    void listMineOnlyReturnsVisibleRemindersAndAppliesStatusFilter() {
+        when(invitationMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
+                .thenReturn(new Page<>(1, 10, 0));
+
+        invitationService.listMine(1, 10, 16L, 1);
+
+        org.mockito.ArgumentCaptor<LambdaQueryWrapper<Invitation>> queryCaptor =
+                org.mockito.ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(invitationMapper).selectPage(any(Page.class), queryCaptor.capture());
+        String sql = queryCaptor.getValue().getSqlSegment();
+        assertTrue(sql.contains("painter_id"));
+        assertTrue(sql.contains("painter_hidden"));
+        assertTrue(sql.contains("status"));
+        assertTrue(sql.contains("created_at"));
+    }
+
+    @Test
+    void listMineRejectsUnsupportedStatusFilter() {
+        assertThrows(BusinessException.class,
+                () -> invitationService.listMine(1, 10, 16L, 3));
+
+        verify(invitationMapper, never()).selectPage(any(), any());
+    }
+
+    @Test
+    void hideReminderOnlyUpdatesPainterReminderFields() {
+        Invitation pending = pendingInvitation();
+        pending.setPainterHidden(0);
+        when(invitationMapper.selectById(5L)).thenReturn(pending);
+        when(invitationMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
+
+        invitationService.hideReminder(5L, 16L);
+
+        org.mockito.ArgumentCaptor<LambdaUpdateWrapper<Invitation>> updateCaptor =
+                org.mockito.ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+        verify(invitationMapper).update(isNull(), updateCaptor.capture());
+        String sqlSet = updateCaptor.getValue().getSqlSet();
+        assertTrue(sqlSet.contains("painter_hidden"));
+        assertTrue(sqlSet.contains("painter_hidden_at"));
+        assertFalse(sqlSet.contains("status="));
+        assertFalse(sqlSet.contains("deleted="));
+        verify(projectMapper, never()).updateById(any(Project.class));
+        verify(messageService, never()).createNotification(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void hideReminderCannotHideAnotherPaintersRecord() {
+        when(invitationMapper.selectById(5L)).thenReturn(pendingInvitation());
+
+        assertThrows(BusinessException.class,
+                () -> invitationService.hideReminder(5L, 99L));
+
+        verify(invitationMapper, never()).update(any(), any());
+    }
+
     private InvitationAcceptRequest acceptRequest() {
         InvitationAcceptRequest request = new InvitationAcceptRequest();
         request.setQuote(new BigDecimal("880.00"));
@@ -140,6 +200,7 @@ class InvitationServiceTest {
         invitation.setProjectId(7L);
         invitation.setPainterId(16L);
         invitation.setStatus(0);
+        invitation.setPainterHidden(0);
         invitation.setDeleted(0);
         return invitation;
     }
