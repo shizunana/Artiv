@@ -1,10 +1,16 @@
 <template>
   <div class="my-stalls">
     <div class="wb-card">
-      <div class="wb-card__head">
-        <h3>我的橱窗</h3>
-        <el-button v-if="permissionReady && isCertifiedPainter" type="primary" round size="small" @click="dialogVisible = true">+ 创建橱窗</el-button>
-      </div>
+      <header class="stall-header">
+        <div>
+          <h2>我的橱窗</h2>
+          <p>统一查看和管理我发布的绘画服务。</p>
+        </div>
+        <div class="header-actions">
+          <el-button @click="load">刷新</el-button>
+          <el-button v-if="permissionReady && isCertifiedPainter" type="primary" round @click="dialogVisible = true">+ 创建橱窗</el-button>
+        </div>
+      </header>
 
       <el-alert
         v-if="permissionReady && !isCertifiedPainter"
@@ -15,42 +21,33 @@
         show-icon
       />
 
-      <el-table :data="stalls" v-loading="loading" empty-text="还没有橱窗，创建一个明码标价的服务吧">
-        <el-table-column label="封面" width="70">
-          <template #default="{ row }">
-            <el-image
-              v-if="row.cover"
-              :src="row.cover"
-              fit="cover"
-              class="cover-thumb"
-              :preview-src-list="[row.cover]"
-              preview-teleported
-            />
-            <span v-else class="cover-none">无图</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="title" label="服务名称" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="category" label="类型" width="80" show-overflow-tooltip />
-        <el-table-column label="价格" width="80">
-          <template #default="{ row }">¥{{ row.price }}</template>
-        </el-table-column>
-        <el-table-column label="剩余库存" width="90">
-          <template #default="{ row }">{{ row.stock ?? 0 }} 件</template>
-        </el-table-column>
-        <el-table-column prop="description" label="橱窗详情" min-width="150" show-overflow-tooltip />
-        <el-table-column label="状态" width="76">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 && row.stock > 0 ? 'success' : 'info'" size="small">
-              {{ row.status !== 1 ? '已下架' : row.stock > 0 ? '上架中' : '无库存' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="80">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="goEdit(row.id)">编辑</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-loading="loading" class="stall-cards">
+        <el-empty v-if="!stalls.length" description="还没有橱窗，创建一个明码标价的服务吧" />
+        <article v-for="stall in stalls" :key="stall.id" class="stall-card" @click="goDetail(stall.id)">
+          <img v-if="stall.cover" :src="stall.cover" :alt="`${stall.title}封面`" />
+          <div v-else class="stall-cover">橱窗</div>
+
+          <div class="stall-main">
+            <div class="stall-title-row">
+              <h3 :title="stall.title">{{ truncate(stall.title) }}</h3>
+              <el-tag :type="stallStatus(stall).type">{{ stallStatus(stall).text }}</el-tag>
+            </div>
+            <p>类型：{{ stall.category || '未分类' }}</p>
+            <p class="stall-detail" :title="stall.description || ''">
+              库存：{{ stall.stock ?? 0 }} 件 · 橱窗详情：{{ truncate(stall.description || '暂无详情') }}
+            </p>
+          </div>
+
+          <div class="stall-price">
+            <small>价格</small>
+            <strong>¥{{ money(stall.price) }}</strong>
+            <div class="stall-actions">
+              <el-button type="primary" link @click.stop="goDetail(stall.id)">橱窗详情</el-button>
+              <el-button type="primary" link @click.stop="goEdit(stall.id)">编辑</el-button>
+            </div>
+          </div>
+        </article>
+      </div>
     </div>
 
     <el-dialog v-model="dialogVisible" title="创建橱窗" width="640px" append-to-body>
@@ -292,6 +289,26 @@ function goEdit(id) {
   router.push({ name: 'StallDetail', params: { id }, query: { edit: '1' } })
 }
 
+function goDetail(id) {
+  router.push({ name: 'StallDetail', params: { id } })
+}
+
+function truncate(value, limit = 10) {
+  const characters = Array.from(String(value || ''))
+  return characters.length > limit ? `${characters.slice(0, limit).join('')}...` : characters.join('')
+}
+
+function money(value) {
+  const amount = Number(value || 0)
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
+function stallStatus(stall) {
+  if (Number(stall.status) !== 1) return { text: '已下架', type: 'info' }
+  if (Number(stall.stock || 0) <= 0) return { text: '无库存', type: 'warning' }
+  return { text: '上架中', type: 'success' }
+}
+
 onMounted(async () => {
   await userStore.fetchMe().catch(() => null)
   permissionReady.value = true
@@ -302,46 +319,41 @@ onMounted(async () => {
 <style scoped>
 .wb-card {
   background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
   padding: 24px;
 }
 
-:deep(.el-table__inner-wrapper::before) {
-  display: none;
-}
-
-:deep(.el-scrollbar__bar.is-horizontal) {
-  display: none;
-}
-
-.wb-card__head {
+.stall-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.wb-card__head h3 {
-  margin: 0;
-  font-size: 17px;
-}
+.stall-header h2 { margin: 0 0 7px; font-size: 21px; }
+.stall-header p { margin: 0; color: var(--artiv-text-secondary); }
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.header-actions :deep(.el-button + .el-button) { margin-left: 0; }
 
 .certification-alert {
-  margin-bottom: 16px;
+  margin-top: 18px;
 }
 
-.cover-thumb {
-  width: 52px;
-  height: 52px;
-  border-radius: 6px;
-  display: block;
-}
-
-.cover-none {
-  font-size: 12px;
-  color: var(--artiv-text-secondary);
-}
+.stall-cards { min-width: 0; min-height: 240px; padding-top: 16px; }
+.stall-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(200px, 240px); align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
+.stall-card:hover { background: #fbfdff; }
+.stall-card img, .stall-cover { width: 92px; height: 72px; border-radius: 7px; object-fit: cover; }
+.stall-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); }
+.stall-main { min-width: 0; }
+.stall-title-row { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.stall-title-row h3 { min-width: 0; margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.stall-main p { margin: 8px 0 0; overflow: hidden; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.stall-main .stall-detail { color: var(--artiv-text); }
+.stall-price { display: grid; min-width: 0; justify-items: end; gap: 7px; }
+.stall-price small { color: var(--artiv-text-secondary); }
+.stall-price strong { color: var(--artiv-accent); font-size: 18px; }
+.stall-actions { display: flex; width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; }
+.stall-actions :deep(.el-button + .el-button) { margin-left: 0; }
 
 .cover-upload {
   width: 110px;
@@ -420,5 +432,13 @@ onMounted(async () => {
 
 .param-input {
   flex: 1;
+}
+
+@media (max-width: 720px) {
+  .stall-header { flex-direction: column; }
+  .stall-card { grid-template-columns: 70px minmax(0, 1fr); }
+  .stall-card img, .stall-cover { width: 70px; }
+  .stall-price { grid-column: 2; justify-items: start; }
+  .stall-actions { justify-content: flex-start; }
 }
 </style>
