@@ -25,6 +25,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.artiv.common.SystemMessageText.markTitle;
+
 @Service
 @RequiredArgsConstructor
 public class AdminProjectServiceImpl implements AdminProjectService {
@@ -109,8 +111,8 @@ public class AdminProjectServiceImpl implements AdminProjectService {
         messageService.createNotification(project.getEmployerId(), 0,
                 target == 1 ? "PROJECT_MODERATION_HIDDEN" : "PROJECT_MODERATION_RESTORED", project.getId(),
                 target == 1
-                        ? "您的企划「" + project.getTitle() + "」因违规已下架，现有应征与订单不受影响。原因：" + request.getReason().trim()
-                        : "您的企划「" + project.getTitle() + "」已由管理员恢复展示。说明：" + request.getReason().trim());
+                        ? "您的企划" + markTitle(project.getTitle()) + "因违规已下架，现有应征与订单不受影响。原因：" + request.getReason().trim()
+                        : "您的企划" + markTitle(project.getTitle()) + "已由管理员恢复展示。说明：" + request.getReason().trim());
         auditService.record(adminId, target == 1 ? "HIDE_PROJECT" : "RESTORE_PROJECT",
                 "PROJECT", id, before, project, request.getReason().trim());
         return project;

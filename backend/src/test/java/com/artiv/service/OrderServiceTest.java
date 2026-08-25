@@ -258,9 +258,9 @@ class OrderServiceTest {
             assertEquals("/uploads/original.png", stage.getOriginals());
         });
         verify(messageService).createOrderEventMessage(eq(stallOrder), eq(2L), eq("ORDER_STAGE_SUBMITTED"),
-                eq("画师[Enana]已提交订单[夏日角色立绘]的[初稿]，请验收。"));
+                eq("画师「Enana」已提交订单「夏日角色立绘」的「初稿」，请验收。"));
         verify(messageService).createOrderEventMessage(eq(projectOrder), eq(2L), eq("ORDER_STAGE_SUBMITTED"),
-                eq("画师[Enana]已提交订单[夏日角色立绘长期企划...]的[初稿]，请验收。"));
+                eq("画师「Enana」已提交订单「夏日角色立绘长期企划...」的「初稿」，请验收。"));
     }
 
     @Test
@@ -283,7 +283,7 @@ class OrderServiceTest {
         assertEquals(1, result.getStatus());
         verify(orderInfoMapper).updateById(result);
         verify(messageService).createOrderEventMessage(eq(result), eq(2L), eq("ORDER_ACCEPTED"),
-                eq("画师[Enana]已确认接单，订单[夏日角色立绘长期企划...]已进入创作阶段。"));
+                eq("画师「Enana」已确认接单，订单「夏日角色立绘长期企划...」已进入创作阶段。"));
     }
 
     @Test
@@ -308,7 +308,7 @@ class OrderServiceTest {
         orderService.cancel(77L, 15L, "需求调整");
 
         verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_CANCELLED"),
-                eq("订单[企划测试]已取消，托管金额已退回：需求调整"));
+                eq("订单「企划测试」已取消，托管金额已退回：需求调整"));
     }
 
     @Test
@@ -327,7 +327,7 @@ class OrderServiceTest {
 
         assertEquals(4, stall.getStock());
         verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_CANCELLED"),
-                eq("订单[头像橱窗]已取消，托管金额已退回：不再需要"));
+                eq("订单「头像橱窗」已取消，托管金额已退回：不再需要"));
     }
 
     @Test
@@ -359,7 +359,7 @@ class OrderServiceTest {
         assertEquals(1, stage.getStatus());
         verify(userMapper).incrementBalance(2L, new BigDecimal("288.00"));
         verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"),
-                eq("企划方已确认订单[夏日角色立绘]当前交付并直接完成交易，后续创作阶段已跳过，款项已结算。"));
+                eq("企划方已确认订单「夏日角色立绘」当前交付并直接完成交易，后续创作阶段已跳过，款项已结算。"));
     }
 
     @Test
@@ -425,7 +425,7 @@ class OrderServiceTest {
         assertEquals(3, result.getStatus());
         assertEquals(new BigDecimal("300.00"), painter.getBalance());
         verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"),
-                eq("企划方已确认订单[夏日角色立绘]的最终交付，订单已完成并结算。"));
+                eq("企划方已确认订单「夏日角色立绘」的最终交付，订单已完成并结算。"));
     }
 
     @Test
@@ -451,7 +451,7 @@ class OrderServiceTest {
         assertEquals(1, order.getStatus());
         assertEquals(2, stage.getStatus());
         verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_REVISION_REQUESTED"),
-                eq("企划方要求修改订单[角色立绘企划]的[初稿]：请调整构图"));
+                eq("企划方要求修改订单「角色立绘企划」的「初稿」：请调整构图"));
     }
 
     @Test
@@ -477,7 +477,7 @@ class OrderServiceTest {
         assertEquals(1, order.getStatus());
         assertEquals(1, order.getCurrentStage());
         verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_STAGE_APPROVED"),
-                eq("企划方已通过订单[头像橱窗]的[初稿]，已进入下一阶段。"));
+                eq("企划方已通过订单「头像橱窗」的「初稿」，已进入下一阶段。"));
     }
 
     @Test

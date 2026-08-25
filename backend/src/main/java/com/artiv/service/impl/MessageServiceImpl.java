@@ -36,6 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.artiv.common.SystemMessageText.markTitle;
+
 @Service
 @RequiredArgsConstructor
 public class MessageServiceImpl implements MessageService {
@@ -219,6 +221,8 @@ public class MessageServiceImpl implements MessageService {
     }
 
     private void createProjectConversation(Long employerId, Long painterId, Long projectId) {
+        Project project = projectMapper.selectById(projectId);
+        String projectTitle = project == null ? "企划 #" + projectId : project.getTitle();
         Message message = new Message();
         message.setFromId(employerId);
         message.setToId(painterId);
@@ -226,7 +230,7 @@ public class MessageServiceImpl implements MessageService {
         message.setType(TYPE_PRIVATE);
         message.setSubtype("APPLICATION_CONVERSATION_STARTED");
         message.setConversationKey(conversationKey(employerId, painterId));
-        message.setContent("企划方已选择你的应征，双方可在这里继续沟通需求。");
+        message.setContent("您对企划" + markTitle(projectTitle) + "的应征已被企划方选中，双方可在这里继续沟通需求。");
         saveAndPush(message, "NEW_MESSAGE");
     }
 
@@ -246,7 +250,7 @@ public class MessageServiceImpl implements MessageService {
         message.setSubtype("APPLICATION_CONVERSATION_STARTED");
         message.setConversationKey(conversationKey(employerId, painterId));
         message.setStarterKey(projectConversationStarterKey(projectId, employerId, painterId));
-        message.setContent("企划方已发起沟通，双方可在这里继续沟通需求。");
+        message.setContent("企划方已就企划" + markTitle(project.getTitle()) + "发起沟通，双方可在这里继续沟通需求。");
         try {
             saveAndPush(message, "NEW_MESSAGE");
             return message;
@@ -292,9 +296,9 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public void createStallPurchaseCommunication(OrderInfo order, Stall stall) {
         createOrderNotification(order.getEmployerId(), order.getId(), "STALL_PURCHASED",
-                "已购买橱窗「" + stall.getTitle() + "」，订单已创建，可进入我的消息与画师沟通。", true);
+                "已购买橱窗" + markTitle(stall.getTitle()) + "，订单已创建，可进入我的消息与画师沟通。", true);
         createOrderNotification(order.getPainterId(), order.getId(), "STALL_PURCHASE_RECEIVED",
-                "企划方已购买你的橱窗「" + stall.getTitle() + "」，请进入我的消息与对方沟通。");
+                "企划方已购买你的橱窗" + markTitle(stall.getTitle()) + "，请进入我的消息与对方沟通。");
         Message message = new Message();
         message.setFromId(order.getEmployerId());
         message.setToId(order.getPainterId());
@@ -302,16 +306,16 @@ public class MessageServiceImpl implements MessageService {
         message.setType(TYPE_PRIVATE);
         message.setSubtype("STALL_PURCHASE_CONVERSATION_STARTED");
         message.setConversationKey(conversationKey(order.getEmployerId(), order.getPainterId()));
-        message.setContent("已购买橱窗「" + stall.getTitle() + "」，双方可在这里沟通委托需求。");
+        message.setContent("已购买橱窗" + markTitle(stall.getTitle()) + "，双方可在这里沟通委托需求。");
         saveAndPush(message, "NEW_MESSAGE");
     }
 
     @Override
     public void createProjectOrderCommunication(OrderInfo order, Project project) {
         createOrderNotification(order.getEmployerId(), order.getId(), "PROJECT_ORDER_CREATED",
-                "已向画师发送企划订单「" + project.getTitle() + "」，金额已托管，等待画师接单。", true);
+                "已向画师发送企划订单" + markTitle(project.getTitle()) + "，金额已托管，等待画师接单。", true);
         createOrderNotification(order.getPainterId(), order.getId(), "PROJECT_ORDER_RECEIVED",
-                "你收到企划「" + project.getTitle() + "」的新订单，请确认是否接单。");
+                "你收到企划" + markTitle(project.getTitle()) + "的新订单，请确认是否接单。");
         Message message = new Message();
         message.setFromId(order.getEmployerId());
         message.setToId(order.getPainterId());
@@ -320,7 +324,7 @@ public class MessageServiceImpl implements MessageService {
         message.setType(TYPE_PRIVATE);
         message.setSubtype("PROJECT_ORDER_CONVERSATION_STARTED");
         message.setConversationKey(conversationKey(order.getEmployerId(), order.getPainterId()));
-        message.setContent("企划方已发送企划订单「" + project.getTitle() + "」，双方可继续沟通并推进交付。");
+        message.setContent("企划方已发送企划订单" + markTitle(project.getTitle()) + "，双方可继续沟通并推进交付。");
         saveAndPush(message, "NEW_MESSAGE");
     }
 

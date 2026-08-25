@@ -41,6 +41,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.artiv.common.SystemMessageText.markTitle;
+
 @Service
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
@@ -120,7 +122,8 @@ public class ReviewServiceImpl implements ReviewService {
             reviewImageMapper.insert(image);
         }
         messageService.createNotification(review.getToId(), 0, "REVIEW_RECEIVED", null,
-                "你收到了一条新的交易评价，可在公开主页的合作评价中查看。");
+                "您收到一条关于订单" + markTitle(displayOrderTitle(order))
+                        + "的交易评价，可在公开主页的合作评价中查看。");
         return toListItems(List.of(review), userId).get(0);
     }
 
@@ -206,7 +209,8 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "该评价已经提交过申诉");
         }
         messageService.createNotification(userId, 0, "REVIEW_APPEAL_SUBMITTED", null,
-                "评价删除申诉已提交，管理员处理后会发送系统通知。");
+                "订单" + markTitle(displayOrderTitle(order))
+                        + "的评价删除申诉已提交，管理员处理后会发送系统通知。");
         return appeal;
     }
 
@@ -260,6 +264,8 @@ public class ReviewServiceImpl implements ReviewService {
         }
         Review review = reviewMapper.selectByIdForUpdate(appeal.getReviewId());
         if (review == null) throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        OrderInfo order = orderInfoMapper.selectById(review.getOrderId());
+        String orderTitle = markTitle(displayOrderTitle(order));
         String decisionReason = normalizeRequired(reason);
         Map<String, Object> before = Map.of("appealStatus", appeal.getStatus(), "reviewDeleted", review.getDeleted());
         if (approve) {
@@ -278,10 +284,11 @@ public class ReviewServiceImpl implements ReviewService {
                 "REVIEW_APPEAL", appealId, before, after, decisionReason);
         messageService.createNotification(appeal.getApplicantId(), 0,
                 approve ? "REVIEW_APPEAL_APPROVED" : "REVIEW_APPEAL_REJECTED", null,
-                (approve ? "你的评价删除申诉已通过。" : "你的评价删除申诉未通过。") + "处理说明：" + decisionReason);
+                "订单" + orderTitle + (approve ? "的评价删除申诉已通过。" : "的评价删除申诉未通过。")
+                        + "处理说明：" + decisionReason);
         if (approve) {
             messageService.createNotification(review.getFromId(), 0, "REVIEW_HIDDEN_AFTER_APPEAL", null,
-                    "你提交的一条交易评价经申诉审核后已被隐藏。处理说明：" + decisionReason);
+                    "您对订单" + orderTitle + "提交的一条交易评价经申诉审核后已被隐藏。处理说明：" + decisionReason);
         }
         return toAppealDetails(List.of(appeal)).get(0);
     }
@@ -402,6 +409,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private String displayOrderTitle(OrderInfo order) {
+        if (order == null) return "历史订单";
         if (order.getProjectId() != null) {
             return StringUtils.hasText(order.getProjectTitle()) ? order.getProjectTitle() : "企划订单 #" + order.getId();
         }

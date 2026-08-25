@@ -64,7 +64,7 @@
           <section class="chat-panel">
             <template v-if="active">
               <header><b>{{ active.withUserNickname || `用户 #${active.withUserId}` }}</b><small>沟通会话</small></header>
-              <div class="chat-history">
+              <div ref="chatHistory" class="chat-history">
                 <div v-if="loadingMessages && !messages.length" class="chat-loading">正在读取会话</div>
                 <el-empty v-else-if="!messages.length" description="开始沟通吧" :image-size="72" />
                 <template v-for="(msg, index) in messages" :key="msg.id">
@@ -195,6 +195,7 @@ const loadingMessages = ref(false)
 const sending = ref(false)
 const sendingImages = ref(false)
 const imageInput = ref(null)
+const chatHistory = ref(null)
 const pendingImages = ref([])
 const maxImageCount = 9
 const messageCache = new Map()
@@ -231,7 +232,10 @@ async function openConversation(item, { force = false } = {}) {
   const alreadyActive = sameConversation(active.value, item)
   const cached = messageCache.get(key)
   const needsRefresh = force || !cached || Number(item.unreadCount || 0) > 0
-  if (alreadyActive && !needsRefresh) return
+  if (alreadyActive && !needsRefresh) {
+    await scrollHistoryToBottom()
+    return
+  }
 
   active.value = item
   if (cached) messages.value = cached
@@ -384,7 +388,8 @@ function imageUrls(message) {
 
 async function scrollHistoryToBottom() {
   await nextTick()
-  const history = document.querySelector('.chat-history')
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  const history = chatHistory.value
   if (history) history.scrollTop = history.scrollHeight
 }
 
@@ -556,7 +561,11 @@ onMounted(async () => {
 
 watch(() => route.query.tab, async (tab) => {
   activeTab.value = tab === 'notifications' ? 'notifications' : 'conversations'
-  if (activeTab.value === 'notifications') await loadNotifications()
+  if (activeTab.value === 'notifications') {
+    await loadNotifications()
+  } else if (active.value) {
+    await scrollHistoryToBottom()
+  }
 })
 watch(() => route.fullPath, openFromQuery)
 onUnmounted(() => {

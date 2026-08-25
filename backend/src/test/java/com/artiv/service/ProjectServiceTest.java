@@ -206,7 +206,7 @@ class ProjectServiceTest {
 
         verify(messageService).createNotification(
                 16L, 0, "INVITATION_CREATED", 7L,
-                "企划方[企划阿明]邀请您参与企划[Project title]，请进入企划详情查看并选择接受或拒绝。"
+                "企划方「企划阿明」邀请您参与企划「Project ti...」，请进入企划详情查看并选择接受或拒绝。"
         );
     }
 

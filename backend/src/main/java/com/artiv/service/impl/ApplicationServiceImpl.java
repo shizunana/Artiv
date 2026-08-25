@@ -37,6 +37,9 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.artiv.common.SystemMessageText.mark;
+import static com.artiv.common.SystemMessageText.markTitle;
+
 @Service
 @RequiredArgsConstructor
 public class ApplicationServiceImpl implements ApplicationService {
@@ -278,7 +281,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                     1,
                     "APPLICATION_CREATED",
                     project.getId(),
-                    painterLabel(painter) + "应征了您的企划[" + project.getTitle() + "]。"
+                    painterLabel(painter) + "应征了您的企划" + markTitle(project.getTitle()) + "。"
             );
         }
         return application;
@@ -302,7 +305,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         applicationMapper.updateById(application);
         messageService.createNotification(
                 application.getPainterId(), 1, "APPLICATION_SELECTED", project.getId(),
-                "企划方已选择你的应征，可进入消息中心继续沟通。"
+                "您对企划" + markTitle(project.getTitle()) + "的应征已被企划方选中，可进入消息中心继续沟通。"
         );
         return application;
     }
@@ -353,12 +356,12 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private String painterLabel(User user) {
         if (user.getNickname() != null && !user.getNickname().isBlank()) {
-            return "画师[" + user.getNickname() + "]";
+            return "画师" + mark(user.getNickname());
         }
         if (user.getUsername() != null && !user.getUsername().isBlank()) {
-            return "画师[" + user.getUsername() + "]";
+            return "画师" + mark(user.getUsername());
         }
-        return "画师 #" + user.getId();
+        return "画师" + mark("#" + user.getId());
     }
 
     private ApplicantPainterSummary toPainterSummary(User painter, ReviewStatistics statistics) {

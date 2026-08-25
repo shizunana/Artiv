@@ -35,6 +35,9 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.artiv.common.SystemMessageText.mark;
+import static com.artiv.common.SystemMessageText.markTitle;
+
 @Service
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
@@ -147,8 +150,8 @@ public class ProjectServiceImpl implements ProjectService {
             User employer = userMapper.selectById(employerId);
             String employerName = employer == null || !StringUtils.hasText(employer.getNickname())
                     ? "企划方 #" + employerId : employer.getNickname();
-            String invitationContent = "企划方[" + employerName + "]邀请您参与企划[" + project.getTitle()
-                    + "]，请进入企划详情查看并选择接受或拒绝。";
+            String invitationContent = "企划方" + mark(employerName) + "邀请您参与企划"
+                    + markTitle(project.getTitle()) + "，请进入企划详情查看并选择接受或拒绝。";
             Invitation invitation = new Invitation();
             invitation.setProjectId(project.getId());
             invitation.setPainterId(request.getInvitePainterId());

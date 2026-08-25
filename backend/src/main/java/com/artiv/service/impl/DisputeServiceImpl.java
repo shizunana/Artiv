@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.artiv.common.SystemMessageText.markTitle;
+
 @Service
 @RequiredArgsConstructor
 public class DisputeServiceImpl implements DisputeService {
@@ -80,7 +82,8 @@ public class DisputeServiceImpl implements DisputeService {
         order.setAfterSaleReason(dispute.getReason());
         order.setUpdatedAt(now);
         orderInfoMapper.updateById(order);
-        record(order, userId, "DISPUTE_CREATED", "订单已发起争议并等待管理员仲裁：" + dispute.getReason(),
+        record(order, userId, "DISPUTE_CREATED",
+                "订单" + notificationOrderTitle(order) + "已发起争议并等待管理员仲裁。原因：" + dispute.getReason(),
                 "ORDER_DISPUTE_CREATED");
         return dispute;
     }
@@ -116,7 +119,8 @@ public class DisputeServiceImpl implements DisputeService {
         }
         validateImages(request.getImages(), true);
         insertEvidence(disputeId, userId, request.getImages(), request.getDescription());
-        record(order, userId, "DISPUTE_EVIDENCE_ADDED", "争议一方补充了图片证据。", "ORDER_DISPUTE_EVIDENCE");
+        record(order, userId, "DISPUTE_EVIDENCE_ADDED",
+                "订单" + notificationOrderTitle(order) + "的争议已补充图片证据。", "ORDER_DISPUTE_EVIDENCE");
         return detail(dispute, order);
     }
 
@@ -275,5 +279,13 @@ public class DisputeServiceImpl implements DisputeService {
         event.setCreatedAt(LocalDateTime.now());
         orderEventMapper.insert(event);
         messageService.createOrderEventMessage(order, actorId, subtype, content);
+    }
+
+    private String notificationOrderTitle(OrderInfo order) {
+        String title = order.getProjectId() != null ? order.getProjectTitle() : order.getStallTitle();
+        if (title == null || title.isBlank()) {
+            title = "订单 #" + order.getId();
+        }
+        return markTitle(title);
     }
 }

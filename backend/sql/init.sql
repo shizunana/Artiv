@@ -488,4 +488,4 @@ INSERT INTO `order_stage` (`id`, `order_id`, `name`, `percent`, `submitter`, `co
 
 INSERT INTO `message` (`id`, `from_id`, `to_id`, `type`, `content`, `read_at`) VALUES
   (1, NULL, 1, 0, '欢迎使用艺绘，完善资料更容易接到订单哦！', NULL),
-  (2, 2, 1, 1, '画师[阿绘]应征了您的企划[国潮风节日海报插画]。', NULL);
+  (2, 2, 1, 1, '画师「阿绘」应征了您的企划「国潮风节日海报插画」。', NULL);

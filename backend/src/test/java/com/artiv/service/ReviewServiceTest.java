@@ -69,7 +69,8 @@ class ReviewServiceTest {
         assertEquals(2L, captor.getValue().getToId());
         assertEquals(5, result.getScore());
         verify(messageService).createNotification(eq(2L), eq(0), eq("REVIEW_RECEIVED"),
-                org.mockito.ArgumentMatchers.isNull(), any());
+                org.mockito.ArgumentMatchers.isNull(),
+                eq("您收到一条关于订单「头像委托」的交易评价，可在公开主页的合作评价中查看。"));
         verify(reviewImageMapper).insert(any(com.artiv.entity.ReviewImage.class));
     }
 
@@ -126,6 +127,9 @@ class ReviewServiceTest {
 
         assertEquals(9L, result.getId());
         assertEquals(0, result.getStatus());
+        verify(messageService).createNotification(eq(2L), eq(0), eq("REVIEW_APPEAL_SUBMITTED"),
+                org.mockito.ArgumentMatchers.isNull(),
+                eq("订单「头像委托」的评价删除申诉已提交，管理员处理后会发送系统通知。"));
         assertThrows(BusinessException.class, () -> reviewService.submitAppeal(81L, 15L, request));
     }
 

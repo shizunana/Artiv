@@ -43,6 +43,8 @@ class DisputeServiceTest {
         order.setId(19L);
         order.setEmployerId(1L);
         order.setPainterId(2L);
+        order.setProjectId(8L);
+        order.setProjectTitle("角色立绘企划");
         order.setStatus(1);
         order.setDeleted(0);
         when(orderInfoMapper.selectByIdForUpdate(19L)).thenReturn(order);
@@ -61,6 +63,7 @@ class DisputeServiceTest {
         assertEquals(7L, dispute.getId());
         assertEquals(5, order.getStatus());
         verify(evidenceMapper, org.mockito.Mockito.times(2)).insert(any(OrderDisputeEvidence.class));
-        verify(messageService).createOrderEventMessage(eq(order), eq(2L), eq("ORDER_DISPUTE_CREATED"), any());
+        verify(messageService).createOrderEventMessage(eq(order), eq(2L), eq("ORDER_DISPUTE_CREATED"),
+                eq("订单「角色立绘企划」已发起争议并等待管理员仲裁。原因：阶段稿与约定不一致"));
     }
 }

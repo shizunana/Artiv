@@ -96,6 +96,9 @@ class MessageServiceTest {
         assertEquals("STALL_PURCHASED", captor.getAllValues().get(0).getSubtype());
         assertEquals("STALL_PURCHASE_RECEIVED", captor.getAllValues().get(1).getSubtype());
         assertEquals("STALL_PURCHASE_CONVERSATION_STARTED", captor.getAllValues().get(2).getSubtype());
+        assertEquals("已购买橱窗「commission」，订单已创建，可进入我的消息与画师沟通。", captor.getAllValues().get(0).getContent());
+        assertEquals("企划方已购买你的橱窗「commission」，请进入我的消息与对方沟通。", captor.getAllValues().get(1).getContent());
+        assertEquals("已购买橱窗「commission」，双方可在这里沟通委托需求。", captor.getAllValues().get(2).getContent());
         assertEquals(77L, captor.getAllValues().get(2).getOrderId());
     }
 
@@ -116,6 +119,9 @@ class MessageServiceTest {
         assertEquals("PROJECT_ORDER_CREATED", captor.getAllValues().get(0).getSubtype());
         assertEquals("PROJECT_ORDER_RECEIVED", captor.getAllValues().get(1).getSubtype());
         assertEquals("PROJECT_ORDER_CONVERSATION_STARTED", captor.getAllValues().get(2).getSubtype());
+        assertEquals("已向画师发送企划订单「企划测试」，金额已托管，等待画师接单。", captor.getAllValues().get(0).getContent());
+        assertEquals("你收到企划「企划测试」的新订单，请确认是否接单。", captor.getAllValues().get(1).getContent());
+        assertEquals("企划方已发送企划订单「企划测试」，双方可继续沟通并推进交付。", captor.getAllValues().get(2).getContent());
         assertEquals(8L, captor.getAllValues().get(2).getProjectId());
         assertEquals(78L, captor.getAllValues().get(2).getOrderId());
         org.junit.jupiter.api.Assertions.assertNotNull(captor.getAllValues().get(0).getReadAt());
@@ -204,6 +210,7 @@ class MessageServiceTest {
         assertEquals(8L, captor.getValue().getProjectId());
         assertEquals("APPLICATION_CONVERSATION_STARTED", captor.getValue().getSubtype());
         assertEquals("8:1_2:APPLICATION_CONVERSATION_STARTED", captor.getValue().getStarterKey());
+        assertEquals("企划方已就企划「企划测试」发起沟通，双方可在这里继续沟通需求。", captor.getValue().getContent());
     }
 
     @Test
@@ -225,7 +232,7 @@ class MessageServiceTest {
         when(messageMapper.selectOne(any())).thenReturn(null);
 
         messageService.createInvitationAcceptedConversation(
-                1L, 2L, 8L, "画师[Enana]接受了邀请。"
+                1L, 2L, 8L, "画师「Enana」接受了邀请。"
         );
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
@@ -236,7 +243,7 @@ class MessageServiceTest {
         assertEquals(8L, message.getProjectId());
         assertEquals("INVITATION_ACCEPTED", message.getSubtype());
         assertEquals("8:1_2:APPLICATION_CONVERSATION_STARTED", message.getStarterKey());
-        assertEquals("画师[Enana]接受了邀请。", message.getContent());
+        assertEquals("画师「Enana」接受了邀请。", message.getContent());
     }
 
     @Test
@@ -359,6 +366,7 @@ class MessageServiceTest {
         Project project = new Project();
         project.setId(8L);
         project.setEmployerId(1L);
+        project.setTitle("企划测试");
         project.setDeleted(0);
         return project;
     }
