@@ -96,7 +96,7 @@
               <div class="project-card-copy">
                 <div class="project-card-title">
                   <h3>{{ project.title }}</h3>
-                  <el-tag size="small" :type="project.status === 0 ? 'success' : 'info'">{{ project.status === 0 ? '招募中' : '已完成' }}</el-tag>
+                  <el-tag size="small" :type="publicProjectStatus(project).type">{{ publicProjectStatus(project).text }}</el-tag>
                 </div>
                 <p>{{ project.description || '暂无需求描述' }}</p>
                 <div class="project-card-meta"><span>{{ project.category || '未分类' }}</span><strong>{{ formatProjectBudget(project) }}</strong></div>
@@ -118,11 +118,48 @@
 
     <EmptyState v-else-if="!profileLoading" description="该用户主页暂不可访问" />
     <el-image-viewer v-if="previewUrl" :url-list="[previewUrl]" hide-on-click-modal @close="previewUrl = ''" />
+
+    <el-dialog v-model="inviteVisible" title="邀请画师" width="600px" @closed="resetInviteForm">
+      <el-form ref="inviteFormRef" :model="inviteForm" :rules="inviteRules" label-position="top">
+        <el-form-item label="画师">
+          <div class="invite-painter"><el-avatar :src="profile?.avatar || undefined" />{{ profile?.nickname }}</div>
+        </el-form-item>
+        <el-form-item label="邀请类型" prop="invitationType">
+          <div class="invite-type-list">
+            <button type="button" :class="['invite-type-card', { active: inviteForm.invitationType === 1 }]" @click="inviteForm.invitationType = 1">
+              <strong>邀请报价</strong><span>邀请画师查看企划，并根据需求主动提供报价。</span>
+            </button>
+            <button type="button" :class="['invite-type-card', { active: inviteForm.invitationType === 2 }]" @click="inviteForm.invitationType = 2">
+              <strong>带价邀请</strong><span>提前提供合作价格，画师接受后按该价格形成应征。</span>
+            </button>
+          </div>
+        </el-form-item>
+        <el-form-item label="公开企划" prop="projectId">
+          <el-select v-model="inviteForm.projectId" filterable placeholder="请选择希望邀请画师参与的公开企划" style="width: 100%" :loading="inviteProjectsLoading">
+            <el-option v-for="item in inviteProjects" :key="item.id" :label="item.title" :value="item.id">
+              <span>{{ item.title }}</span><span class="project-budget-option">{{ formatProjectBudget(item) }}</span>
+            </el-option>
+          </el-select>
+          <p v-if="!inviteProjectsLoading && !inviteProjects.length" class="invite-empty-tip">暂无正在招募且未过期的公开企划，请先发布或重新上架企划。</p>
+        </el-form-item>
+        <el-form-item v-if="inviteForm.invitationType === 2" label="邀请价格（元）" prop="offeredPrice">
+          <el-input-number v-model="inviteForm.offeredPrice" :min="50" :precision="2" :step="50" controls-position="right" />
+          <span class="price-rule">最低 ¥50，发送后画师不能修改该应征报价。</span>
+        </el-form-item>
+        <el-form-item label="附言（选填）" prop="message">
+          <el-input v-model="inviteForm.message" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="可以说明希望画师关注的需求重点" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="inviteVisible = false">取消</el-button>
+        <el-button type="primary" :loading="inviting" :disabled="!inviteProjects.length" @click="submitInvite">确认邀请</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { MoreFilled } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -133,6 +170,9 @@ import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import ReviewList from '@/components/reviews/ReviewList.vue'
 import { followPainter, getPainterFollowStatus, unfollowPainter } from '@/api/social'
 import { formatProjectBudget } from '@/utils/budget'
+import { isProjectExpired } from '@/utils/projectDeadline'
+import { getMyProjects } from '@/api/project'
+import { createPublicInvitation } from '@/api/invitation'
 
 const route = useRoute()
 const router = useRouter()
@@ -150,6 +190,20 @@ const previewUrl = ref('')
 const resourceError = ref(false)
 const followed = ref(false)
 const followLoading = ref(false)
+const inviteVisible = ref(false)
+const inviteProjectsLoading = ref(false)
+const inviteProjects = ref([])
+const inviteFormRef = ref()
+const inviting = ref(false)
+const inviteForm = reactive({ projectId: null, invitationType: 1, offeredPrice: undefined, message: '' })
+const inviteRules = {
+  projectId: [{ required: true, message: '请选择公开企划', trigger: 'change' }],
+  invitationType: [{ required: true, message: '请选择邀请类型', trigger: 'change' }],
+  offeredPrice: [{ validator: (_rule, value, callback) => {
+    if (inviteForm.invitationType === 2 && (!value || Number(value) < 50)) callback(new Error('邀请价格不能低于 50 元'))
+    else callback()
+  }, trigger: 'change' }],
+}
 let observer = null
 let requestVersion = 0
 let resourceRequestVersion = 0
@@ -283,7 +337,43 @@ async function toggleFollow() {
 
 async function openInvite() {
   if (!requireLogin()) return
-  router.push({ name: 'ProjectNew', query: { invitePainterId: profileId.value } })
+  inviteVisible.value = true
+  inviteProjectsLoading.value = true
+  try {
+    const data = await getMyProjects({ page: 1, size: 100, mode: 0 })
+    inviteProjects.value = (data?.records || []).filter((item) => Number(item.status) === 0
+      && Number(item.moderationStatus || 0) === 0 && !isProjectExpired(item.deadline))
+  } finally {
+    inviteProjectsLoading.value = false
+  }
+}
+
+function resetInviteForm() {
+  inviteFormRef.value?.resetFields()
+  inviteForm.projectId = null
+  inviteForm.invitationType = 1
+  inviteForm.offeredPrice = undefined
+  inviteForm.message = ''
+  inviteProjects.value = []
+}
+
+async function submitInvite() {
+  const valid = await inviteFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+  inviting.value = true
+  try {
+    await createPublicInvitation({
+      projectId: inviteForm.projectId,
+      painterId: profileId.value,
+      invitationType: inviteForm.invitationType,
+      ...(inviteForm.invitationType === 2 ? { offeredPrice: inviteForm.offeredPrice } : {}),
+      message: inviteForm.message.trim() || undefined,
+    })
+    ElMessage.success(inviteForm.invitationType === 2 ? '带价邀请已发送' : '邀请报价已发送')
+    inviteVisible.value = false
+  } finally {
+    inviting.value = false
+  }
 }
 
 function showUnavailable(name) { ElMessage.info(`${name}功能暂未开放`) }
@@ -298,6 +388,13 @@ function projectCover(project) {
   } catch {
     return String(project.images).split(',').map((item) => item.trim()).filter(Boolean)[0] || ''
   }
+}
+
+function publicProjectStatus(project) {
+  if (Number(project.status) === 4) return { text: '已下架', type: 'info' }
+  if (isProjectExpired(project.deadline)) return { text: '已过期', type: 'info' }
+  if (Number(project.status) === 0) return { text: '招募中', type: 'success' }
+  return { text: '已完成', type: 'info' }
 }
 function goStall(id) { router.push({ name: 'StallDetail', params: { id } }) }
 function goProject(id) { router.push({ name: 'ProjectDetail', params: { id } }) }
@@ -361,6 +458,16 @@ function goProject(id) { router.push({ name: 'ProjectDetail', params: { id } }) 
 .project-card-meta { display: flex; align-items: end; justify-content: space-between; }
 .project-card-meta span { color: #7f8995; }
 .load-sentinel { min-height: 46px; padding-top: 20px; color: #98a2ad; text-align: center; }
+.invite-painter { display: flex; align-items: center; gap: 10px; color: #27323f; font-weight: 600; }
+.invite-type-list { display: grid; width: 100%; gap: 10px; }
+.invite-type-card { display: grid; gap: 6px; padding: 15px 18px; color: #354152; text-align: left; cursor: pointer; background: #fff; border: 1px solid #dfe6ed; border-radius: 8px; }
+.invite-type-card strong { font-size: 16px; }
+.invite-type-card span { color: #7b8794; line-height: 1.5; }
+.invite-type-card.active { color: #059edb; background: #f0faff; border-color: #05a8e8; box-shadow: 0 0 0 1px rgb(5 168 232 / 10%); }
+.invite-type-card:focus { outline: 2px solid #05a8e8; outline-offset: 1px; }
+.project-budget-option { float: right; margin-left: 18px; color: #f39119; }
+.invite-empty-tip { margin: 7px 0 0; color: #9099a5; font-size: 13px; }
+.price-rule { margin-left: 12px; color: #8b95a1; font-size: 13px; }
 @media (max-width: 900px) {
   .profile-content { padding-right: 20px; padding-left: 20px; }
   .profile-actions { position: absolute; right: 0; bottom: 6px; }

@@ -17,8 +17,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -64,16 +66,27 @@ public class ProjectController {
         return Result.ok(projectService.getById(id, UserContext.getUserId()));
     }
 
-    /** 发布者上架/下架企划：0 招募中，4 已下架。 */
+    /** 仅修改企划截稿日期；过期或下架企划也允许修改。 */
+    @PutMapping("/{id}/deadline")
+    public Result<Project> updateDeadline(@PathVariable Long id,
+                                          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadline) {
+        return Result.ok(projectService.updateDeadline(id, deadline, UserContext.getUserId()));
+    }
+
+    /** 发布者上架/下架企划：0 招募中，4 已下架；重新上架必须同时选择新截稿日期。 */
     @PutMapping("/{id}/status")
-    public Result<Project> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
-        return Result.ok(projectService.changeStatus(id, status, UserContext.getUserId()));
+    public Result<Project> changeStatus(@PathVariable Long id,
+                                        @RequestParam Integer status,
+                                        @RequestParam(required = false)
+                                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadline) {
+        return Result.ok(projectService.changeStatus(id, status, deadline, UserContext.getUserId()));
     }
 
     /** 被拒绝的定向企划改为公开招募企划。 */
     @PutMapping("/{id}/publish-public")
-    public Result<Project> publishPublic(@PathVariable Long id) {
-        return Result.ok(projectService.publishPublic(id, UserContext.getUserId()));
+    public Result<Project> publishPublic(@PathVariable Long id,
+                                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadline) {
+        return Result.ok(projectService.publishPublic(id, deadline, UserContext.getUserId()));
     }
 
     /** 仅无任何关联订单的企划允许删除。 */

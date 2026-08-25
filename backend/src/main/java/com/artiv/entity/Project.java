@@ -62,9 +62,6 @@ public class Project {
     @TableField(exist = false)
     private Integer invitationStatus;
 
-    /** 招募截止时间 */
-    private LocalDateTime recruitDeadline;
-
     /** 状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已下架 */
     private Integer status;
 

@@ -123,12 +123,6 @@
       </div>
     </template>
 
-    <section v-else class="stat-row">
-      <div class="stat-card"><strong>{{ counts.works }}</strong><span>我的作品</span></div>
-      <div class="stat-card"><strong>{{ counts.stalls }}</strong><span>我的橱窗</span></div>
-      <div class="stat-card"><strong>{{ counts.applications }}</strong><span>我的应征</span></div>
-      <div class="stat-card"><strong>{{ counts.invitations }}</strong><span>待处理邀请</span></div>
-    </section>
   </div>
 </template>
 
@@ -269,7 +263,9 @@ function openPublicProfile() {
   router.push({ name: 'ArtistProfile', params: { id: userStore.user?.id }, query: { role: 'painter' } })
 }
 
-onMounted(loadDashboard)
+onMounted(() => {
+  if (certStatus.value === 2) loadDashboard()
+})
 </script>
 
 <style scoped>
@@ -316,10 +312,6 @@ onMounted(loadDashboard)
 .quick-copy strong { color: var(--artiv-text); font-size: 14px; }
 .quick-copy small { overflow: hidden; color: var(--artiv-text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .quick-arrow { color: var(--artiv-primary); font-size: 24px; line-height: 1; }
-.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.stat-card { display: flex; flex-direction: column; gap: 6px; border: 1px solid #e4ebf0; border-radius: 12px; background: #fff; box-shadow: 0 7px 24px rgb(42 67 84 / 5%); padding: 24px 26px; }
-.stat-card strong { color: var(--artiv-primary); font-size: 24px; }
-.stat-card span { color: var(--artiv-text-secondary); font-size: 13px; }
 @media (max-width: 980px) {
   .business-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-grid { grid-template-columns: 1fr; }
@@ -327,7 +319,7 @@ onMounted(loadDashboard)
 }
 @media (max-width: 720px) {
   .welcome-card { align-items: flex-start; flex-direction: column; }
-  .cert-steps,.business-metrics,.quick-list,.stat-row { grid-template-columns: 1fr; }
+  .cert-steps,.business-metrics,.quick-list { grid-template-columns: 1fr; }
   .active-order { grid-template-columns: 62px minmax(0, 1fr); }
   .active-order img,.order-cover { width: 62px; }
   .active-order-side { grid-column: 2; justify-items: start; }

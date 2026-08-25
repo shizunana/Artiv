@@ -1,5 +1,7 @@
 package com.artiv.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.BusinessException;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PublicProfileServiceImpl implements PublicProfileService {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int ORDER_COMPLETED = 3;
     private static final List<Integer> TERMINAL_ORDER_STATUSES = List.of(3, 4, 5);
 
@@ -199,20 +202,45 @@ public class PublicProfileServiceImpl implements PublicProfileService {
         Map<Long, Project> projects = projectMapper.selectBatchIds(
                         measurable.stream().map(OrderInfo::getProjectId).distinct().toList())
                 .stream().collect(Collectors.toMap(Project::getId, Function.identity()));
+        Map<Long, LocalDate> deadlines = new java.util.LinkedHashMap<>();
+        for (OrderInfo order : measurable) {
+            LocalDate snapshotDeadline = snapshotDeadline(order);
+            Project project = projects.get(order.getProjectId());
+            LocalDate deadline = snapshotDeadline != null
+                    ? snapshotDeadline : project == null ? null : project.getDeadline();
+            if (deadline != null) {
+                deadlines.put(order.getId(), deadline);
+            }
+        }
         List<OrderInfo> datedOrders = measurable.stream()
-                .filter(order -> {
-                    Project project = projects.get(order.getProjectId());
-                    return project != null && project.getDeadline() != null;
-                })
+                .filter(order -> deadlines.get(order.getId()) != null)
                 .toList();
         if (datedOrders.isEmpty()) {
             return new RateStats(null, 0, 0);
         }
         long onTime = datedOrders.stream().filter(order -> {
-            LocalDate deadline = projects.get(order.getProjectId()).getDeadline();
+            LocalDate deadline = deadlines.get(order.getId());
             return !order.getCompletedAt().toLocalDate().isAfter(deadline);
         }).count();
         return new RateStats(percentage(onTime, datedOrders.size()), onTime, datedOrders.size());
+    }
+
+    private LocalDate snapshotDeadline(OrderInfo order) {
+        if (!StringUtils.hasText(order.getProjectSnapshot())) {
+            return null;
+        }
+        try {
+            JsonNode value = OBJECT_MAPPER.readTree(order.getProjectSnapshot()).path("deadline");
+            if (value.isTextual() && StringUtils.hasText(value.asText())) {
+                return LocalDate.parse(value.asText());
+            }
+            if (value.isArray() && value.size() >= 3) {
+                return LocalDate.of(value.get(0).asInt(), value.get(1).asInt(), value.get(2).asInt());
+            }
+        } catch (Exception ignored) {
+            // 历史异常快照回退到当前企划日期；新订单始终保存合法日期快照。
+        }
+        return null;
     }
 
     private Integer percentage(long numerator, long denominator) {

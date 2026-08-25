@@ -513,7 +513,8 @@ public class OrderServiceImpl implements OrderService {
         snapshot.put("subject", project.getSubject());
         snapshot.put("requirements", project.getRequirements());
         snapshot.put("phases", project.getPhases());
-        snapshot.put("deadline", project.getDeadline());
+        // 快照字段使用稳定的 ISO 日期字符串，避免 ObjectMapper 日期配置差异改写历史格式。
+        snapshot.put("deadline", project.getDeadline() == null ? null : project.getDeadline().toString());
         snapshot.put("applicationId", application.getId());
         snapshot.put("applicationIntro", application.getIntro());
         snapshot.put("applicationQuote", application.getQuote());

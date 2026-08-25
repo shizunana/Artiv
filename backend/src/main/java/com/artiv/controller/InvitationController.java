@@ -5,6 +5,7 @@ import com.artiv.common.Result;
 import com.artiv.dto.InvitationAcceptRequest;
 import com.artiv.dto.InvitationProjectSummary;
 import com.artiv.dto.InvitationRejectRequest;
+import com.artiv.dto.PublicInvitationCreateRequest;
 import com.artiv.entity.Invitation;
 import com.artiv.security.UserContext;
 import com.artiv.service.InvitationService;
@@ -25,6 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class InvitationController {
 
     private final InvitationService invitationService;
+
+    @PostMapping
+    public Result<Invitation> createPublic(@Valid @RequestBody PublicInvitationCreateRequest request) {
+        return Result.ok(invitationService.createPublic(request, UserContext.getUserId()));
+    }
 
     @GetMapping
     public Result<Page<InvitationProjectSummary>> mine(@RequestParam(defaultValue = "1") long page,

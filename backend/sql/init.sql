@@ -147,7 +147,7 @@ CREATE TABLE `project` (
   `budget`          DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '预算（元）',
   `budget_min`      DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '预算区间下限（元）',
   `budget_max`      DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '预算区间上限（元）',
-  `deadline`        DATE          DEFAULT NULL COMMENT '截稿日期',
+  `deadline`        DATE          NOT NULL COMMENT '截稿日期（招募截止及订单约定参考日期，当天有效）',
   `tags`            VARCHAR(255)  DEFAULT NULL COMMENT '标签，逗号分隔',
   `category`        VARCHAR(50)   DEFAULT NULL COMMENT '稿件类型（与橱窗分类一致）',
   `subject`         VARCHAR(255)  DEFAULT NULL COMMENT '题材风格，逗号分隔',
@@ -155,7 +155,6 @@ CREATE TABLE `project` (
   `requirements`    TEXT          DEFAULT NULL COMMENT '结构化项目要求 JSON',
   `phases`          VARCHAR(1000) DEFAULT NULL COMMENT '创作阶段 JSON',
   `mode`            TINYINT       NOT NULL DEFAULT 0 COMMENT '合作方式：0 公开招募、1 定向邀请',
-  `recruit_deadline` DATETIME     DEFAULT NULL COMMENT '招募截止时间（默认发布后10日）',
   `status`          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已关闭',
   `moderation_status` TINYINT     NOT NULL DEFAULT 0 COMMENT '审核状态：0正常、1违规下架',
   `moderation_reason` VARCHAR(500) DEFAULT NULL COMMENT '下架或恢复原因',
@@ -167,7 +166,7 @@ CREATE TABLE `project` (
   PRIMARY KEY (`id`),
   KEY `idx_employer` (`employer_id`),
   KEY `idx_status` (`status`),
-  KEY `idx_project_public` (`moderation_status`, `status`, `deleted`),
+  KEY `idx_project_public` (`moderation_status`, `status`, `deleted`, `deadline`),
   KEY `idx_project_created` (`created_at`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '企划表';
 
@@ -182,6 +181,7 @@ CREATE TABLE `application` (
   `intro`       VARCHAR(500)  DEFAULT NULL COMMENT '应征介绍',
   `work_link`   VARCHAR(500)  DEFAULT NULL COMMENT '作品链接',
   `quote`       DECIMAL(10,2) DEFAULT NULL COMMENT '报价（元）',
+  `quote_source` TINYINT      NOT NULL DEFAULT 0 COMMENT '报价来源：0 画师报价、1 企划方带价邀请',
   `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0 待处理、1 已通过、2 已拒绝、3 已撤销',
   `active`      TINYINT       NOT NULL DEFAULT 1 COMMENT '是否为当前有效应征：0 否、1 是',
   `ended_reason` VARCHAR(30)  DEFAULT NULL COMMENT '关系终止原因：WITHDRAWN/REJECTED/ORDER_COMPLETED',
@@ -198,7 +198,7 @@ CREATE TABLE `application` (
 ) ENGINE = InnoDB COMMENT = '应征表';
 
 -- -----------------------------------------------------
--- 定向邀请表
+-- 企划邀请表
 -- -----------------------------------------------------
 DROP TABLE IF EXISTS `invitation`;
 CREATE TABLE `invitation` (
@@ -206,7 +206,9 @@ CREATE TABLE `invitation` (
   `project_id`  BIGINT       NOT NULL COMMENT '企划ID',
   `painter_id`  BIGINT       NOT NULL COMMENT '被邀画师用户ID',
   `message`     VARCHAR(500) DEFAULT NULL COMMENT '邀请附言',
-  `status`      TINYINT      NOT NULL DEFAULT 0 COMMENT '状态：0 待处理、1 已接受、2 已拒绝',
+  `invitation_type` TINYINT  NOT NULL DEFAULT 0 COMMENT '类型：0 定向邀请、1 邀请报价、2 带价邀请',
+  `offered_price` DECIMAL(10,2) DEFAULT NULL COMMENT '带价邀请价格',
+  `status`      TINYINT      NOT NULL DEFAULT 0 COMMENT '状态：0 待处理、1 已接受、2 已拒绝、3 已失效',
   `application_id` BIGINT    DEFAULT NULL COMMENT '接受邀请后创建或恢复的应征ID',
   `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '婉拒理由',
   `responded_at` DATETIME    DEFAULT NULL COMMENT '处理时间',
@@ -216,12 +218,11 @@ CREATE TABLE `invitation` (
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_invitation_project` (`project_id`),
-  UNIQUE KEY `uk_project_painter` (`project_id`, `painter_id`),
   KEY `idx_painter` (`painter_id`),
   KEY `idx_invitation_painter_reminder` (`painter_id`, `painter_hidden`, `status`, `created_at`),
+  KEY `idx_invitation_project_painter_status` (`project_id`, `painter_id`, `status`, `created_at`),
   KEY `idx_invitation_application` (`application_id`)
-) ENGINE = InnoDB COMMENT = '定向邀请表';
+) ENGINE = InnoDB COMMENT = '企划邀请表';
 
 -- -----------------------------------------------------
 -- 订单表（order 为保留字，库表名用 order_info）
@@ -470,9 +471,9 @@ INSERT INTO `stall` (`id`, `painter_id`, `title`, `category`, `price`, `descript
   (1, 2, '国潮插画约稿（单张）', '国潮插画', 1200.00, '含初稿、2 次修改、终稿源文件，交付周期 2 周。', 1),
   (2, 2, '角色立绘（半身）', '角色立绘', 800.00, '半身像立绘，含分层 PSD 源文件。', 1);
 
-INSERT INTO `project` (`id`, `employer_id`, `title`, `description`, `budget`, `deadline`, `tags`, `mode`, `recruit_deadline`, `status`) VALUES
-  (1, 1, '国潮风节日海报插画', '需要一张国潮风格的节日海报插画，用于品牌宣传，希望风格大气、细节丰富。', 1500.00, '2026-09-01', '国潮,插画,海报', 0, DATE_ADD(NOW(), INTERVAL 10 DAY), 0),
-  (2, 1, '角色立绘约稿（定向）', '游戏角色立绘，半身像，需要分层 PSD 源文件，定向邀请阿绘。', 800.00, '2026-08-25', '立绘,游戏', 1, DATE_ADD(NOW(), INTERVAL 10 DAY), 0);
+INSERT INTO `project` (`id`, `employer_id`, `title`, `description`, `budget`, `deadline`, `tags`, `mode`, `status`) VALUES
+  (1, 1, '国潮风节日海报插画', '需要一张国潮风格的节日海报插画，用于品牌宣传，希望风格大气、细节丰富。', 1500.00, '2026-09-01', '国潮,插画,海报', 0, 0),
+  (2, 1, '角色立绘约稿（定向）', '游戏角色立绘，半身像，需要分层 PSD 源文件，定向邀请阿绘。', 800.00, '2026-08-25', '立绘,游戏', 1, 0);
 
 INSERT INTO `application` (`id`, `project_id`, `painter_id`, `intro`, `work_link`, `quote`, `status`) VALUES
   (1, 1, 2, '擅长国潮插画，可提供初稿预览，两周内交付。', '/works/1', 1200.00, 0);

@@ -5,6 +5,7 @@ import com.artiv.dto.ProjectRequest;
 import com.artiv.entity.Project;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public interface ProjectService {
 
@@ -19,9 +20,11 @@ public interface ProjectService {
 
     Project getById(Long id, Long viewerId);
 
-    Project changeStatus(Long id, Integer status, Long employerId);
+    Project updateDeadline(Long id, LocalDate deadline, Long employerId);
 
-    Project publishPublic(Long id, Long employerId);
+    Project changeStatus(Long id, Integer status, LocalDate deadline, Long employerId);
+
+    Project publishPublic(Long id, LocalDate deadline, Long employerId);
 
     void delete(Long id, Long employerId);
 }

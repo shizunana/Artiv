@@ -31,6 +31,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,7 +59,7 @@ class OrderServiceTest {
     @Mock private OrderPreviewService orderPreviewService;
     @Mock private AccountRestrictionService accountRestrictionService;
     @Mock private ReviewService reviewService;
-    @Spy private ObjectMapper objectMapper = new ObjectMapper();
+    @Spy private ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     @InjectMocks private OrderServiceImpl orderService;
 
     @Test
@@ -114,7 +115,7 @@ class OrderServiceTest {
     }
 
     @Test
-    void createProjectOrderUsesApplicationQuoteAndDoesNotChangeProjectState() {
+    void createProjectOrderUsesApplicationQuoteAfterDeadlineAndDoesNotChangeProjectState() throws Exception {
         Application application = new Application();
         application.setId(31L);
         application.setProjectId(8L);
@@ -133,6 +134,7 @@ class OrderServiceTest {
         project.setImages("/uploads/project.png,/uploads/other.png");
         project.setStatus(0);
         project.setDeleted(0);
+        project.setDeadline(LocalDate.of(2020, 8, 30));
         project.setPhases("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]");
         User employer = activeUser(15L, new BigDecimal("1000.00"));
         User painter = activeUser(2L, BigDecimal.ZERO);
@@ -155,6 +157,7 @@ class OrderServiceTest {
         assertEquals("企划测试", result.getProjectTitle());
         assertEquals("/uploads/project.png", result.getProjectCover());
         assertEquals("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]", result.getPhaseSnapshot());
+        assertEquals("2020-08-30", objectMapper.readTree(result.getProjectSnapshot()).path("deadline").asText());
         assertEquals(0, project.getStatus());
         verify(projectMapper, never()).updateById(any(Project.class));
         verify(messageService).createProjectOrderCommunication(result, project);

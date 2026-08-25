@@ -1,5 +1,9 @@
 import request from '@/utils/request'
 
+export function createPublicInvitation(data) {
+  return request.post('/invitations', data)
+}
+
 export function getInvitations(params, config = {}) {
   return request.get('/invitations', { ...config, params })
 }

@@ -1,6 +1,7 @@
 package com.artiv.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 
 import static com.artiv.common.SystemMessageText.mark;
 import static com.artiv.common.SystemMessageText.markTitle;
+import static com.artiv.common.ProjectTimeRules.requireEditableDeadline;
 
 @Service
 @RequiredArgsConstructor
@@ -63,6 +65,8 @@ public class ProjectServiceImpl implements ProjectService {
                 .eq(Project::getMode, 0)
                 .eq(Project::getStatus, 0)
                 .eq(Project::getModerationStatus, 0)
+                .isNotNull(Project::getDeadline)
+                .ge(Project::getDeadline, LocalDate.now())
                 .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
                 .like(StringUtils.hasText(tag), Project::getTags, tag)
                 .eq(StringUtils.hasText(category), Project::getCategory, category)
@@ -112,11 +116,7 @@ public class ProjectServiceImpl implements ProjectService {
             }
             requireCertifiedPainter(request.getInvitePainterId(), employerId);
         }
-        // 截稿日期不能早于发布后 7 天
-        LocalDate minDeadline = LocalDate.now().plusDays(7);
-        if (request.getDeadline().isBefore(minDeadline)) {
-            throw new BusinessException(2001, "截稿日期不能早于发布后 7 天");
-        }
+        requireEditableDeadline(request.getDeadline());
         LocalDateTime now = LocalDateTime.now();
         BigDecimal[] budgetRange = resolveBudgetRange(request);
         Project project = new Project();
@@ -136,8 +136,6 @@ public class ProjectServiceImpl implements ProjectService {
         project.setRequirements(serializeRequirements(request));
         project.setPhases(normalizePhases(request.getPhases()));
         project.setMode(mode);
-        // 招募期默认发布后 10 日
-        project.setRecruitDeadline(now.plusDays(10));
         project.setStatus(0);
         project.setModerationStatus(0);
         project.setDeleted(0);
@@ -156,7 +154,9 @@ public class ProjectServiceImpl implements ProjectService {
             invitation.setProjectId(project.getId());
             invitation.setPainterId(request.getInvitePainterId());
             invitation.setMessage(invitationContent);
+            invitation.setInvitationType(0);
             invitation.setStatus(0);
+            invitation.setPainterHidden(0);
             invitation.setDeleted(0);
             invitation.setCreatedAt(now);
             invitation.setUpdatedAt(now);
@@ -251,7 +251,23 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public Project changeStatus(Long id, Integer status, Long employerId) {
+    @Transactional
+    public Project updateDeadline(Long id, LocalDate deadline, Long employerId) {
+        requireEditableDeadline(deadline);
+        Project project = requireOwned(id, employerId);
+        if (Integer.valueOf(0).equals(project.getMode())
+                && com.artiv.common.ProjectTimeRules.isExpired(project.getDeadline())) {
+            invalidatePendingPublicInvitations(project.getId());
+        }
+        project.setDeadline(deadline);
+        project.setUpdatedAt(LocalDateTime.now());
+        projectMapper.updateById(project);
+        return project;
+    }
+
+    @Override
+    @Transactional
+    public Project changeStatus(Long id, Integer status, LocalDate deadline, Long employerId) {
         if (status == null || (status != 0 && status != 4)) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
@@ -270,11 +286,17 @@ public class ProjectServiceImpl implements ProjectService {
         if (Integer.valueOf(1).equals(project.getModerationStatus())) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "违规下架企划只能由管理员恢复");
         }
-        project.setStatus(status);
-        if (status == 0 && (project.getRecruitDeadline() == null
-                || project.getRecruitDeadline().isBefore(LocalDateTime.now()))) {
-            project.setRecruitDeadline(LocalDateTime.now().plusDays(10));
+        if (status == 0) {
+            if (Integer.valueOf(0).equals(project.getMode())
+                    && com.artiv.common.ProjectTimeRules.isExpired(project.getDeadline())) {
+                invalidatePendingPublicInvitations(project.getId());
+            }
+            requireEditableDeadline(deadline);
+            project.setDeadline(deadline);
+        } else if (Integer.valueOf(0).equals(project.getMode())) {
+            invalidatePendingPublicInvitations(project.getId());
         }
+        project.setStatus(status);
         project.setUpdatedAt(LocalDateTime.now());
         projectMapper.updateById(project);
         return project;
@@ -282,7 +304,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
-    public Project publishPublic(Long id, Long employerId) {
+    public Project publishPublic(Long id, LocalDate deadline, Long employerId) {
         Project project = requireOwned(id, employerId);
         Invitation invitation = findInvitation(id);
         if (!Integer.valueOf(1).equals(project.getMode()) || invitation == null
@@ -294,11 +316,10 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(),
                     "违规下架企划只能由管理员恢复");
         }
+        requireEditableDeadline(deadline);
         project.setMode(0);
         project.setStatus(0);
-        if (project.getRecruitDeadline() == null || project.getRecruitDeadline().isBefore(LocalDateTime.now())) {
-            project.setRecruitDeadline(LocalDateTime.now().plusDays(10));
-        }
+        project.setDeadline(deadline);
         project.setUpdatedAt(LocalDateTime.now());
         projectMapper.updateById(project);
         project.setInvitationStatus(invitation.getStatus());
@@ -306,6 +327,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id, Long employerId) {
         Project project = requireOwned(id, employerId);
         Invitation invitation = findInvitation(id);
@@ -321,14 +343,18 @@ public class ProjectServiceImpl implements ProjectService {
                     "该企划存在关联订单，不能删除；可以先下架企划");
         }
         project.setStatus(4);
+        project.setDeleted(1);
         project.setUpdatedAt(LocalDateTime.now());
+        if (Integer.valueOf(0).equals(project.getMode())) {
+            invalidatePendingPublicInvitations(project.getId());
+        }
         projectMapper.updateById(project);
-        projectMapper.deleteById(id);
     }
 
     private Invitation findInvitation(Long projectId) {
         return invitationMapper.selectOne(new LambdaQueryWrapper<Invitation>()
                 .eq(Invitation::getProjectId, projectId)
+                .eq(Invitation::getInvitationType, 0)
                 .eq(Invitation::getDeleted, 0)
                 .orderByDesc(Invitation::getCreatedAt)
                 .last("LIMIT 1"));
@@ -345,6 +371,7 @@ public class ProjectServiceImpl implements ProjectService {
         Map<Long, Invitation> invitationByProject = invitationMapper.selectList(
                         new LambdaQueryWrapper<Invitation>()
                                 .in(Invitation::getProjectId, projectIds)
+                                .eq(Invitation::getInvitationType, 0)
                                 .eq(Invitation::getDeleted, 0))
                 .stream()
                 .collect(Collectors.toMap(Invitation::getProjectId, Function.identity(),
@@ -364,6 +391,18 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
         return project;
+    }
+
+    private void invalidatePendingPublicInvitations(Long projectId) {
+        LocalDateTime now = LocalDateTime.now();
+        invitationMapper.update(null, new LambdaUpdateWrapper<Invitation>()
+                .eq(Invitation::getProjectId, projectId)
+                .in(Invitation::getInvitationType, 1, 2)
+                .eq(Invitation::getStatus, 0)
+                .eq(Invitation::getDeleted, 0)
+                .set(Invitation::getStatus, 3)
+                .set(Invitation::getRespondedAt, now)
+                .set(Invitation::getUpdatedAt, now));
     }
 
     private String normalizePhases(String value) {

@@ -54,7 +54,7 @@
             <el-date-picker
               v-model="form.deadline"
               type="date"
-              placeholder="选择截稿日期（至少 7 天后）"
+              placeholder="选择截稿日期（至少 2 天后）"
               value-format="YYYY-MM-DD"
               :disabled-date="disabledDate"
             />
@@ -277,6 +277,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowRight, Check, Plus, Search, User } from '@element-plus/icons-vue'
 import { createProject } from '@/api/project'
 import { uploadFile } from '@/api/upload'
+import { disableBeforeProjectDeadline, minimumProjectDeadlineText } from '@/utils/projectDeadline'
 import { getArtists, getPublicProfile } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
@@ -462,16 +463,17 @@ function toggleFormat(format) {
 }
 
 function disabledDate(date) {
-  const min = new Date()
-  min.setDate(min.getDate() + 7)
-  min.setHours(0, 0, 0, 0)
-  return date.getTime() < min.getTime()
+  return disableBeforeProjectDeadline(date)
 }
 
 function next() {
   if (step.value === 0) {
     if (!form.deadline) {
       ElMessage.warning('请选择截稿日期')
+      return
+    }
+    if (form.deadline < minimumProjectDeadlineText()) {
+      ElMessage.warning('截稿日期至少需要选择当前日期的 2 天后')
       return
     }
     if (!form.budgetMin || !form.budgetMax || form.budgetMin <= 0 || form.budgetMax <= 0 || form.budgetMin > form.budgetMax) {

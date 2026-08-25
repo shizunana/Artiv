@@ -3,7 +3,7 @@
     <header class="invitation-header">
       <div>
         <h2>收到的邀请</h2>
-        <p>查看企划方发送给我的定向邀请提醒。</p>
+        <p>查看企划方发送给我的企划邀请提醒。</p>
       </div>
       <el-button @click="load">刷新</el-button>
     </header>
@@ -25,7 +25,7 @@
         v-for="invitation in invitations"
         :key="invitation.invitationId"
         class="invitation-card"
-        @click="openProject(invitation.projectId)"
+        @click="openProject(invitation)"
       >
         <img v-if="invitation.cover" :src="invitation.cover" alt="企划封面" />
         <div v-else class="invitation-cover">企划</div>
@@ -36,6 +36,9 @@
             <el-tag :type="invitationStatus(invitation.status).type" size="small">
               {{ invitationStatus(invitation.status).text }}
             </el-tag>
+            <el-tag class="invitation-type-tag" size="small" effect="plain">
+              {{ invitationType(invitation.invitationType) }}
+            </el-tag>
           </div>
           <p>类型：{{ invitation.category || '未分类' }} · 邀请时间：{{ formatDateTime(invitation.createdAt) }}</p>
           <p class="invitation-description" :title="invitation.projectDescription || ''">
@@ -45,9 +48,11 @@
 
         <div class="invitation-budget">
           <small>预算</small>
-          <strong>{{ formatProjectBudget(invitation) }}</strong>
+          <strong>{{ invitationBudget(invitation) }}</strong>
           <div class="invitation-actions">
-            <el-button type="primary" link @click.stop="openProject(invitation.projectId)">企划详情</el-button>
+            <el-button type="primary" link :disabled="invitation.projectAvailable === false" @click.stop="openProject(invitation)">
+              {{ invitation.projectAvailable === false ? '企划已删除' : '企划详情' }}
+            </el-button>
             <el-button
               type="danger"
               link
@@ -75,6 +80,7 @@ const filters = [
   { label: '待处理', value: 0 },
   { label: '已接受', value: 1 },
   { label: '已拒绝', value: 2 },
+  { label: '已失效', value: 3 },
 ]
 const statusFilter = ref(null)
 const listState = ref({ queryKey: 'all', records: [] })
@@ -88,7 +94,7 @@ const invitations = computed(() => listState.value.queryKey === currentQueryKey.
 const loading = computed(() => loadingQueryKey.value === currentQueryKey.value)
 const emptyDescription = computed(() => {
   const label = filters.find((item) => item.value === statusFilter.value)?.label || '邀请'
-  return statusFilter.value === null ? '暂未收到定向邀请' : `暂无${label}记录`
+  return statusFilter.value === null ? '暂未收到企划邀请' : `暂无${label}记录`
 })
 
 async function load() {
@@ -121,6 +127,7 @@ function invitationStatus(value) {
     0: { text: '待处理', type: 'warning' },
     1: { text: '已接受', type: 'success' },
     2: { text: '已拒绝', type: 'info' },
+    3: { text: '已失效', type: 'info' },
   }[Number(value)] || { text: '未知', type: 'info' }
 }
 
@@ -129,8 +136,26 @@ function truncate(value, limit) {
   return characters.length > limit ? `${characters.slice(0, limit).join('')}...` : characters.join('')
 }
 
-function openProject(projectId) {
-  router.push({ name: 'ProjectDetail', params: { id: projectId } })
+function invitationType(value) {
+  return { 0: '定向邀请', 1: '邀请报价', 2: '带价邀请' }[Number(value)] || '企划邀请'
+}
+
+function invitationBudget(invitation) {
+  if (Number(invitation.invitationType) === 1) return '邀请报价'
+  if (Number(invitation.invitationType) === 2) return `¥${formatAmount(invitation.offeredPrice)}`
+  return formatProjectBudget(invitation)
+}
+
+function formatAmount(value) {
+  return Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
+
+function openProject(invitation) {
+  if (invitation.projectAvailable === false) {
+    ElMessage.info('原企划已删除，当前仅保留邀请提醒记录')
+    return
+  }
+  router.push({ name: 'ProjectDetail', params: { id: invitation.projectId } })
 }
 
 async function hide(invitation) {
@@ -187,6 +212,7 @@ onBeforeUnmount(() => activeRequestController?.abort())
 .invitation-main { min-width: 0; }
 .invitation-title-row { display: flex; min-width: 0; align-items: center; gap: 10px; }
 .invitation-title-row h3 { min-width: 0; margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.invitation-type-tag { color: var(--artiv-primary); border-color: #89d7f5; background: #eefaff; }
 .invitation-main p { margin: 8px 0 0; color: var(--artiv-text-secondary); font-size: 13px; }
 .invitation-main .invitation-description { color: var(--artiv-text); }
 .invitation-budget { display: grid; min-width: 0; justify-items: end; gap: 7px; }

@@ -106,6 +106,7 @@ import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/date'
 import { formatProjectBudget } from '@/utils/budget'
 import { ORDER_STATUS, PROJECT_STATUS, orderStatusText, statusText, statusType } from '@/utils/status'
+import { isProjectExpired } from '@/utils/projectDeadline'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -161,7 +162,7 @@ async function loadDashboard() {
 
     const sortedProjects = [...projects].sort(compareCreatedAt)
     counts.projects = projects.length
-    counts.recruiting = projects.filter((project) => Number(project.status) === 0).length
+    counts.recruiting = projects.filter((project) => Number(project.status) === 0 && !isProjectExpired(project.deadline)).length
     recentProjects.value = sortedProjects.slice(0, 4)
 
     const orders = [...projectOrders, ...stallOrders]
@@ -204,6 +205,13 @@ function firstImage(images) {
 }
 
 function projectCardStatus(project) {
+  if (Number(project.moderationStatus) === 1) return { text: '违规下架', type: 'danger' }
+  if (Number(project.status) === 4) {
+    return Number(project.mode) === 1 && Number(project.invitationStatus) === 2
+      ? { text: '已拒绝', type: 'danger' }
+      : { text: '已下架', type: 'info' }
+  }
+  if (isProjectExpired(project.deadline)) return { text: '已过期', type: 'info' }
   if (Number(project.mode) === 1) {
     const invitation = {
       0: { text: '待回应', type: 'warning' },

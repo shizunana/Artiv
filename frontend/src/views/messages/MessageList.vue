@@ -72,7 +72,7 @@
                   <div v-if="isBusinessSystemMessage(msg)" class="business-system-message-row">
                     <article class="business-system-message">
                       <strong class="business-system-message__title">{{ msg.subtype === 'PRIVATE_ORDER_CARD' ? '订单状态' : '系统提示' }}</strong>
-                      <p>{{ msg.content }}</p>
+                      <p><span v-for="(part, partIndex) in systemTextParts(msg.content)" :key="partIndex" :class="{ 'system-object-mark': part.marked }">{{ part.text }}</span></p>
                       <button v-if="hasMessageDetail(msg)" type="button" class="business-system-message__action" @click="viewMessageDetail(msg)">
                         <span>查看详情</span>
                         <el-icon><ArrowRight /></el-icon>
@@ -146,7 +146,7 @@
           <el-empty v-if="!notifications.length" description="暂无系统消息" />
           <article v-for="notice in notifications" :key="notice.id" class="notification-card" :class="{ unread: !notice.readAt }" @click="openNotification(notice)">
             <div class="notice-icon">系</div>
-            <div class="notice-copy"><b>{{ notificationTitle(notice) }}</b><p>{{ notice.content }}</p><small>{{ formatDateTime(notice.createdAt) }}</small></div>
+            <div class="notice-copy"><b>{{ notificationTitle(notice) }}</b><p><span v-for="(part, partIndex) in systemTextParts(notice.content)" :key="partIndex" :class="{ 'system-object-mark': part.marked }">{{ part.text }}</span></p><small>{{ formatDateTime(notice.createdAt) }}</small></div>
             <el-button link type="primary">{{ notificationAction(notice) }}</el-button>
           </article>
         </div>
@@ -206,6 +206,13 @@ let stopSocket
 const conversationId = (item) => String(item.withUserId)
 const sameConversation = (first, second) => first && conversationId(first) === conversationId(second)
 const displayUnreadCount = (value) => Number(value) > 99 ? '99+' : String(Number(value) || 0)
+
+function systemTextParts(content) {
+  return String(content || '')
+    .split(/(「[^」]+」)/gu)
+    .filter(Boolean)
+    .map((text) => ({ text, marked: text.startsWith('「') && text.endsWith('」') }))
+}
 
 async function loadConversations({ silent = false } = {}) {
   if (!silent) loadingConversations.value = true
@@ -471,7 +478,11 @@ async function readAll() {
 function notificationTitle(notice) {
   if (notice.subtype === 'INVITATION_CREATED') return '收到定向邀请'
   if (notice.subtype === 'INVITATION_ACCEPTED') return '邀请已被接受'
-  if (notice.subtype === 'INVITATION_REJECTED') return '邀请已被婉拒'
+  if (notice.subtype === 'PUBLIC_QUOTE_INVITATION_CREATED') return '收到邀请报价'
+  if (notice.subtype === 'PUBLIC_PRICED_INVITATION_CREATED') return '收到带价邀请'
+  if (notice.subtype === 'PUBLIC_QUOTE_INVITATION_ACCEPTED') return '邀请报价已接受'
+  if (notice.subtype === 'PUBLIC_PRICED_INVITATION_ACCEPTED') return '带价邀请已接受'
+  if (notice.subtype === 'INVITATION_REJECTED') return '邀请已拒绝'
   if (notice.subtype === 'APPLICATION_CREATED') return '收到新的企划应征'
   if (notice.subtype === 'APPLICATION_SELECTED') return '应征已被选定'
   if (notice.subtype === 'STALL_PURCHASED') return '已购买橱窗'
@@ -628,6 +639,7 @@ onUnmounted(() => {
 .business-system-message p { margin: 0; padding: 9px 16px 14px; color: #5f6975; line-height: 1.65; white-space: pre-wrap; }
 .business-system-message__action { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 10px 16px; border: 0; border-top: 1px solid #edf0f4; background: #fff; color: var(--artiv-text); cursor: pointer; font-size: 12px; text-align: left; }
 .business-system-message__action:hover { color: var(--artiv-primary); background: #f9fcfe; }
+.system-object-mark { color: var(--artiv-primary); font-weight: 500; }
 .chat-composer { display: grid; gap: 10px; padding: 10px 24px 16px; border-top: 1px solid var(--artiv-border); background: #fff; }
 .chat-extension-bar { display: flex; min-height: 30px; align-items: center; gap: 4px; border-bottom: 1px solid #edf0f4; }
 .chat-extension-bar :deep(.el-button) { margin: 0; padding-inline: 7px; }

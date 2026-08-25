@@ -28,6 +28,9 @@ public class Application {
 
     private BigDecimal quote;
 
+    /** 报价来源：0 画师报价、1 企划方带价邀请（锁定不可修改） */
+    private Integer quoteSource;
+
     /** 状态：0 待处理、1 已通过、2 已拒绝、3 已撤销 */
     private Integer status;
 

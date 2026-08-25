@@ -17,9 +17,14 @@
             <span>单张稿酬预算</span>
             <strong class="budget">{{ formatProjectBudget(project, '￥') }}</strong>
           </div>
-          <p class="recruit-countdown">{{ recruitCountdown }}</p>
+          <p class="recruit-countdown" :class="{ expired: projectExpired }">{{ deadlineStatus }}</p>
+          <p v-if="pendingInvitation && currentInvitation?.message" class="invitation-message">
+            <strong>邀请附言</strong>{{ currentInvitation.message }}
+          </p>
           <div v-if="pendingInvitation" class="invitation-actions">
-            <el-button class="invite-accept-button" type="primary" @click="invitationAcceptVisible = true">接受邀请</el-button>
+            <el-button class="invite-accept-button" type="primary" :disabled="projectExpired" @click="invitationAcceptVisible = true">
+              {{ projectExpired ? '邀请已过期' : '接受邀请' }}
+            </el-button>
             <el-button class="invite-reject-button" @click="invitationRejectVisible = true">拒绝邀请</el-button>
           </div>
           <el-button
@@ -176,12 +181,16 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="invitationAcceptVisible" title="接受定向邀请" width="420px" @closed="resetInvitationAcceptForm">
+    <el-dialog v-model="invitationAcceptVisible" :title="invitationAcceptTitle" width="480px" @closed="resetInvitationAcceptForm">
       <el-form ref="invitationAcceptFormRef" :model="invitationAcceptForm" :rules="invitationAcceptRules" label-position="top">
-        <el-form-item label="报价（元）" prop="quote">
+        <el-form-item v-if="isPublicInvitation" label="应征说明" prop="intro">
+          <el-input v-model="invitationAcceptForm.intro" type="textarea" :rows="5" maxlength="500" show-word-limit placeholder="介绍你的创作思路和相关经验" />
+        </el-form-item>
+        <el-form-item v-if="!isPricedInvitation" label="报价（元）" prop="quote">
           <el-input-number v-model="invitationAcceptForm.quote" :min="0.01" :precision="2" :step="100" controls-position="right" />
         </el-form-item>
-        <p class="application-hint">确认后将以该报价应征此企划，并与企划方建立会话。</p>
+        <div v-else class="priced-invitation-quote"><span>企划方邀请价格</span><strong>¥{{ formatAmount(currentInvitation?.offeredPrice) }}</strong></div>
+        <p class="application-hint">确认后将形成有效应征并自动建立或复用双方会话，不会直接生成订单。</p>
       </el-form>
       <template #footer>
         <el-button @click="invitationAcceptVisible = false">取消</el-button>
@@ -189,7 +198,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="invitationRejectVisible" title="婉拒定向邀请" width="480px" @closed="resetInvitationRejectForm">
+    <el-dialog v-model="invitationRejectVisible" title="婉拒邀请" width="480px" @closed="resetInvitationRejectForm">
       <el-form ref="invitationRejectFormRef" :model="invitationRejectForm" :rules="invitationRejectRules" label-position="top">
         <el-form-item label="婉拒理由" prop="reason">
           <el-input v-model="invitationRejectForm.reason" type="textarea" :rows="5" maxlength="500" show-word-limit placeholder="请向企划方说明无法参与本次企划的原因" />
@@ -204,14 +213,15 @@
 
     <el-dialog v-model="quoteDialogVisible" title="更改应征" width="420px">
       <el-form label-position="top">
-        <el-form-item label="新报价（元）">
+        <el-alert v-if="applicationQuoteLocked" title="该报价来自企划方的带价邀请，不能由画师修改。" type="info" :closable="false" show-icon />
+        <el-form-item v-else label="新报价（元）">
           <el-input-number v-model="quoteForm.quote" :min="0.01" :precision="2" :step="100" controls-position="right" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button type="danger" plain :loading="withdrawingApplicationId === quoteForm.id" @click="withdrawCurrentApplication">取消应征</el-button>
         <el-button @click="quoteDialogVisible = false">关闭</el-button>
-        <el-button type="primary" :loading="updatingQuote" @click="submitQuoteUpdate">保存报价</el-button>
+        <el-button v-if="!applicationQuoteLocked" type="primary" :loading="updatingQuote" @click="submitQuoteUpdate">保存报价</el-button>
       </template>
     </el-dialog>
 
@@ -264,6 +274,7 @@ import { useUserStore } from '@/stores/user'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import { formatDateTime } from '@/utils/date'
 import { formatProjectBudget } from '@/utils/budget'
+import { isProjectExpired } from '@/utils/projectDeadline'
 import ProjectManageDialog from '@/components/projects/ProjectManageDialog.vue'
 
 const route = useRoute()
@@ -299,17 +310,22 @@ const applicationRules = {
 const currentInvitation = ref(null)
 const invitationAcceptVisible = ref(false)
 const invitationAcceptFormRef = ref()
-const invitationAcceptForm = reactive({ quote: undefined })
+const invitationAcceptForm = reactive({ intro: '', quote: undefined })
 const invitationRejectVisible = ref(false)
 const invitationRejectFormRef = ref()
 const invitationRejectForm = reactive({ reason: '' })
 const respondingInvitation = ref(false)
-const invitationAcceptRules = {
-  quote: [
-    { required: true, message: '请填写报价', trigger: 'change' },
-    { type: 'number', min: 0.01, message: '报价必须大于 0', trigger: 'change' },
-  ],
-}
+const invitationAcceptRules = computed(() => ({
+  intro: isPublicInvitation.value
+    ? [{ required: true, whitespace: true, message: '请填写应征说明', trigger: 'blur' }]
+    : [],
+  quote: isPricedInvitation.value
+    ? []
+    : [
+        { required: true, message: '请填写报价', trigger: 'change' },
+        { type: 'number', min: 0.01, message: '报价必须大于 0', trigger: 'change' },
+      ],
+}))
 const invitationRejectRules = {
   reason: [{ required: true, whitespace: true, message: '请填写婉拒理由', trigger: 'blur' }],
 }
@@ -319,9 +335,14 @@ const currentUserId = computed(() => Number(userStore.user?.id || 0))
 const isOwner = computed(() => currentUserId.value > 0 && currentUserId.value === Number(project.value?.employerId))
 const currentApplication = computed(() => applicants.value.find((item) => Number(item.painter?.id) === currentUserId.value))
 const isDirectedProject = computed(() => Number(project.value?.mode) === 1)
-const pendingInvitation = computed(() => isDirectedProject.value && Number(currentInvitation.value?.status) === 0)
-const acceptedInvitation = computed(() => isDirectedProject.value && Number(currentInvitation.value?.status) === 1)
-const rejectedInvitation = computed(() => isDirectedProject.value && Number(currentInvitation.value?.status) === 2)
+const invitationType = computed(() => Number(currentInvitation.value?.invitationType || 0))
+const isPublicInvitation = computed(() => [1, 2].includes(invitationType.value))
+const isPricedInvitation = computed(() => invitationType.value === 2)
+const pendingInvitation = computed(() => Number(currentInvitation.value?.status) === 0)
+const acceptedInvitation = computed(() => Number(currentInvitation.value?.status) === 1)
+const rejectedInvitation = computed(() => Number(currentInvitation.value?.status) === 2)
+const invitationAcceptTitle = computed(() => ({ 0: '接受定向邀请', 1: '接受邀请报价', 2: '接受带价邀请' }[invitationType.value] || '接受邀请'))
+const applicationQuoteLocked = computed(() => Number(currentApplication.value?.application?.quoteSource) === 1)
 const certificationReady = ref(!userStore.isLoggedIn)
 const isCertifiedPainter = computed(() => Number(userStore.user?.certStatus || 0) === 2)
 const canApply = computed(() => certificationReady.value
@@ -330,18 +351,18 @@ const canApply = computed(() => certificationReady.value
   && !isOwner.value
   && !currentApplication.value
   && Number(project.value?.status) === 0
-  && !recruitExpired.value)
+  && !projectExpired.value)
 const applyButtonDisabled = computed(() => !currentApplication.value && !canApply.value)
 const showApplyButton = computed(() => !isOwner.value
   && !isDirectedProject.value
   && (!userStore.isLoggedIn || (certificationReady.value && isCertifiedPainter.value)))
 const applyButtonText = computed(() => {
   if (!userStore.isLoggedIn) return '登录后应征企划'
-  if (currentApplication.value) return '更改应征'
-  if (recruitExpired.value || Number(project.value?.status) !== 0) return '应征已截止'
+  if (currentApplication.value) return applicationQuoteLocked.value ? '查看应征' : '更改应征'
+  if (projectExpired.value || Number(project.value?.status) !== 0) return '应征已截止'
   return '应征企划'
 })
-const backButtonText = computed(() => isDirectedProject.value && !isOwner.value ? '返回收到的邀请' : '返回企划列表')
+const backButtonText = computed(() => currentInvitation.value && !isOwner.value ? '返回收到的邀请' : '返回企划列表')
 const projectImages = computed(() => String(project.value?.images || '').split(',').map((item) => item.trim()).filter(Boolean))
 const projectSubjects = computed(() => String(project.value?.subject || '').split(',').map((item) => item.trim()).filter(Boolean))
 const projectPhases = computed(() => {
@@ -354,15 +375,10 @@ const projectPhases = computed(() => {
   return [{ name: '初稿' }, { name: '修改' }, { name: '终稿' }]
 })
 const phaseSummary = computed(() => projectPhases.value.map((phase) => phase.name).join(' → '))
-const recruitExpired = computed(() => project.value?.recruitDeadline && new Date(project.value.recruitDeadline).getTime() <= Date.now())
-const recruitCountdown = computed(() => {
-  if (!project.value?.recruitDeadline) return '招募进行中'
-  const remaining = new Date(project.value.recruitDeadline).getTime() - Date.now()
-  if (remaining <= 0) return '应征已截止'
-  const minutes = Math.floor(remaining / 60000)
-  const days = Math.floor(minutes / 1440)
-  const hours = Math.floor((minutes % 1440) / 60)
-  return `${days} 天 ${hours} 小时后关闭应征`
+const projectExpired = computed(() => isProjectExpired(project.value?.deadline))
+const deadlineStatus = computed(() => {
+  if (projectExpired.value) return '已超出截稿日期'
+  return `招募有效期至 ${project.value?.deadline}（当天仍可应征）`
 })
 const requirements = computed(() => {
   if (!project.value?.requirements) return {}
@@ -398,7 +414,7 @@ function handleApplyButton() {
 }
 
 function goBack() {
-  if (isDirectedProject.value && !isOwner.value) {
+  if (currentInvitation.value && !isOwner.value) {
     router.push({ name: 'PainterInvitations' })
     return
   }
@@ -411,6 +427,7 @@ function resetApplicationForm() {
 
 function resetInvitationAcceptForm() {
   invitationAcceptFormRef.value?.resetFields()
+  invitationAcceptForm.intro = ''
   invitationAcceptForm.quote = undefined
 }
 
@@ -447,7 +464,7 @@ async function submitApplication() {
 
 async function loadInvitation() {
   currentInvitation.value = null
-  if (!userStore.isLoggedIn || isOwner.value || !isDirectedProject.value) return
+  if (!userStore.isLoggedIn || isOwner.value) return
   try {
     currentInvitation.value = await getInvitationByProject(project.value.id)
   } catch {
@@ -460,7 +477,10 @@ async function submitInvitationAccept() {
   if (!valid || !currentInvitation.value?.invitationId) return
   respondingInvitation.value = true
   try {
-    await acceptInvitation(currentInvitation.value.invitationId, { quote: invitationAcceptForm.quote })
+    await acceptInvitation(currentInvitation.value.invitationId, {
+      ...(isPublicInvitation.value ? { intro: invitationAcceptForm.intro.trim() } : {}),
+      ...(!isPricedInvitation.value ? { quote: invitationAcceptForm.quote } : {}),
+    })
     ElMessage.success('已接受邀请并建立会话')
     invitationAcceptVisible.value = false
     await Promise.all([loadInvitation(), loadApplicants()])
@@ -527,6 +547,10 @@ function openQuoteDialog(item) {
   quoteForm.id = item.application.id
   quoteForm.quote = Number(item.application.quote)
   quoteDialogVisible.value = true
+}
+
+function formatAmount(value) {
+  return Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 
 async function submitQuoteUpdate() {
@@ -651,10 +675,16 @@ onMounted(async () => {
 .summary-item strong { color: #444; font-size: 18px; font-weight: 500; }
 .summary-item .budget { color: #09a3df; font-size: 21px; font-weight: 600; }
 .recruit-countdown { margin: 22px 0 10px; color: #8b939b; font-size: 12px; text-align: center; }
+.recruit-countdown.expired { color: #f56c6c; font-weight: 600; }
+.invitation-message { padding: 10px 12px; margin: 0 0 12px; color: var(--artiv-text-secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; background: #f2faff; border: 1px solid #c7eafa; border-radius: 6px; }
+.invitation-message strong { display: block; margin-bottom: 2px; color: var(--artiv-primary); }
 .apply-button, .manage-button, .back-button { width: 100%; }
 .apply-button { height: 42px; font-size: 15px; }
 .invitation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .invitation-actions :deep(.el-button) { width: 100%; height: 42px; margin: 0; font-size: 15px; }
+.priced-invitation-quote { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; margin-bottom: 14px; background: #f2faff; border: 1px solid #b9e5f7; border-radius: 7px; }
+.priced-invitation-quote span { color: var(--artiv-text-secondary); }
+.priced-invitation-quote strong { color: var(--artiv-accent); font-size: 22px; }
 .invite-reject-button { color: #f56c6c; border-color: #f3b8b8; }
 .manage-button, .back-button { margin-top: 12px; margin-left: 0 !important; }
 .project-main-card { min-height: 650px; padding: 32px; }

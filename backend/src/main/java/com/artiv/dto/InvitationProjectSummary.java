@@ -24,11 +24,19 @@ public class InvitationProjectSummary {
     private BigDecimal budgetMin;
     private BigDecimal budgetMax;
 
+    private Integer invitationType;
+
+    private BigDecimal offeredPrice;
+
+    private String message;
+
     private Integer status;
 
     private String rejectReason;
 
     private Long applicationId;
+
+    private Boolean projectAvailable;
 
     private LocalDateTime createdAt;
 

@@ -11,7 +11,7 @@
           <section class="wb-card"><h3>在售橱窗类型分布</h3><PieChart title="在售橱窗类型分布" :items="stallPieItems"/></section>
           <section class="wb-card"><h3>题材风格 Top 10</h3><BarList :items="data.subjects || []"/></section>
           <section class="wb-card"><h3>预算区间</h3><BarList :items="data.budgetBuckets || []"/></section>
-          <section class="wb-card"><h3>交付周期</h3><BarList :items="data.deadlineBuckets || []"/></section>
+          <section class="wb-card"><h3>企划招募有效期</h3><BarList :items="data.deadlineBuckets || []"/></section>
           <section class="wb-card span-2 conversion-card"><div class="section-title"><div><h3>需求转化路径</h3><p>按企划去重，展示各阶段数量及相邻阶段转化率</p></div></div><div class="conversion-flow"><template v-for="(item,index) in funnelStages" :key="item.name"><article class="conversion-stage"><span class="stage-index">{{ index + 1 }}</span><strong>{{ item.value }}</strong><b>{{ item.name }}</b><small>占发布企划 {{ item.totalRate }}%</small></article><div v-if="item.nextRate !== null" class="conversion-link"><span>{{ item.nextRate }}%</span><i>→</i><small>转化</small></div></template></div></section>
           <section class="wb-card span-2"><h3>供需缺口</h3><el-table :data="data.supplyDemandGap || []"><el-table-column prop="name" label="类型"/><el-table-column prop="demand" label="需求企划"/><el-table-column prop="activeStalls" label="可售橱窗"/><el-table-column prop="certifiedPainters" label="有公开作品的认证画师"/><el-table-column label="零应征率"><template #default="{row}">{{ row.zeroApplicationRate }}%</template></el-table-column><el-table-column label="判断"><template #default="{row}"><el-tag :type="row.demand>row.activeStalls?'warning':'success'">{{ row.demand>row.activeStalls?'需求偏高':'供给充足' }}</el-tag></template></el-table-column></el-table></section>
         </div>

@@ -13,7 +13,9 @@ public interface ApplicationService {
 
     Application create(Application application);
 
-    Application createFromInvitation(Long projectId, Long painterId, java.math.BigDecimal quote);
+    Application createFromInvitation(Long projectId, Long painterId, String intro,
+                                     java.math.BigDecimal quote, Integer quoteSource,
+                                     boolean directedInvitation);
 
     Application select(Long id, Long employerId);
 

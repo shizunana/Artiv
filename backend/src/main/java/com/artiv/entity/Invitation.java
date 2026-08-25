@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -23,7 +24,13 @@ public class Invitation {
 
     private String message;
 
-    /** 状态：0 待处理、1 已接受、2 已拒绝 */
+    /** 类型：0 定向邀请、1 公开企划邀请报价、2 公开企划带价邀请 */
+    private Integer invitationType;
+
+    /** 带价邀请的企划方预设价格 */
+    private BigDecimal offeredPrice;
+
+    /** 状态：0 待处理、1 已接受、2 已拒绝、3 已失效 */
     private Integer status;
 
     /** 接受邀请后创建或恢复的普通应征记录 */

@@ -6,15 +6,18 @@ import com.artiv.dto.admin.AdminProjectModerationRequest;
 import com.artiv.entity.Application;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Project;
+import com.artiv.entity.Invitation;
 import com.artiv.entity.User;
 import com.artiv.mapper.ApplicationMapper;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.ProjectMapper;
+import com.artiv.mapper.InvitationMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.AdminAuditService;
 import com.artiv.service.AdminProjectService;
 import com.artiv.service.MessageService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,7 @@ import static com.artiv.common.SystemMessageText.markTitle;
 @RequiredArgsConstructor
 public class AdminProjectServiceImpl implements AdminProjectService {
     private final ProjectMapper projectMapper;
+    private final InvitationMapper invitationMapper;
     private final UserMapper userMapper;
     private final ApplicationMapper applicationMapper;
     private final OrderInfoMapper orderInfoMapper;
@@ -108,6 +112,17 @@ public class AdminProjectServiceImpl implements AdminProjectService {
         project.setModeratedAt(LocalDateTime.now());
         project.setUpdatedAt(LocalDateTime.now());
         projectMapper.updateById(project);
+        if (target == 1 && Integer.valueOf(0).equals(project.getMode())) {
+            LocalDateTime now = LocalDateTime.now();
+            invitationMapper.update(null, new LambdaUpdateWrapper<Invitation>()
+                    .eq(Invitation::getProjectId, project.getId())
+                    .in(Invitation::getInvitationType, 1, 2)
+                    .eq(Invitation::getStatus, 0)
+                    .eq(Invitation::getDeleted, 0)
+                    .set(Invitation::getStatus, 3)
+                    .set(Invitation::getRespondedAt, now)
+                    .set(Invitation::getUpdatedAt, now));
+        }
         messageService.createNotification(project.getEmployerId(), 0,
                 target == 1 ? "PROJECT_MODERATION_HIDDEN" : "PROJECT_MODERATION_RESTORED", project.getId(),
                 target == 1

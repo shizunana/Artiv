@@ -1,6 +1,7 @@
 package com.artiv.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
@@ -39,6 +40,7 @@ import java.util.stream.Collectors;
 
 import static com.artiv.common.SystemMessageText.mark;
 import static com.artiv.common.SystemMessageText.markTitle;
+import static com.artiv.common.ProjectTimeRules.isExpired;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +49,10 @@ public class ApplicationServiceImpl implements ApplicationService {
     private static final int ACTIVE_RELATION = 1;
     private static final int INACTIVE_RELATION = 0;
     private static final String ENDED_WITHDRAWN = "WITHDRAWN";
+    private static final int QUOTE_SOURCE_PAINTER = 0;
+    private static final int QUOTE_SOURCE_EMPLOYER = 1;
+    private static final int INVITATION_PUBLIC_QUOTE = 1;
+    private static final int INVITATION_PUBLIC_PRICED = 2;
 
     private final ApplicationMapper applicationMapper;
     private final InvitationMapper invitationMapper;
@@ -175,6 +181,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             item.setIntro(application.getIntro());
             item.setWorkLink(application.getWorkLink());
             item.setQuote(application.getQuote());
+            item.setQuoteSource(application.getQuoteSource());
             item.setCreatedAt(application.getCreatedAt());
             return item;
         }).toList());
@@ -184,21 +191,26 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Override
     @Transactional
     public Application create(Application application) {
-        return createInternal(application, false);
+        application.setQuoteSource(QUOTE_SOURCE_PAINTER);
+        return createInternal(application, false, false);
     }
 
     @Override
     @Transactional
-    public Application createFromInvitation(Long projectId, Long painterId, BigDecimal quote) {
+    public Application createFromInvitation(Long projectId, Long painterId, String intro,
+                                            BigDecimal quote, Integer quoteSource,
+                                            boolean directedInvitation) {
         Application application = new Application();
         application.setProjectId(projectId);
         application.setPainterId(painterId);
-        application.setIntro("接受定向邀请");
+        application.setIntro(intro);
         application.setQuote(quote);
-        return createInternal(application, true);
+        application.setQuoteSource(quoteSource == null ? QUOTE_SOURCE_PAINTER : quoteSource);
+        return createInternal(application, true, directedInvitation);
     }
 
-    private Application createInternal(Application application, boolean fromInvitation) {
+    private Application createInternal(Application application, boolean fromInvitation,
+                                       boolean directedInvitation) {
         accountRestrictionService.requireAvailable(application.getPainterId(), "应征企划");
         Project project = projectMapper.selectById(application.getProjectId());
         if (project == null || !Integer.valueOf(0).equals(project.getDeleted())) {
@@ -207,15 +219,17 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (Integer.valueOf(1).equals(project.getModerationStatus())) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "该企划已因违规下架，不能新增应征");
         }
-        if (!Integer.valueOf(0).equals(project.getStatus())
-                || (project.getRecruitDeadline() != null && project.getRecruitDeadline().isBefore(LocalDateTime.now()))) {
+        if (!Integer.valueOf(0).equals(project.getStatus()) || isExpired(project.getDeadline())) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "该企划已停止应征");
         }
-        if (Integer.valueOf(1).equals(project.getMode()) && !fromInvitation) {
+        if (Integer.valueOf(1).equals(project.getMode()) && !directedInvitation) {
             throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "定向企划只能由受邀画师通过邀请入口接受");
         }
-        if (fromInvitation && !Integer.valueOf(1).equals(project.getMode())) {
+        if (directedInvitation && !Integer.valueOf(1).equals(project.getMode())) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "当前企划不是定向邀请企划");
+        }
+        if (fromInvitation && !directedInvitation && !Integer.valueOf(0).equals(project.getMode())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "当前企划不是公开企划");
         }
         if (project.getEmployerId().equals(application.getPainterId())) {
             throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "不能应征自己发布的企划");
@@ -240,15 +254,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .eq(Application::getProjectId, application.getProjectId())
                 .eq(Application::getPainterId, application.getPainterId())
                 .eq(Application::getDeleted, 0));
-        if (!fromInvitation && isActiveRelation(existing)) {
+        if (isActiveRelation(existing)) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "你已经应征过该企划");
-        }
-
-        if (fromInvitation && isActiveRelation(existing)) {
-            existing.setQuote(application.getQuote());
-            existing.setUpdatedAt(LocalDateTime.now());
-            applicationMapper.updateById(existing);
-            return existing;
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -256,6 +263,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             existing.setIntro(application.getIntro());
             existing.setWorkLink(application.getWorkLink());
             existing.setQuote(application.getQuote());
+            existing.setQuoteSource(normalizeQuoteSource(application.getQuoteSource()));
             existing.setStatus(0);
             existing.setActive(ACTIVE_RELATION);
             existing.setEndedReason(null);
@@ -266,6 +274,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             application = existing;
         } else {
             application.setId(null);
+            application.setQuoteSource(normalizeQuoteSource(application.getQuoteSource()));
             application.setStatus(0);
             application.setActive(ACTIVE_RELATION);
             application.setEndedReason(null);
@@ -275,7 +284,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             application.setUpdatedAt(now);
             applicationMapper.insert(application);
         }
-        if (!fromInvitation) {
+        if (!fromInvitation && !syncPendingPublicInvitations(application, project, painter)) {
             messageService.createNotification(
                     project.getEmployerId(),
                     1,
@@ -325,6 +334,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (quote == null || quote.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "报价必须大于 0");
         }
+        if (Integer.valueOf(QUOTE_SOURCE_EMPLOYER).equals(application.getQuoteSource())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "带价邀请形成的应征报价不能修改");
+        }
         application.setQuote(quote);
         application.setUpdatedAt(LocalDateTime.now());
         applicationMapper.updateById(application);
@@ -352,6 +364,43 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private boolean isActiveRelation(Application application) {
         return application != null && Integer.valueOf(ACTIVE_RELATION).equals(application.getActive());
+    }
+
+    private boolean syncPendingPublicInvitations(Application application, Project project, User painter) {
+        List<Invitation> pending = invitationMapper.selectList(new LambdaQueryWrapper<Invitation>()
+                .eq(Invitation::getProjectId, project.getId())
+                .eq(Invitation::getPainterId, application.getPainterId())
+                .in(Invitation::getInvitationType, INVITATION_PUBLIC_QUOTE, INVITATION_PUBLIC_PRICED)
+                .eq(Invitation::getStatus, 0)
+                .eq(Invitation::getDeleted, 0)
+                .orderByDesc(Invitation::getCreatedAt));
+        if (pending.isEmpty()) {
+            return false;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        invitationMapper.update(null, new LambdaUpdateWrapper<Invitation>()
+                .eq(Invitation::getProjectId, project.getId())
+                .eq(Invitation::getPainterId, application.getPainterId())
+                .in(Invitation::getInvitationType, INVITATION_PUBLIC_QUOTE, INVITATION_PUBLIC_PRICED)
+                .eq(Invitation::getStatus, 0)
+                .eq(Invitation::getDeleted, 0)
+                .set(Invitation::getStatus, 1)
+                .set(Invitation::getApplicationId, application.getId())
+                .set(Invitation::getRespondedAt, now)
+                .set(Invitation::getUpdatedAt, now));
+        String content = painterLabel(painter) + "接受了您的企划" + markTitle(project.getTitle())
+                + "的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。";
+        messageService.createInvitationAcceptedConversation(
+                project.getEmployerId(), application.getPainterId(), project.getId(), content);
+        String subtype = Integer.valueOf(INVITATION_PUBLIC_PRICED).equals(pending.get(0).getInvitationType())
+                ? "PUBLIC_PRICED_INVITATION_ACCEPTED" : "PUBLIC_QUOTE_INVITATION_ACCEPTED";
+        messageService.createNotification(project.getEmployerId(), 0, subtype, project.getId(), content);
+        return true;
+    }
+
+    private int normalizeQuoteSource(Integer quoteSource) {
+        return Integer.valueOf(QUOTE_SOURCE_EMPLOYER).equals(quoteSource)
+                ? QUOTE_SOURCE_EMPLOYER : QUOTE_SOURCE_PAINTER;
     }
 
     private String painterLabel(User user) {

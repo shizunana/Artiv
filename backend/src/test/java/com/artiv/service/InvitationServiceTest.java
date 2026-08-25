@@ -9,11 +9,13 @@ import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.artiv.common.BusinessException;
 import com.artiv.dto.InvitationAcceptRequest;
 import com.artiv.dto.InvitationRejectRequest;
+import com.artiv.dto.PublicInvitationCreateRequest;
 import com.artiv.entity.Application;
 import com.artiv.entity.Invitation;
 import com.artiv.entity.Project;
 import com.artiv.entity.User;
 import com.artiv.mapper.InvitationMapper;
+import com.artiv.mapper.ApplicationMapper;
 import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.impl.InvitationServiceImpl;
@@ -25,7 +27,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -49,6 +51,7 @@ class InvitationServiceTest {
     }
 
     @Mock private InvitationMapper invitationMapper;
+    @Mock private ApplicationMapper applicationMapper;
     @Mock private ProjectMapper projectMapper;
     @Mock private UserMapper userMapper;
     @Mock private ApplicationService applicationService;
@@ -58,6 +61,29 @@ class InvitationServiceTest {
     @InjectMocks private InvitationServiceImpl invitationService;
 
     @Test
+    void createPublicPricedInvitationStoresPriceSnapshotAndNotifiesPainter() {
+        Project project = publicProject();
+        when(projectMapper.selectById(7L)).thenReturn(project);
+        when(userMapper.selectById(1L)).thenReturn(employer());
+        when(userMapper.selectById(16L)).thenReturn(painter(1, 2));
+        when(applicationMapper.selectCount(any())).thenReturn(0L);
+        PublicInvitationCreateRequest request = new PublicInvitationCreateRequest();
+        request.setProjectId(7L);
+        request.setPainterId(16L);
+        request.setInvitationType(2);
+        request.setOfferedPrice(new BigDecimal("500.00"));
+        request.setMessage("希望您参与角色设计");
+
+        Invitation created = invitationService.createPublic(request, 1L);
+
+        assertEquals(2, created.getInvitationType());
+        assertEquals(0, new BigDecimal("500.00").compareTo(created.getOfferedPrice()));
+        verify(invitationMapper).insert(created);
+        verify(messageService).createNotification(16L, 0, "PUBLIC_PRICED_INVITATION_CREATED", 7L,
+                "企划方「企划方」邀请您参与企划「公开企划」，邀请价格「¥500」，请进入企划详情查看并选择接受或拒绝。");
+    }
+
+    @Test
     void acceptRequiresCurrentPainterCertification() {
         when(invitationMapper.selectById(5L)).thenReturn(pendingInvitation());
         when(userMapper.selectById(16L)).thenReturn(painter(2, 0));
@@ -65,7 +91,7 @@ class InvitationServiceTest {
         assertThrows(BusinessException.class,
                 () -> invitationService.accept(5L, acceptRequest(), 16L));
 
-        verify(applicationService, never()).createFromInvitation(any(), any(), any());
+        verify(applicationService, never()).createFromInvitation(any(), any(), any(), any(), any(), any(Boolean.class));
     }
 
     @Test
@@ -80,7 +106,8 @@ class InvitationServiceTest {
         when(invitationMapper.selectCount(any())).thenReturn(1L);
         Application application = new Application();
         application.setId(33L);
-        when(applicationService.createFromInvitation(7L, 16L, new BigDecimal("880.00")))
+        when(applicationService.createFromInvitation(7L, 16L, "接受定向邀请",
+                new BigDecimal("880.00"), 0, true))
                 .thenReturn(application);
         when(invitationMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
 
@@ -88,7 +115,8 @@ class InvitationServiceTest {
 
         assertEquals(1, result.getStatus());
         assertEquals(33L, result.getApplicationId());
-        verify(applicationService).createFromInvitation(7L, 16L, new BigDecimal("880.00"));
+        verify(applicationService).createFromInvitation(7L, 16L, "接受定向邀请",
+                new BigDecimal("880.00"), 0, true);
         verify(messageService).createInvitationAcceptedConversation(
                 eq(1L), eq(16L), eq(7L),
                 eq("画师「Enana」接受了您的企划「定向企划」的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。")
@@ -97,6 +125,59 @@ class InvitationServiceTest {
                 eq(1L), eq(0), eq("INVITATION_ACCEPTED"), eq(7L),
                 eq("画师「Enana」接受了您的企划「定向企划」的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。")
         );
+    }
+
+    @Test
+    void acceptPricedPublicInvitationUsesLockedEmployerPriceAndPainterIntro() {
+        Invitation pending = pendingInvitation();
+        pending.setInvitationType(2);
+        pending.setOfferedPrice(new BigDecimal("650.00"));
+        Invitation accepted = pendingInvitation();
+        accepted.setInvitationType(2);
+        accepted.setStatus(1);
+        accepted.setApplicationId(44L);
+        when(invitationMapper.selectById(5L)).thenReturn(pending, accepted);
+        when(userMapper.selectById(16L)).thenReturn(painter(1, 2));
+        when(projectMapper.selectById(7L)).thenReturn(publicProject());
+        Application application = new Application();
+        application.setId(44L);
+        when(applicationService.createFromInvitation(7L, 16L, "擅长角色设计",
+                new BigDecimal("650.00"), 1, false)).thenReturn(application);
+        when(invitationMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(2);
+        InvitationAcceptRequest request = new InvitationAcceptRequest();
+        request.setIntro("擅长角色设计");
+
+        Invitation result = invitationService.accept(5L, request, 16L);
+
+        assertEquals(1, result.getStatus());
+        verify(applicationService).createFromInvitation(7L, 16L, "擅长角色设计",
+                new BigDecimal("650.00"), 1, false);
+        verify(messageService).createNotification(eq(1L), eq(0),
+                eq("PUBLIC_PRICED_INVITATION_ACCEPTED"), eq(7L), any(String.class));
+    }
+
+    @Test
+    void expiredDirectedProjectCannotBeAcceptedButCanStillBeRejected() {
+        Invitation pending = pendingInvitation();
+        Invitation rejected = pendingInvitation();
+        rejected.setStatus(2);
+        rejected.setRejectReason("已错过档期");
+        Project expired = project();
+        expired.setDeadline(LocalDate.now().minusDays(1));
+        when(invitationMapper.selectById(5L)).thenReturn(pending, pending, rejected);
+        when(userMapper.selectById(16L)).thenReturn(painter(2, 2));
+        when(projectMapper.selectById(7L)).thenReturn(expired);
+        when(invitationMapper.selectCount(any())).thenReturn(1L);
+        when(invitationMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
+
+        assertThrows(BusinessException.class,
+                () -> invitationService.accept(5L, acceptRequest(), 16L));
+
+        InvitationRejectRequest rejection = new InvitationRejectRequest();
+        rejection.setReason("已错过档期");
+        Invitation result = invitationService.reject(5L, rejection, 16L);
+        assertEquals(2, result.getStatus());
+        verify(applicationService, never()).createFromInvitation(any(), any(), any(), any(), any(), any(Boolean.class));
     }
 
     @Test
@@ -115,7 +196,7 @@ class InvitationServiceTest {
 
         assertEquals(2, result.getStatus());
         assertEquals("档期不合适", result.getRejectReason());
-        verify(applicationService, never()).createFromInvitation(any(), any(), any());
+        verify(applicationService, never()).createFromInvitation(any(), any(), any(), any(), any(), any(Boolean.class));
         verify(messageService, never()).createInvitationAcceptedConversation(any(), any(), any(), any());
         verify(messageService).createNotification(
                 eq(1L), eq(0), eq("INVITATION_REJECTED"), eq(7L),
@@ -146,7 +227,7 @@ class InvitationServiceTest {
     @Test
     void listMineRejectsUnsupportedStatusFilter() {
         assertThrows(BusinessException.class,
-                () -> invitationService.listMine(1, 10, 16L, 3));
+                () -> invitationService.listMine(1, 10, 16L, 4));
 
         verify(invitationMapper, never()).selectPage(any(), any());
     }
@@ -200,6 +281,7 @@ class InvitationServiceTest {
         invitation.setProjectId(7L);
         invitation.setPainterId(16L);
         invitation.setStatus(0);
+        invitation.setInvitationType(0);
         invitation.setPainterHidden(0);
         invitation.setDeleted(0);
         return invitation;
@@ -214,8 +296,25 @@ class InvitationServiceTest {
         project.setStatus(0);
         project.setModerationStatus(0);
         project.setDeleted(0);
-        project.setRecruitDeadline(LocalDateTime.now().plusDays(1));
+        project.setDeadline(LocalDate.now().plusDays(1));
         return project;
+    }
+
+    private Project publicProject() {
+        Project project = project();
+        project.setTitle("公开企划");
+        project.setMode(0);
+        return project;
+    }
+
+    private User employer() {
+        User user = new User();
+        user.setId(1L);
+        user.setUsername("planner");
+        user.setNickname("企划方");
+        user.setStatus(0);
+        user.setDeleted(0);
+        return user;
     }
 
     private User painter(int role, int certStatus) {

@@ -26,5 +26,7 @@ public class MyApplicationItem {
 
     private BigDecimal quote;
 
+    private Integer quoteSource;
+
     private LocalDateTime createdAt;
 }

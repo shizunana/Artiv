@@ -66,6 +66,7 @@ import { formatDateTime } from '@/utils/date'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import Pagination from '@/components/common/Pagination.vue'
 import ProjectManageDialog from '@/components/projects/ProjectManageDialog.vue'
+import { isProjectExpired } from '@/utils/projectDeadline'
 
 const router = useRouter()
 const projects = ref([])
@@ -93,6 +94,13 @@ function truncate(value, limit = 10) {
 }
 
 function cardStatus(project) {
+  if (Number(project.moderationStatus) === 1) return { text: '违规下架', type: 'danger' }
+  if (Number(project.status) === 4) {
+    return Number(project.mode) === 1 && Number(project.invitationStatus) === 2
+      ? { text: '已拒绝', type: 'danger' }
+      : { text: '已下架', type: 'info' }
+  }
+  if (isProjectExpired(project.deadline)) return { text: '已过期', type: 'info' }
   if (Number(project.mode) === 1) {
     const invitation = {
       0: { text: '待回应', type: 'warning' },

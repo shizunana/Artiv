@@ -13,11 +13,17 @@ import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.impl.ApplicationServiceImpl;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,9 +31,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicationServiceTest {
+
+    @BeforeAll
+    static void initializeInvitationLambdaMetadata() {
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), com.artiv.entity.Invitation.class
+        );
+    }
 
     @Mock
     private ApplicationMapper applicationMapper;
@@ -220,6 +234,7 @@ class ApplicationServiceTest {
         project.setTitle("角色海报插画");
         project.setDeleted(0);
         project.setStatus(0);
+        project.setDeadline(LocalDate.now().plusDays(1));
         when(projectMapper.selectById(8L)).thenReturn(project);
         User painter = new User();
         painter.setId(2L);
@@ -249,6 +264,49 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void ordinaryApplicationSynchronizesPendingPublicInvitationAndStartsConversation() {
+        Project project = new Project();
+        project.setId(8L);
+        project.setEmployerId(1L);
+        project.setTitle("角色海报插画");
+        project.setMode(0);
+        project.setDeleted(0);
+        project.setStatus(0);
+        project.setModerationStatus(0);
+        project.setDeadline(LocalDate.now().plusDays(1));
+        when(projectMapper.selectById(8L)).thenReturn(project);
+        User painter = new User();
+        painter.setId(2L);
+        painter.setNickname("Enana");
+        painter.setCertStatus(2);
+        painter.setStatus(0);
+        painter.setDeleted(0);
+        when(userMapper.selectById(2L)).thenReturn(painter);
+        when(workMapper.selectCount(any())).thenReturn(4L);
+        when(applicationMapper.selectOne(any())).thenReturn(null);
+        doAnswer(invocation -> {
+            ((Application) invocation.getArgument(0)).setId(77L);
+            return 1;
+        }).when(applicationMapper).insert(any(Application.class));
+        com.artiv.entity.Invitation invitation = new com.artiv.entity.Invitation();
+        invitation.setInvitationType(1);
+        invitation.setStatus(0);
+        when(invitationMapper.selectList(any())).thenReturn(java.util.List.of(invitation));
+        Application application = new Application();
+        application.setProjectId(8L);
+        application.setPainterId(2L);
+        application.setIntro("愿意参与");
+        application.setQuote(java.math.BigDecimal.valueOf(500));
+
+        applicationService.create(application);
+
+        verify(invitationMapper).update(eq(null), any());
+        verify(messageService).createInvitationAcceptedConversation(eq(1L), eq(2L), eq(8L), any(String.class));
+        verify(messageService).createNotification(eq(1L), eq(0),
+                eq("PUBLIC_QUOTE_INVITATION_ACCEPTED"), eq(8L), any(String.class));
+    }
+
+    @Test
     void createAllowsCertifiedUserWhosePrimaryRoleIsEmployer() {
         Project project = new Project();
         project.setId(8L);
@@ -256,6 +314,7 @@ class ApplicationServiceTest {
         project.setTitle("角色海报插画");
         project.setDeleted(0);
         project.setStatus(0);
+        project.setDeadline(LocalDate.now().plusDays(1));
         when(projectMapper.selectById(8L)).thenReturn(project);
         User painter = new User();
         painter.setId(16L);
@@ -284,6 +343,7 @@ class ApplicationServiceTest {
         project.setEmployerId(1L);
         project.setDeleted(0);
         project.setStatus(0);
+        project.setDeadline(LocalDate.now().plusDays(1));
         when(projectMapper.selectById(8L)).thenReturn(project);
         User painter = new User();
         painter.setId(2L);
@@ -310,6 +370,7 @@ class ApplicationServiceTest {
         project.setTitle("角色海报插画");
         project.setDeleted(0);
         project.setStatus(0);
+        project.setDeadline(LocalDate.now().plusDays(1));
         when(projectMapper.selectById(8L)).thenReturn(project);
         User painter = new User();
         painter.setId(2L);
@@ -348,6 +409,27 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void createRejectsProjectAfterDeadlineButKeepsExistingRelationshipsUntouched() {
+        Project project = new Project();
+        project.setId(8L);
+        project.setEmployerId(1L);
+        project.setDeleted(0);
+        project.setStatus(0);
+        project.setDeadline(LocalDate.now().minusDays(1));
+        when(projectMapper.selectById(8L)).thenReturn(project);
+
+        Application application = new Application();
+        application.setProjectId(8L);
+        application.setPainterId(2L);
+        application.setQuote(java.math.BigDecimal.valueOf(500));
+
+        assertThrows(BusinessException.class, () -> applicationService.create(application));
+
+        verify(applicationMapper, org.mockito.Mockito.never()).insert(any(Application.class));
+        verify(applicationMapper, org.mockito.Mockito.never()).updateById(any(Application.class));
+    }
+
+    @Test
     void updateQuoteAllowsCurrentApplicationOwner() {
         Application application = new Application();
         application.setId(12L);
@@ -361,6 +443,20 @@ class ApplicationServiceTest {
 
         assertEquals(0, java.math.BigDecimal.valueOf(880).compareTo(updated.getQuote()));
         verify(applicationMapper).updateById(application);
+    }
+
+    @Test
+    void updateQuoteRejectsApplicationCreatedFromPricedInvitation() {
+        Application application = new Application();
+        application.setId(12L);
+        application.setPainterId(2L);
+        application.setDeleted(0);
+        application.setActive(1);
+        application.setQuoteSource(1);
+        when(applicationMapper.selectById(12L)).thenReturn(application);
+
+        assertThrows(BusinessException.class,
+                () -> applicationService.updateQuote(12L, 2L, java.math.BigDecimal.valueOf(880)));
     }
 
     @Test

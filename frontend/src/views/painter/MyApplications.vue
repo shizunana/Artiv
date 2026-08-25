@@ -28,7 +28,9 @@
             <strong>¥{{ formatAmount(item.quote) }}</strong>
             <div class="application-actions">
               <el-button type="primary" link @click.stop="openProject(item.projectId)">企划详情</el-button>
-              <el-button type="primary" link @click.stop="editApplication(item)">更改应征</el-button>
+              <el-button type="primary" link @click.stop="editApplication(item)">
+                {{ Number(item.quoteSource) === 1 ? '查看应征' : '更改应征' }}
+              </el-button>
             </div>
           </div>
         </article>

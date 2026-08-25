@@ -24,16 +24,20 @@ export function updateProject(id, data) {
   return request.put(`/projects/${id}`, data)
 }
 
+export function updateProjectDeadline(id, deadline) {
+  return request.put(`/projects/${id}/deadline`, null, { params: { deadline } })
+}
+
 export function deleteProject(id) {
   return request.delete(`/projects/${id}`)
 }
 
-export function changeProjectStatus(id, status) {
-  return request.put(`/projects/${id}/status`, null, { params: { status } })
+export function changeProjectStatus(id, status, deadline) {
+  return request.put(`/projects/${id}/status`, null, { params: { status, ...(deadline ? { deadline } : {}) } })
 }
 
-export function publishProjectPublic(id) {
-  return request.put(`/projects/${id}/publish-public`)
+export function publishProjectPublic(id, deadline) {
+  return request.put(`/projects/${id}/publish-public`, null, { params: { deadline } })
 }
 
 export function getApplications(projectId, params) {

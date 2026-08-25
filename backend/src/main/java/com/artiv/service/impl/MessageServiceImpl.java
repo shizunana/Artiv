@@ -270,7 +270,16 @@ public class MessageServiceImpl implements MessageService {
         requireActiveApplication(project.getId(), painterId);
         Message existing = findProjectConversationStarter(employerId, painterId, projectId);
         if (existing != null) {
-            return existing;
+            Message message = new Message();
+            message.setFromId(painterId);
+            message.setToId(employerId);
+            message.setProjectId(projectId);
+            message.setType(TYPE_PRIVATE);
+            message.setSubtype("INVITATION_ACCEPTED");
+            message.setConversationKey(conversationKey(employerId, painterId));
+            message.setContent(content);
+            saveAndPush(message, "NEW_MESSAGE");
+            return message;
         }
         Message message = new Message();
         message.setFromId(painterId);

@@ -97,6 +97,28 @@ class ProjectServiceTest {
     }
 
     @Test
+    void createAcceptsDeadlineExactlyTwoDaysLater() {
+        ProjectRequest request = validProjectRequest();
+        request.setDeadline(LocalDate.now().plusDays(2));
+
+        projectService.create(request, 1L);
+
+        ArgumentCaptor<Project> projectCaptor = ArgumentCaptor.forClass(Project.class);
+        verify(projectMapper).insert(projectCaptor.capture());
+        assertEquals(LocalDate.now().plusDays(2), projectCaptor.getValue().getDeadline());
+    }
+
+    @Test
+    void createRejectsDeadlineEarlierThanTwoDaysLater() {
+        ProjectRequest request = validProjectRequest();
+        request.setDeadline(LocalDate.now().plusDays(1));
+
+        assertThrows(com.artiv.common.BusinessException.class, () -> projectService.create(request, 1L));
+
+        verify(projectMapper, never()).insert(org.mockito.ArgumentMatchers.any(Project.class));
+    }
+
+    @Test
     void createRejectsReversedBudgetRange() {
         ProjectRequest request = validProjectRequest();
         request.setBudget(null);
@@ -226,10 +248,56 @@ class ProjectServiceTest {
         when(projectMapper.selectById(9L)).thenReturn(project);
         when(invitationMapper.selectOne(org.mockito.ArgumentMatchers.any())).thenReturn(invitation);
 
-        Project result = projectService.publishPublic(9L, 12L);
+        LocalDate newDeadline = LocalDate.now().plusDays(4);
+        Project result = projectService.publishPublic(9L, newDeadline, 12L);
 
         assertEquals(0, result.getMode());
         assertEquals(0, result.getStatus());
+        assertEquals(newDeadline, result.getDeadline());
+        verify(projectMapper).updateById(project);
+    }
+
+    @Test
+    void voluntarilyDownlistedProjectKeepsDeadlineAndRequiresNewOneToRelist() {
+        Project project = new Project();
+        project.setId(9L);
+        project.setEmployerId(12L);
+        project.setMode(0);
+        project.setStatus(0);
+        project.setModerationStatus(0);
+        project.setDeleted(0);
+        LocalDate originalDeadline = LocalDate.now().plusDays(7);
+        project.setDeadline(originalDeadline);
+        when(projectMapper.selectById(9L)).thenReturn(project);
+
+        Project downlisted = projectService.changeStatus(9L, 4, null, 12L);
+
+        assertEquals(4, downlisted.getStatus());
+        assertEquals(originalDeadline, downlisted.getDeadline());
+        assertThrows(com.artiv.common.BusinessException.class,
+                () -> projectService.changeStatus(9L, 0, null, 12L));
+
+        LocalDate relistDeadline = LocalDate.now().plusDays(3);
+        Project relisted = projectService.changeStatus(9L, 0, relistDeadline, 12L);
+        assertEquals(0, relisted.getStatus());
+        assertEquals(relistDeadline, relisted.getDeadline());
+    }
+
+    @Test
+    void updateDeadlineCanReopenExpiredRecruitmentWithoutChangingStatus() {
+        Project project = new Project();
+        project.setId(9L);
+        project.setEmployerId(12L);
+        project.setStatus(0);
+        project.setDeleted(0);
+        project.setDeadline(LocalDate.now().minusDays(1));
+        when(projectMapper.selectById(9L)).thenReturn(project);
+
+        LocalDate extendedDeadline = LocalDate.now().plusDays(2);
+        Project result = projectService.updateDeadline(9L, extendedDeadline, 12L);
+
+        assertEquals(0, result.getStatus());
+        assertEquals(extendedDeadline, result.getDeadline());
         verify(projectMapper).updateById(project);
     }
 
