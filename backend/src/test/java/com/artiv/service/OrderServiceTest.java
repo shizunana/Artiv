@@ -229,16 +229,21 @@ class OrderServiceTest {
         OrderInfo stallOrder = activeOrder(1);
         stallOrder.setId(77L);
         stallOrder.setStallId(9L);
+        stallOrder.setStallTitle("夏日角色立绘");
         stallOrder.setPhaseSnapshot("[{\"name\":\"初稿\"}]");
         OrderInfo projectOrder = activeOrder(1);
         projectOrder.setId(78L);
         projectOrder.setProjectId(8L);
+        projectOrder.setProjectTitle("夏日角色立绘长期企划测试");
         projectOrder.setPhaseSnapshot("[{\"name\":\"初稿\"}]");
         when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(stallOrder);
         when(orderInfoMapper.selectByIdForUpdate(78L)).thenReturn(projectOrder);
         when(orderStageMapper.selectCount(any())).thenReturn(0L);
         when(orderPreviewService.createWatermarkedPreview("/uploads/original.png"))
                 .thenReturn("/uploads/order-previews/preview.jpg");
+        User painter = activeUser(2L, BigDecimal.ZERO);
+        painter.setNickname("Enana");
+        when(userMapper.selectById(2L)).thenReturn(painter);
         OrderStageSubmitRequest request = new OrderStageSubmitRequest();
         request.setImage("/uploads/original.png");
         request.setContent("阶段交付");
@@ -252,6 +257,10 @@ class OrderServiceTest {
             assertEquals("/uploads/order-previews/preview.jpg", stage.getAttachments());
             assertEquals("/uploads/original.png", stage.getOriginals());
         });
+        verify(messageService).createOrderEventMessage(eq(stallOrder), eq(2L), eq("ORDER_STAGE_SUBMITTED"),
+                eq("画师[Enana]已提交订单[夏日角色立绘]的[初稿]，请验收。"));
+        verify(messageService).createOrderEventMessage(eq(projectOrder), eq(2L), eq("ORDER_STAGE_SUBMITTED"),
+                eq("画师[Enana]已提交订单[夏日角色立绘长期企划...]的[初稿]，请验收。"));
     }
 
     @Test
@@ -260,10 +269,12 @@ class OrderServiceTest {
         order.setId(77L);
         order.setEmployerId(15L);
         order.setPainterId(2L);
+        order.setProjectTitle("夏日角色立绘长期企划测试");
         order.setStatus(0);
         order.setDeleted(0);
         when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
         User painter = activeUser(2L, BigDecimal.ZERO);
+        painter.setNickname("Enana");
         painter.setCertStatus(2);
         when(userMapper.selectById(2L)).thenReturn(painter);
 
@@ -271,7 +282,8 @@ class OrderServiceTest {
 
         assertEquals(1, result.getStatus());
         verify(orderInfoMapper).updateById(result);
-        verify(messageService).createOrderEventMessage(eq(result), eq(2L), eq("ORDER_ACCEPTED"), any());
+        verify(messageService).createOrderEventMessage(eq(result), eq(2L), eq("ORDER_ACCEPTED"),
+                eq("画师[Enana]已确认接单，订单[夏日角色立绘长期企划...]已进入创作阶段。"));
     }
 
     @Test
@@ -296,7 +308,7 @@ class OrderServiceTest {
         orderService.cancel(77L, 15L, "需求调整");
 
         verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_CANCELLED"),
-                eq("企划方已取消企划订单「企划测试」，托管金额 ¥500.00 已退回。原因：需求调整"));
+                eq("订单[企划测试]已取消，托管金额已退回：需求调整"));
     }
 
     @Test
@@ -315,13 +327,14 @@ class OrderServiceTest {
 
         assertEquals(4, stall.getStock());
         verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_CANCELLED"),
-                eq("企划方已取消橱窗订单「头像橱窗」，托管金额 ¥288.00 已退回，库存已恢复 1 件。原因：不再需要"));
+                eq("订单[头像橱窗]已取消，托管金额已退回：不再需要"));
     }
 
     @Test
     void employerCanCompleteFromFirstSubmittedStageAndPainterIsPaidImmediately() {
         OrderInfo order = activeOrder(2);
         order.setAmount(new BigDecimal("288.00"));
+        order.setStallTitle("夏日角色立绘");
         order.setCurrentStage(0);
         order.setPhaseSnapshot("[{\"name\":\"初稿\",\"percent\":40},{\"name\":\"终稿\",\"percent\":60}]");
         OrderStage stage = new OrderStage();
@@ -345,7 +358,8 @@ class OrderServiceTest {
         assertEquals(new BigDecimal("298.00"), painter.getBalance());
         assertEquals(1, stage.getStatus());
         verify(userMapper).incrementBalance(2L, new BigDecimal("288.00"));
-        verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"), any());
+        verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"),
+                eq("企划方已确认订单[夏日角色立绘]当前交付并直接完成交易，后续创作阶段已跳过，款项已结算。"));
     }
 
     @Test
@@ -388,6 +402,7 @@ class OrderServiceTest {
     void approvingFinalConfiguredStageCompletesOrderAndPaysPainter() {
         OrderInfo order = activeOrder(2);
         order.setAmount(new BigDecimal("300.00"));
+        order.setProjectTitle("夏日角色立绘");
         order.setCurrentStage(2);
         order.setPhaseSnapshot("[{\"name\":\"初稿\"},{\"name\":\"修改\"},{\"name\":\"终稿\"}]");
         OrderStage stage = new OrderStage();
@@ -409,7 +424,60 @@ class OrderServiceTest {
 
         assertEquals(3, result.getStatus());
         assertEquals(new BigDecimal("300.00"), painter.getBalance());
-        verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"), any());
+        verify(messageService).createOrderEventMessage(eq(result), eq(15L), eq("ORDER_COMPLETED"),
+                eq("企划方已确认订单[夏日角色立绘]的最终交付，订单已完成并结算。"));
+    }
+
+    @Test
+    void requestingRevisionIncludesOrderTitleAndRealStageName() {
+        OrderInfo order = activeOrder(2);
+        order.setProjectTitle("角色立绘企划");
+        order.setCurrentStage(0);
+        OrderStage stage = new OrderStage();
+        stage.setId(10L);
+        stage.setOrderId(77L);
+        stage.setStageIndex(0);
+        stage.setSubmissionNo(1);
+        stage.setName("初稿");
+        stage.setStatus(0);
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
+        when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
+        OrderStageReviewRequest request = new OrderStageReviewRequest();
+        request.setAction("revise");
+        request.setRemark("请调整构图");
+
+        orderService.reviewStage(77L, 15L, request);
+
+        assertEquals(1, order.getStatus());
+        assertEquals(2, stage.getStatus());
+        verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_REVISION_REQUESTED"),
+                eq("企划方要求修改订单[角色立绘企划]的[初稿]：请调整构图"));
+    }
+
+    @Test
+    void approvingNonFinalStageIncludesOrderTitleAndRealStageName() {
+        OrderInfo order = activeOrder(2);
+        order.setStallTitle("头像橱窗");
+        order.setCurrentStage(0);
+        order.setPhaseSnapshot("[{\"name\":\"初稿\"},{\"name\":\"终稿\"}]");
+        OrderStage stage = new OrderStage();
+        stage.setId(11L);
+        stage.setOrderId(77L);
+        stage.setStageIndex(0);
+        stage.setSubmissionNo(1);
+        stage.setName("初稿");
+        stage.setStatus(0);
+        when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
+        when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
+        OrderStageReviewRequest request = new OrderStageReviewRequest();
+        request.setAction("approve");
+
+        orderService.reviewStage(77L, 15L, request);
+
+        assertEquals(1, order.getStatus());
+        assertEquals(1, order.getCurrentStage());
+        verify(messageService).createOrderEventMessage(eq(order), eq(15L), eq("ORDER_STAGE_APPROVED"),
+                eq("企划方已通过订单[头像橱窗]的[初稿]，已进入下一阶段。"));
     }
 
     @Test

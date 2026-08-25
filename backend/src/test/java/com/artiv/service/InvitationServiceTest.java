@@ -91,11 +91,11 @@ class InvitationServiceTest {
         verify(applicationService).createFromInvitation(7L, 16L, new BigDecimal("880.00"));
         verify(messageService).createInvitationAcceptedConversation(
                 eq(1L), eq(16L), eq(7L),
-                eq("画师【Enana】接受了您的企划【定向企划】的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。")
+                eq("画师[Enana]接受了您的企划[定向企划]的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。")
         );
         verify(messageService).createNotification(
                 eq(1L), eq(0), eq("INVITATION_ACCEPTED"), eq(7L),
-                eq("画师【Enana】接受了您的企划【定向企划】的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。")
+                eq("画师[Enana]接受了您的企划[定向企划]的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。")
         );
     }
 
@@ -119,7 +119,7 @@ class InvitationServiceTest {
         verify(messageService, never()).createInvitationAcceptedConversation(any(), any(), any(), any());
         verify(messageService).createNotification(
                 eq(1L), eq(0), eq("INVITATION_REJECTED"), eq(7L),
-                eq("画师【Enana】婉拒了您的企划【定向企划】的邀请，婉拒理由【档期不合适】")
+                eq("画师[Enana]婉拒了您的企划[定向企划]的邀请，婉拒理由[档期不合适]")
         );
         org.mockito.ArgumentCaptor<Project> projectCaptor = org.mockito.ArgumentCaptor.forClass(Project.class);
         verify(projectMapper).updateById(projectCaptor.capture());

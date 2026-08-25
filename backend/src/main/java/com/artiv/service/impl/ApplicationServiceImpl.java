@@ -278,7 +278,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                     1,
                     "APPLICATION_CREATED",
                     project.getId(),
-                    "画师 #" + application.getPainterId() + " 应征了你的企划「" + project.getTitle() + "」。"
+                    painterLabel(painter) + "应征了您的企划[" + project.getTitle() + "]。"
             );
         }
         return application;
@@ -349,6 +349,16 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private boolean isActiveRelation(Application application) {
         return application != null && Integer.valueOf(ACTIVE_RELATION).equals(application.getActive());
+    }
+
+    private String painterLabel(User user) {
+        if (user.getNickname() != null && !user.getNickname().isBlank()) {
+            return "画师[" + user.getNickname() + "]";
+        }
+        if (user.getUsername() != null && !user.getUsername().isBlank()) {
+            return "画师[" + user.getUsername() + "]";
+        }
+        return "画师 #" + user.getId();
     }
 
     private ApplicantPainterSummary toPainterSummary(User painter, ReviewStatistics statistics) {

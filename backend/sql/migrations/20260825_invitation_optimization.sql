@@ -12,9 +12,9 @@ SELECT
   0,
   'INVITATION_ACCEPTED',
   CONCAT(
-    '画师【', COALESCE(NULLIF(u.`nickname`, ''), CONCAT('画师 #', i.`painter_id`)),
-    '】接受了您的企划【', p.`title`,
-    '】的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。'
+    '画师[', COALESCE(NULLIF(u.`nickname`, ''), CONCAT('画师 #', i.`painter_id`)),
+    ']接受了您的企划[', p.`title`,
+    ']的邀请，双方已建立会话，您可以开始与画师沟通后续合作内容。'
   ),
   NULL,
   0,

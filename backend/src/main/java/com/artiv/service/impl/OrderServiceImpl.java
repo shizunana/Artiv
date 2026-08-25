@@ -258,7 +258,10 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(IN_PROGRESS);
         order.setAcceptedAt(LocalDateTime.now());
         save(order);
-        record(order, userId, "ACCEPTED", "画师已确认接单，订单进入创作阶段。", "ORDER_ACCEPTED");
+        record(order, userId, "ACCEPTED",
+                painterOrderLabel(painter, order) + "已确认接单，订单[" + notificationOrderTitle(order)
+                        + "]已进入创作阶段。",
+                "ORDER_ACCEPTED");
         return order;
     }
 
@@ -322,7 +325,11 @@ public class OrderServiceImpl implements OrderService {
         orderStageMapper.insert(stage);
         order.setStatus(PENDING_REVIEW);
         save(order);
-        record(order, userId, "STAGE_SUBMITTED", "画师已提交「" + stage.getName() + "」第 " + stage.getSubmissionNo() + " 版，请企划方验收。", "ORDER_STAGE_SUBMITTED");
+        User painter = userMapper.selectById(order.getPainterId());
+        record(order, userId, "STAGE_SUBMITTED",
+                painterOrderLabel(painter, order) + "已提交订单[" + notificationOrderTitle(order)
+                        + "]的[" + stage.getName() + "]，请验收。",
+                "ORDER_STAGE_SUBMITTED");
         return order;
     }
 
@@ -341,7 +348,10 @@ public class OrderServiceImpl implements OrderService {
             orderStageMapper.updateById(stage);
             order.setStatus(IN_PROGRESS);
             save(order);
-            record(order, userId, "REVISION_REQUESTED", "企划方要求修改「" + stage.getName() + "」：" + normalizeReason(stage.getReviewRemark(), "请按沟通内容修改"), "ORDER_REVISION_REQUESTED");
+            record(order, userId, "REVISION_REQUESTED",
+                    "企划方要求修改订单[" + notificationOrderTitle(order) + "]的[" + stage.getName() + "]："
+                            + normalizeReason(stage.getReviewRemark(), "请按沟通内容修改"),
+                    "ORDER_REVISION_REQUESTED");
             return order;
         }
         if ("complete".equals(action)) {
@@ -349,7 +359,10 @@ public class OrderServiceImpl implements OrderService {
             stage.setUpdatedAt(LocalDateTime.now());
             orderStageMapper.updateById(stage);
             settle(order);
-            record(order, userId, "COMPLETED", "企划方已确认当前交付并直接完成交易，后续创作阶段已跳过，款项已结算。", "ORDER_COMPLETED");
+            record(order, userId, "COMPLETED",
+                    "企划方已确认订单[" + notificationOrderTitle(order)
+                            + "]当前交付并直接完成交易，后续创作阶段已跳过，款项已结算。",
+                    "ORDER_COMPLETED");
             return order;
         }
         if (!"approve".equals(action)) flowError();
@@ -361,10 +374,15 @@ public class OrderServiceImpl implements OrderService {
             order.setCurrentStage(next);
             order.setStatus(IN_PROGRESS);
             save(order);
-            record(order, userId, "STAGE_APPROVED", "企划方已通过「" + stage.getName() + "」，进入下一阶段。", "ORDER_STAGE_APPROVED");
+            record(order, userId, "STAGE_APPROVED",
+                    "企划方已通过订单[" + notificationOrderTitle(order) + "]的[" + stage.getName()
+                            + "]，已进入下一阶段。",
+                    "ORDER_STAGE_APPROVED");
         } else {
             settle(order);
-            record(order, userId, "COMPLETED", "企划方已确认最终交付，订单完成并结算。", "ORDER_COMPLETED");
+            record(order, userId, "COMPLETED",
+                    "企划方已确认订单[" + notificationOrderTitle(order) + "]的最终交付，订单已完成并结算。",
+                    "ORDER_COMPLETED");
         }
         return order;
     }
@@ -426,25 +444,56 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelReason(reason);
         order.setCancelledAt(LocalDateTime.now());
         save(order);
-        String amount = order.getAmount() == null ? "0.00"
-                : order.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString();
-        String action = switch (subtype) {
-            case "ORDER_REJECTED" -> "画师已拒绝";
-            case "ADMIN_BAN_CANCEL" -> "管理员因用户封禁已终止";
-            case "ORDER_ARBITRATION_REFUND" -> "管理员仲裁已退款";
-            default -> "企划方已取消";
-        };
-        String content = order.getStallId() == null
-                ? action + "企划订单「" + displayOrderTitle(order.getProjectTitle(), order.getId())
-                    + "」，托管金额 ¥" + amount + " 已退回。原因：" + reason
-                : action + "橱窗订单「" + displayOrderTitle(order.getStallTitle(), order.getId())
-                    + "」，托管金额 ¥" + amount + " 已退回，库存已恢复 1 件。原因：" + reason;
+        String content;
+        if ("ORDER_CANCELLED".equals(subtype)) {
+            content = "订单[" + notificationOrderTitle(order) + "]已取消，托管金额已退回：" + reason;
+        } else {
+            String amount = order.getAmount() == null ? "0.00"
+                    : order.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString();
+            String action = switch (subtype) {
+                case "ORDER_REJECTED" -> "画师已拒绝";
+                case "ADMIN_BAN_CANCEL" -> "管理员因用户封禁已终止";
+                case "ORDER_ARBITRATION_REFUND" -> "管理员仲裁已退款";
+                default -> "企划方已取消";
+            };
+            content = order.getStallId() == null
+                    ? action + "企划订单「" + displayOrderTitle(order.getProjectTitle(), order.getId())
+                        + "」，托管金额 ¥" + amount + " 已退回。原因：" + reason
+                    : action + "橱窗订单「" + displayOrderTitle(order.getStallTitle(), order.getId())
+                        + "」，托管金额 ¥" + amount + " 已退回，库存已恢复 1 件。原因：" + reason;
+        }
         record(order, actorId, "CANCELLED", content, subtype);
         return order;
     }
 
     private String displayOrderTitle(String title, Long orderId) {
         return StringUtils.hasText(title) ? title : "订单 #" + orderId;
+    }
+
+    private String notificationOrderTitle(OrderInfo order) {
+        String title = StringUtils.hasText(order.getProjectTitle())
+                ? order.getProjectTitle()
+                : order.getStallTitle();
+        return abbreviate(displayOrderTitle(title, order.getId()), 10);
+    }
+
+    private String painterOrderLabel(User painter, OrderInfo order) {
+        if (painter != null && StringUtils.hasText(painter.getNickname())) {
+            return "画师[" + painter.getNickname().trim() + "]";
+        }
+        if (painter != null && StringUtils.hasText(painter.getUsername())) {
+            return "画师[" + painter.getUsername().trim() + "]";
+        }
+        return "画师[#" + order.getPainterId() + "]";
+    }
+
+    private String abbreviate(String value, int maxCodePoints) {
+        String normalized = value == null ? "" : value.trim();
+        if (normalized.codePointCount(0, normalized.length()) <= maxCodePoints) {
+            return normalized;
+        }
+        int end = normalized.offsetByCodePoints(0, maxCodePoints);
+        return normalized.substring(0, end) + "...";
     }
 
     private String firstProjectImage(String images) {

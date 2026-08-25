@@ -225,7 +225,7 @@ class MessageServiceTest {
         when(messageMapper.selectOne(any())).thenReturn(null);
 
         messageService.createInvitationAcceptedConversation(
-                1L, 2L, 8L, "画师【Enana】接受了邀请。"
+                1L, 2L, 8L, "画师[Enana]接受了邀请。"
         );
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
@@ -236,7 +236,7 @@ class MessageServiceTest {
         assertEquals(8L, message.getProjectId());
         assertEquals("INVITATION_ACCEPTED", message.getSubtype());
         assertEquals("8:1_2:APPLICATION_CONVERSATION_STARTED", message.getStarterKey());
-        assertEquals("画师【Enana】接受了邀请。", message.getContent());
+        assertEquals("画师[Enana]接受了邀请。", message.getContent());
     }
 
     @Test

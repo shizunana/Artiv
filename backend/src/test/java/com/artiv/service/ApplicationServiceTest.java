@@ -223,6 +223,7 @@ class ApplicationServiceTest {
         when(projectMapper.selectById(8L)).thenReturn(project);
         User painter = new User();
         painter.setId(2L);
+        painter.setNickname("Enana");
         painter.setRole(2);
         painter.setCertStatus(2);
         painter.setStatus(0);
@@ -243,7 +244,7 @@ class ApplicationServiceTest {
                 eq(1),
                 eq("APPLICATION_CREATED"),
                 eq(8L),
-                eq("画师 #2 应征了你的企划「角色海报插画」。")
+                eq("画师[Enana]应征了您的企划[角色海报插画]。")
         );
     }
 
