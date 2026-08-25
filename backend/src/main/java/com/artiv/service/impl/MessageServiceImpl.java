@@ -405,7 +405,7 @@ public class MessageServiceImpl implements MessageService {
                 .eq(Application::getDeleted, 0)
                 .eq(Application::getProjectId, projectId)
                 .eq(Application::getPainterId, painterId)
-                .in(Application::getStatus, 0, 1));
+                .eq(Application::getActive, 1));
         if (application == null) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }

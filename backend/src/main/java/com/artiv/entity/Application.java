@@ -31,6 +31,14 @@ public class Application {
     /** 状态：0 待处理、1 已通过、2 已拒绝、3 已撤销 */
     private Integer status;
 
+    /** 是否仍是企划当前有效应征关系：0 否、1 是。 */
+    private Integer active;
+
+    /** 应征关系终止原因：WITHDRAWN、REJECTED、ORDER_COMPLETED。 */
+    private String endedReason;
+
+    private LocalDateTime endedAt;
+
     private Integer deleted;
 
     private LocalDateTime createdAt;

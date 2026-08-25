@@ -122,6 +122,7 @@ class OrderServiceTest {
         application.setQuote(new BigDecimal("350.00"));
         application.setIntro("擅长相关题材");
         application.setStatus(0);
+        application.setActive(1);
         application.setDeleted(0);
         Project project = new Project();
         project.setId(8L);
@@ -167,6 +168,7 @@ class OrderServiceTest {
         application.setPainterId(2L);
         application.setQuote(new BigDecimal("350.00"));
         application.setStatus(0);
+        application.setActive(1);
         application.setDeleted(0);
         Project project = new Project();
         project.setId(8L);
@@ -363,6 +365,7 @@ class OrderServiceTest {
         Application application = new Application();
         application.setId(31L);
         application.setStatus(0);
+        application.setActive(1);
         application.setDeleted(0);
         when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(order);
         when(orderStageMapper.selectList(any())).thenReturn(List.of(stage));
@@ -375,6 +378,9 @@ class OrderServiceTest {
         orderService.reviewStage(77L, 15L, request);
 
         assertEquals(3, application.getStatus());
+        assertEquals(0, application.getActive());
+        assertEquals("ORDER_COMPLETED", application.getEndedReason());
+        assertEquals(true, application.getEndedAt() != null);
         verify(applicationMapper).updateById(application);
     }
 

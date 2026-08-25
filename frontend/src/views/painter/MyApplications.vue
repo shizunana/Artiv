@@ -1,34 +1,38 @@
 <template>
   <div class="my-applications">
     <div class="wb-card">
-      <h3 class="card-title">我的应征</h3>
-      <el-table class="application-table" :data="applications" v-loading="loading" empty-text="还没有应征记录，去约稿大厅看看吧">
-        <el-table-column label="企划图片" width="96">
-          <template #default="{ row }">
-            <el-image v-if="firstImage(row.projectImages)" class="project-cover" :src="firstImage(row.projectImages)" fit="cover" />
-            <span v-else class="project-cover project-cover--empty" aria-hidden="true"></span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="projectTitle" label="标题" min-width="220" show-overflow-tooltip />
-        <el-table-column label="报价" width="120">
-          <template #default="{ row }"><strong class="quote">¥{{ formatAmount(row.quote) }}</strong></template>
-        </el-table-column>
-        <el-table-column label="状态" width="100" align="center" header-align="center">
-          <template #default="{ row }">
-            <el-tag :type="statusType(APP_STATUS, row.status)" size="small">
-              {{ statusText(APP_STATUS, row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="详细页面" width="100" align="center" header-align="center">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openProject(row.projectId)">详情</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <header class="application-header">
+        <div>
+          <h2>我的应征</h2>
+          <p>这里只展示当前仍然有效的应征关系。</p>
+        </div>
+        <el-button @click="load">刷新</el-button>
+      </header>
+
+      <div v-loading="loading" class="application-cards">
+        <el-empty v-if="!applications.length" description="暂无当前应征，去企划大厅看看吧" />
+        <article v-for="item in applications" :key="item.id" class="application-card" @click="openProject(item.projectId)">
+          <img v-if="firstImage(item.projectImages)" :src="firstImage(item.projectImages)" :alt="`${item.projectTitle}企划图片`" />
+          <div v-else class="application-cover">企划</div>
+
+          <div class="application-main">
+            <h3 :title="item.projectTitle">{{ truncate(item.projectTitle) }}</h3>
+            <p>企划类型：{{ item.projectCategory || '未分类' }} · 应征时间：{{ formatDateTime(item.createdAt) }}</p>
+            <p class="project-summary" :title="item.projectDescription || ''">
+              企划详情：{{ truncate(item.projectDescription || '暂无详情') }}
+            </p>
+          </div>
+
+          <div class="application-quote">
+            <small>我的报价</small>
+            <strong>¥{{ formatAmount(item.quote) }}</strong>
+            <div class="application-actions">
+              <el-button type="primary" link @click.stop="openProject(item.projectId)">企划详情</el-button>
+              <el-button type="primary" link @click.stop="editApplication(item)">更改应征</el-button>
+            </div>
+          </div>
+        </article>
+      </div>
     </div>
   </div>
 </template>
@@ -38,14 +42,6 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMyApplications } from '@/api/project'
 import { formatDateTime } from '@/utils/date'
-import { statusText, statusType } from '@/utils/status'
-
-const APP_STATUS = {
-  0: { text: '待处理', type: 'info' },
-  1: { text: '已通过', type: 'success' },
-  2: { text: '已拒绝', type: 'danger' },
-  3: { text: '已撤销', type: 'info' },
-}
 
 const applications = ref([])
 const router = useRouter()
@@ -70,13 +66,26 @@ function firstImage(images) {
   return String(images).split(',').map((item) => item.trim()).find(Boolean) || ''
 }
 
+function truncate(value, limit = 10) {
+  const characters = Array.from(String(value || ''))
+  return characters.length > limit ? `${characters.slice(0, limit).join('')}...` : characters.join('')
+}
+
 function formatAmount(value) {
   const amount = Number(value || 0)
-  return Number.isInteger(amount) ? amount.toLocaleString('zh-CN') : amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function openProject(projectId) {
   router.push({ name: 'ProjectDetail', params: { id: projectId } })
+}
+
+function editApplication(item) {
+  router.push({
+    name: 'ProjectDetail',
+    params: { id: item.projectId },
+    query: { applicationId: item.id, editApplication: '1', from: 'my-applications' },
+  })
 }
 
 onMounted(load)
@@ -84,41 +93,40 @@ onMounted(load)
 
 <style scoped>
 .wb-card {
+  padding: 24px;
+  border-radius: 8px;
   background: #fff;
-  border: 1px solid #e4ebf0;
-  border-radius: 12px;
-  box-shadow: 0 7px 24px rgb(42 67 84 / 5%);
-  padding: 24px 26px;
 }
 
-.card-title {
-  margin: 0 0 16px;
-  font-size: 17px;
+.application-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.project-cover {
-  display: block;
-  width: 58px;
-  height: 58px;
-  border-radius: 6px;
-  background: #f3f5f7;
-}
+.application-header h2 { margin: 0 0 7px; font-size: 21px; }
+.application-header p { margin: 0; color: var(--artiv-text-secondary); }
+.application-cards { min-width: 0; min-height: 240px; padding-top: 16px; }
+.application-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(260px, 300px); align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
+.application-card:hover { background: #fbfdff; }
+.application-card img, .application-cover { width: 92px; height: 72px; border-radius: 7px; object-fit: cover; }
+.application-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); }
+.application-main { min-width: 0; }
+.application-main h3 { margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.application-main p { margin: 8px 0 0; overflow: hidden; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.application-main .project-summary { color: var(--artiv-text); }
+.application-quote { display: grid; min-width: 0; justify-items: end; gap: 7px; }
+.application-quote small { color: var(--artiv-text-secondary); }
+.application-quote strong { color: var(--artiv-accent); font-size: 18px; }
+.application-actions { display: flex; width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; }
+.application-actions :deep(.el-button + .el-button) { margin-left: 0; }
 
-.project-cover--empty {
-  background: transparent;
-}
-
-.quote {
-  color: #f39a19;
-  font-weight: 600;
-}
-
-.application-table :deep(.el-table__cell) {
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-
-.application-table :deep(.el-table__inner-wrapper::before) {
-  display: none;
+@media (max-width: 760px) {
+  .application-header { flex-direction: column; }
+  .application-card { grid-template-columns: 70px minmax(0, 1fr); }
+  .application-card img, .application-cover { width: 70px; }
+  .application-quote { grid-column: 2; justify-items: start; }
+  .application-actions { justify-content: flex-start; }
 }
 </style>

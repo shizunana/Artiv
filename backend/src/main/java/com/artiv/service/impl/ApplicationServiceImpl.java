@@ -41,6 +41,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ApplicationServiceImpl implements ApplicationService {
 
+    private static final int ACTIVE_RELATION = 1;
+    private static final int INACTIVE_RELATION = 0;
+    private static final String ENDED_WITHDRAWN = "WITHDRAWN";
+
     private final ApplicationMapper applicationMapper;
     private final InvitationMapper invitationMapper;
     private final OrderInfoMapper orderInfoMapper;
@@ -62,7 +66,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 new LambdaQueryWrapper<Application>()
                         .eq(Application::getDeleted, 0)
                         .eq(Application::getProjectId, projectId)
-                        .in(Application::getStatus, 0, 1)
+                        .eq(Application::getActive, ACTIVE_RELATION)
                         .orderByDesc(Application::getCreatedAt));
         Invitation directedInvitation = null;
         if (Integer.valueOf(1).equals(project.getMode())) {
@@ -144,6 +148,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 new LambdaQueryWrapper<Application>()
                         .eq(Application::getDeleted, 0)
                         .eq(Application::getPainterId, painterId)
+                        .eq(Application::getActive, ACTIVE_RELATION)
                         .orderByDesc(Application::getCreatedAt));
         List<Long> projectIds = applications.getRecords().stream()
                 .map(Application::getProjectId)
@@ -162,8 +167,11 @@ public class ApplicationServiceImpl implements ApplicationService {
             item.setProjectId(application.getProjectId());
             item.setProjectTitle(project == null ? "企划 #" + application.getProjectId() : project.getTitle());
             item.setProjectImages(project == null ? null : project.getImages());
+            item.setProjectCategory(project == null ? null : project.getCategory());
+            item.setProjectDescription(project == null ? null : project.getDescription());
+            item.setIntro(application.getIntro());
+            item.setWorkLink(application.getWorkLink());
             item.setQuote(application.getQuote());
-            item.setStatus(application.getStatus());
             item.setCreatedAt(application.getCreatedAt());
             return item;
         }).toList());
@@ -229,13 +237,11 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .eq(Application::getProjectId, application.getProjectId())
                 .eq(Application::getPainterId, application.getPainterId())
                 .eq(Application::getDeleted, 0));
-        if (!fromInvitation && existing != null && (Integer.valueOf(0).equals(existing.getStatus())
-                || Integer.valueOf(1).equals(existing.getStatus()))) {
+        if (!fromInvitation && isActiveRelation(existing)) {
             throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "你已经应征过该企划");
         }
 
-        if (fromInvitation && existing != null && (Integer.valueOf(0).equals(existing.getStatus())
-                || Integer.valueOf(1).equals(existing.getStatus()))) {
+        if (fromInvitation && isActiveRelation(existing)) {
             existing.setQuote(application.getQuote());
             existing.setUpdatedAt(LocalDateTime.now());
             applicationMapper.updateById(existing);
@@ -248,6 +254,9 @@ public class ApplicationServiceImpl implements ApplicationService {
             existing.setWorkLink(application.getWorkLink());
             existing.setQuote(application.getQuote());
             existing.setStatus(0);
+            existing.setActive(ACTIVE_RELATION);
+            existing.setEndedReason(null);
+            existing.setEndedAt(null);
             existing.setCreatedAt(now);
             existing.setUpdatedAt(now);
             applicationMapper.updateById(existing);
@@ -255,6 +264,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         } else {
             application.setId(null);
             application.setStatus(0);
+            application.setActive(ACTIVE_RELATION);
+            application.setEndedReason(null);
+            application.setEndedAt(null);
             application.setDeleted(0);
             application.setCreatedAt(now);
             application.setUpdatedAt(now);
@@ -276,6 +288,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     public Application select(Long id, Long employerId) {
         Application application = applicationMapper.selectById(id);
         if (application == null || !Integer.valueOf(0).equals(application.getDeleted())
+                || !Integer.valueOf(ACTIVE_RELATION).equals(application.getActive())
                 || !Integer.valueOf(0).equals(application.getStatus())) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
@@ -303,8 +316,11 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (!application.getPainterId().equals(painterId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
-        if (!Integer.valueOf(0).equals(application.getStatus())) {
-            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "只有待处理应征可以更改报价");
+        if (!Integer.valueOf(ACTIVE_RELATION).equals(application.getActive())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "只有当前有效应征可以更改报价");
+        }
+        if (quote == null || quote.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "报价必须大于 0");
         }
         application.setQuote(quote);
         application.setUpdatedAt(LocalDateTime.now());
@@ -315,15 +331,24 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Override
     public void withdraw(Long id, Long painterId) {
         Application application = applicationMapper.selectById(id);
-        if (application == null || !application.getPainterId().equals(painterId)) {
+        if (application == null || !Integer.valueOf(0).equals(application.getDeleted())
+                || !application.getPainterId().equals(painterId)) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
-        if (!Integer.valueOf(0).equals(application.getStatus())) {
-            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID);
+        if (!Integer.valueOf(ACTIVE_RELATION).equals(application.getActive())) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "该应征关系已结束");
         }
+        LocalDateTime now = LocalDateTime.now();
         application.setStatus(3);
-        application.setUpdatedAt(LocalDateTime.now());
+        application.setActive(INACTIVE_RELATION);
+        application.setEndedReason(ENDED_WITHDRAWN);
+        application.setEndedAt(now);
+        application.setUpdatedAt(now);
         applicationMapper.updateById(application);
+    }
+
+    private boolean isActiveRelation(Application application) {
+        return application != null && Integer.valueOf(ACTIVE_RELATION).equals(application.getActive());
     }
 
     private ApplicantPainterSummary toPainterSummary(User painter, ReviewStatistics statistics) {
@@ -359,6 +384,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         boolean applicant = applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
                 .eq(Application::getProjectId, project.getId())
                 .eq(Application::getPainterId, viewerId)
+                .eq(Application::getActive, ACTIVE_RELATION)
                 .eq(Application::getDeleted, 0)) > 0;
         boolean orderParticipant = orderInfoMapper.selectCount(new LambdaQueryWrapper<OrderInfo>()
                 .eq(OrderInfo::getProjectId, project.getId())

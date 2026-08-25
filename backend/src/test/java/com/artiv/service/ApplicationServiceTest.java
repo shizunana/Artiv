@@ -188,6 +188,7 @@ class ApplicationServiceTest {
         Application application = new Application();
         application.setId(5L);
         application.setProjectId(8L);
+        application.setIntro("擅长角色设计");
         application.setQuote(java.math.BigDecimal.valueOf(500));
         var applications = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<Application>(1, 10);
         applications.setRecords(java.util.List.of(application));
@@ -197,12 +198,17 @@ class ApplicationServiceTest {
         project.setId(8L);
         project.setTitle("角色海报插画");
         project.setImages("/uploads/reference-1.png,/uploads/reference-2.png");
+        project.setCategory("头像");
+        project.setDescription("需要设计角色头像");
         when(projectMapper.selectBatchIds(java.util.List.of(8L))).thenReturn(java.util.List.of(project));
 
         var result = applicationService.listMine(1, 10, 2L);
 
         assertEquals("角色海报插画", result.getRecords().getFirst().getProjectTitle());
         assertEquals(project.getImages(), result.getRecords().getFirst().getProjectImages());
+        assertEquals("头像", result.getRecords().getFirst().getProjectCategory());
+        assertEquals("需要设计角色头像", result.getRecords().getFirst().getProjectDescription());
+        assertEquals("擅长角色设计", result.getRecords().getFirst().getIntro());
         assertEquals(8L, result.getRecords().getFirst().getProjectId());
     }
 
@@ -317,6 +323,8 @@ class ApplicationServiceTest {
         withdrawn.setProjectId(8L);
         withdrawn.setPainterId(2L);
         withdrawn.setStatus(3);
+        withdrawn.setActive(0);
+        withdrawn.setEndedReason("WITHDRAWN");
         withdrawn.setDeleted(0);
         when(applicationMapper.selectOne(any())).thenReturn(withdrawn);
 
@@ -330,18 +338,22 @@ class ApplicationServiceTest {
 
         assertEquals(12L, reapplied.getId());
         assertEquals(0, reapplied.getStatus());
+        assertEquals(1, reapplied.getActive());
+        assertEquals(null, reapplied.getEndedReason());
+        assertEquals(null, reapplied.getEndedAt());
         assertEquals("重新应征", reapplied.getIntro());
         assertEquals(0, java.math.BigDecimal.valueOf(660).compareTo(reapplied.getQuote()));
         verify(applicationMapper).updateById(withdrawn);
     }
 
     @Test
-    void updateQuoteAllowsOnlyPendingApplicationOwner() {
+    void updateQuoteAllowsCurrentApplicationOwner() {
         Application application = new Application();
         application.setId(12L);
         application.setPainterId(2L);
         application.setDeleted(0);
-        application.setStatus(0);
+        application.setStatus(1);
+        application.setActive(1);
         when(applicationMapper.selectById(12L)).thenReturn(application);
 
         var updated = applicationService.updateQuote(12L, 2L, java.math.BigDecimal.valueOf(880));
@@ -363,6 +375,7 @@ class ApplicationServiceTest {
         application.setProjectId(8L);
         application.setPainterId(2L);
         application.setStatus(0);
+        application.setActive(1);
         application.setDeleted(0);
         when(applicationMapper.selectById(12L)).thenReturn(application);
 
@@ -373,5 +386,24 @@ class ApplicationServiceTest {
                 eq(2L), eq(1), eq("APPLICATION_SELECTED"), eq(8L),
                 eq("企划方已选择你的应征，可进入消息中心继续沟通。")
         );
+    }
+
+    @Test
+    void withdrawEndsCurrentRelationshipImmediately() {
+        Application application = new Application();
+        application.setId(12L);
+        application.setPainterId(2L);
+        application.setStatus(1);
+        application.setActive(1);
+        application.setDeleted(0);
+        when(applicationMapper.selectById(12L)).thenReturn(application);
+
+        applicationService.withdraw(12L, 2L);
+
+        assertEquals(3, application.getStatus());
+        assertEquals(0, application.getActive());
+        assertEquals("WITHDRAWN", application.getEndedReason());
+        assertEquals(true, application.getEndedAt() != null);
+        verify(applicationMapper).updateById(application);
     }
 }

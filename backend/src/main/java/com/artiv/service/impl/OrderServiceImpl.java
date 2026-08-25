@@ -187,7 +187,7 @@ public class OrderServiceImpl implements OrderService {
         Application application = applicationMapper.selectByIdForUpdate(applicationId);
         if (application == null || !Integer.valueOf(0).equals(application.getDeleted())
                 || !projectId.equals(application.getProjectId())
-                || (application.getStatus() != 0 && application.getStatus() != 1)) {
+                || !Integer.valueOf(1).equals(application.getActive())) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
         Project project = projectMapper.selectById(projectId);
@@ -492,10 +492,13 @@ public class OrderServiceImpl implements OrderService {
         if (order.getProjectId() != null && order.getApplicationId() != null) {
             Application application = applicationMapper.selectByIdForUpdate(order.getApplicationId());
             if (application != null && Integer.valueOf(0).equals(application.getDeleted())
-                    && (Integer.valueOf(0).equals(application.getStatus())
-                    || Integer.valueOf(1).equals(application.getStatus()))) {
+                    && Integer.valueOf(1).equals(application.getActive())) {
+                LocalDateTime now = LocalDateTime.now();
                 application.setStatus(3);
-                application.setUpdatedAt(LocalDateTime.now());
+                application.setActive(0);
+                application.setEndedReason("ORDER_COMPLETED");
+                application.setEndedAt(now);
+                application.setUpdatedAt(now);
                 applicationMapper.updateById(application);
             }
         }

@@ -368,6 +368,7 @@ class MessageServiceTest {
         application.setProjectId(8L);
         application.setPainterId(2L);
         application.setStatus(0);
+        application.setActive(1);
         application.setDeleted(0);
         return application;
     }

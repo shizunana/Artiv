@@ -8,7 +8,7 @@
         </div>
         <div class="header-actions">
           <el-button @click="load">刷新</el-button>
-          <el-button v-if="permissionReady && isCertifiedPainter" type="primary" round @click="dialogVisible = true">+ 创建橱窗</el-button>
+          <el-button v-if="permissionReady && isCertifiedPainter" type="primary" round @click="openCreateDialog">+ 创建橱窗</el-button>
         </div>
       </header>
 
@@ -50,10 +50,10 @@
       </div>
     </div>
 
-    <el-dialog v-model="dialogVisible" title="创建橱窗" width="640px" append-to-body>
+    <el-dialog v-model="dialogVisible" title="创建橱窗" width="640px" append-to-body @closed="resetForm">
       <el-form label-position="top">
         <el-form-item label="服务名称" required>
-          <el-input v-model="form.title" placeholder="如：国潮插画约稿（单张）" />
+          <el-input v-model="form.title" placeholder="请输入橱窗的服务介绍" />
         </el-form-item>
         <el-form-item label="类型" required>
           <el-select v-model="form.category" placeholder="选择类型">
@@ -162,28 +162,42 @@ const submitting = ref(false)
 const dialogVisible = ref(false)
 const categories = CATEGORY_OPTIONS
 const subjectOptions = SUBJECT_OPTIONS
-const form = reactive({
-  title: '',
-  category: '',
-  price: 100,
-  stock: 3,
-  deliverTime: '',
-  cover: '',
-  images: [],
-  phases: [
-    { name: '初稿' },
-    { name: '修改' },
-    { name: '终稿' },
-  ],
-  params: { colorMode: 'RGB', spec: '', format: [], subject: [] },
-  description: '',
-})
+function createDefaultForm() {
+  return {
+    title: '',
+    category: '',
+    price: 100,
+    stock: 3,
+    deliverTime: '',
+    cover: '',
+    images: [],
+    phases: [
+      { name: '初稿' },
+      { name: '修改' },
+      { name: '终稿' },
+    ],
+    params: { colorMode: 'RGB', spec: '', format: [], subject: [] },
+    description: '',
+  }
+}
+
+const form = reactive(createDefaultForm())
 const userStore = useUserStore()
 const permissionReady = ref(false)
 const isCertifiedPainter = computed(() => Number(userStore.user?.certStatus || 0) === 2)
 
 // 橱窗详情图：文件列表（UI）与 URL 列表（提交）
 const detailFileList = ref([])
+
+function resetForm() {
+  Object.assign(form, createDefaultForm())
+  detailFileList.value = []
+}
+
+function openCreateDialog() {
+  resetForm()
+  dialogVisible.value = true
+}
 
 async function uploadDetailImage({ file, onSuccess, onError }) {
   try {
@@ -268,10 +282,8 @@ async function save() {
     })
     ElMessage.success('创建成功')
     dialogVisible.value = false
-    form.cover = ''
-    form.images = []
-    detailFileList.value = []
-    load()
+    resetForm()
+    await load()
   } finally {
     submitting.value = false
   }

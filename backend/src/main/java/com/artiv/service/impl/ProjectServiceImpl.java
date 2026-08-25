@@ -200,6 +200,7 @@ public class ProjectServiceImpl implements ProjectService {
                 new LambdaQueryWrapper<Application>()
                 .eq(Application::getProjectId, id)
                 .eq(Application::getPainterId, viewerId)
+                .eq(Application::getActive, 1)
                 .eq(Application::getDeleted, 0)) > 0;
         boolean administrator = false;
         if (!publiclyVisible && viewerId != null) {

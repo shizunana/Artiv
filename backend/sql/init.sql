@@ -183,12 +183,17 @@ CREATE TABLE `application` (
   `work_link`   VARCHAR(500)  DEFAULT NULL COMMENT '作品链接',
   `quote`       DECIMAL(10,2) DEFAULT NULL COMMENT '报价（元）',
   `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0 待处理、1 已通过、2 已拒绝、3 已撤销',
+  `active`      TINYINT       NOT NULL DEFAULT 1 COMMENT '是否为当前有效应征：0 否、1 是',
+  `ended_reason` VARCHAR(30)  DEFAULT NULL COMMENT '关系终止原因：WITHDRAWN/REJECTED/ORDER_COMPLETED',
+  `ended_at`    DATETIME      DEFAULT NULL COMMENT '关系终止时间',
   `deleted`     TINYINT       NOT NULL DEFAULT 0 COMMENT '逻辑删除',
   `created_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_project_painter` (`project_id`, `painter_id`),
   KEY `idx_painter` (`painter_id`),
+  KEY `idx_application_painter_active` (`painter_id`, `active`, `created_at`),
+  KEY `idx_application_project_active` (`project_id`, `active`, `created_at`),
   KEY `idx_application_project_created` (`project_id`, `created_at`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '应征表';
 

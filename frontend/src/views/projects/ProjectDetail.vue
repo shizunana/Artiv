@@ -97,7 +97,13 @@
           </header>
 
           <div v-if="applicants.length" class="applicant-list">
-            <article v-for="item in applicants" :key="item.application?.id || `invitation-${item.invitationId}`" class="applicant-card">
+            <article
+              v-for="item in applicants"
+              :id="applicationCardId(item)"
+              :key="item.application?.id || `invitation-${item.invitationId}`"
+              class="applicant-card"
+              :class="{ 'applicant-card--target': isTargetApplication(item) }"
+            >
               <div v-if="showOwnerActions(item)" class="applicant-actions">
                 <el-button size="small" :loading="startingChatId === item.painter.id" @click="openChat(item)">私信</el-button>
                 <el-button
@@ -241,7 +247,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -325,9 +331,7 @@ const canApply = computed(() => certificationReady.value
   && !currentApplication.value
   && Number(project.value?.status) === 0
   && !recruitExpired.value)
-const applyButtonDisabled = computed(() => currentApplication.value
-  ? Number(currentApplication.value.application.status) !== 0
-  : !canApply.value)
+const applyButtonDisabled = computed(() => !currentApplication.value && !canApply.value)
 const showApplyButton = computed(() => !isOwner.value
   && !isDirectedProject.value
   && (!userStore.isLoggedIn || (certificationReady.value && isCertifiedPainter.value)))
@@ -382,6 +386,8 @@ const painterBio = (item) => {
 const painterTags = (item) => String(item.painter?.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean)
 const showOwnerActions = (item) => isOwner.value && Boolean(item?.application)
 const hasActiveProjectOrder = (item) => item?.hasActiveOrder === true
+const isTargetApplication = (item) => Number(item?.application?.id || 0) === Number(route.query.applicationId || 0)
+const applicationCardId = (item) => item?.application?.id ? `application-${item.application.id}` : undefined
 
 function handleApplyButton() {
   if (currentApplication.value) {
@@ -601,6 +607,17 @@ async function loadProject() {
   }
 }
 
+async function handleApplicationEntry() {
+  const applicationId = Number(route.query.applicationId || 0)
+  if (!applicationId) return
+  await nextTick()
+  document.getElementById(`application-${applicationId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (route.query.editApplication === '1') {
+    const target = applicants.value.find((item) => Number(item.application?.id) === applicationId)
+    openQuoteDialog(target || currentApplication.value)
+  }
+}
+
 function handleProjectChanged(updated) {
   project.value = { ...project.value, ...updated, employer: employer.value }
 }
@@ -615,6 +632,7 @@ onMounted(async () => {
   }
   certificationReady.value = true
   await loadProject()
+  await handleApplicationEntry()
 })
 </script>
 
@@ -669,6 +687,7 @@ onMounted(async () => {
 .applicant-heading span { color: #999; font-size: 13px; }
 .applicant-list { padding: 4px 28px 28px; }
 .applicant-card { position: relative; display: grid; grid-template-columns: minmax(250px, 1.15fr) 110px minmax(300px, 1.5fr); gap: 20px; align-items: center; height: 164px; margin-top: 24px; padding: 42px 20px 18px; overflow: hidden; border: 1px solid #e1e5ea; border-radius: 4px; background: #fff; }
+.applicant-card--target { border-color: var(--artiv-primary); box-shadow: 0 0 0 2px rgb(0 173 239 / 12%); }
 .applicant-identity { display: flex; gap: 15px; align-items: center; min-width: 0; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
 .applicant-avatar { flex: 0 0 66px; width: 66px !important; min-width: 66px; max-width: 66px; height: 66px !important; min-height: 66px; max-height: 66px; overflow: hidden; }
 .applicant-avatar :deep(img) { width: 100%; height: 100%; object-fit: cover; object-position: center; }

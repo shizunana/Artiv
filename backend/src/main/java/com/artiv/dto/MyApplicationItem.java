@@ -16,9 +16,15 @@ public class MyApplicationItem {
 
     private String projectImages;
 
-    private BigDecimal quote;
+    private String projectCategory;
 
-    private Integer status;
+    private String projectDescription;
+
+    private String intro;
+
+    private String workLink;
+
+    private BigDecimal quote;
 
     private LocalDateTime createdAt;
 }
