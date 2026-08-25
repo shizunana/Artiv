@@ -18,6 +18,8 @@ public class InvitationProjectSummary {
 
     private String category;
 
+    private String projectDescription;
+
     private BigDecimal budget;
     private BigDecimal budgetMin;
     private BigDecimal budgetMax;

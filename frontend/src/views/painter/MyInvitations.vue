@@ -38,7 +38,9 @@
             </el-tag>
           </div>
           <p>类型：{{ invitation.category || '未分类' }} · 邀请时间：{{ formatDateTime(invitation.createdAt) }}</p>
-          <p class="invitation-state">状态：{{ invitationStatus(invitation.status).text }}</p>
+          <p class="invitation-description" :title="invitation.projectDescription || ''">
+            企划详情：{{ truncate(invitation.projectDescription || '暂无详情', 15) }}
+          </p>
         </div>
 
         <div class="invitation-budget">
@@ -72,7 +74,7 @@ const filters = [
   { label: '全部邀请', value: null },
   { label: '待处理', value: 0 },
   { label: '已接受', value: 1 },
-  { label: '已取消', value: 2 },
+  { label: '已拒绝', value: 2 },
 ]
 const statusFilter = ref(null)
 const listState = ref({ queryKey: 'all', records: [] })
@@ -118,8 +120,13 @@ function invitationStatus(value) {
   return {
     0: { text: '待处理', type: 'warning' },
     1: { text: '已接受', type: 'success' },
-    2: { text: '已取消', type: 'info' },
+    2: { text: '已拒绝', type: 'info' },
   }[Number(value)] || { text: '未知', type: 'info' }
+}
+
+function truncate(value, limit) {
+  const characters = Array.from(String(value || ''))
+  return characters.length > limit ? `${characters.slice(0, limit).join('')}...` : characters.join('')
 }
 
 function openProject(projectId) {
@@ -181,7 +188,7 @@ onBeforeUnmount(() => activeRequestController?.abort())
 .invitation-title-row { display: flex; min-width: 0; align-items: center; gap: 10px; }
 .invitation-title-row h3 { min-width: 0; margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
 .invitation-main p { margin: 8px 0 0; color: var(--artiv-text-secondary); font-size: 13px; }
-.invitation-main .invitation-state { color: var(--artiv-text); }
+.invitation-main .invitation-description { color: var(--artiv-text); }
 .invitation-budget { display: grid; min-width: 0; justify-items: end; gap: 7px; }
 .invitation-budget small { color: var(--artiv-text-secondary); }
 .invitation-budget strong { color: var(--artiv-accent); font-size: 18px; }

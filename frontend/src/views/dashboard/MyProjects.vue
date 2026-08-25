@@ -29,7 +29,7 @@
           </div>
           <p>类型：{{ project.category || '未分类' }} · 发布时间：{{ formatDateTime(project.createdAt) }}</p>
           <p class="project-description" :title="project.description || ''">
-            企划详情：{{ truncate(project.description || '暂无详情') }}
+            企划详情：{{ truncate(project.description || '暂无详情', 15) }}
           </p>
         </div>
 

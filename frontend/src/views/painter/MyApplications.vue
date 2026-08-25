@@ -19,7 +19,7 @@
             <h3 :title="item.projectTitle">{{ truncate(item.projectTitle) }}</h3>
             <p>企划类型：{{ item.projectCategory || '未分类' }} · 应征时间：{{ formatDateTime(item.createdAt) }}</p>
             <p class="project-summary" :title="item.projectDescription || ''">
-              企划详情：{{ truncate(item.projectDescription || '暂无详情') }}
+              企划详情：{{ truncate(item.projectDescription || '暂无详情', 15) }}
             </p>
           </div>
 
