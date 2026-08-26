@@ -191,9 +191,9 @@ public class InvitationServiceImpl implements InvitationService {
             quoteSource = QUOTE_SOURCE_PAINTER;
         } else {
             project = requireActivePublicProject(invitation.getProjectId());
-            intro = requireIntro(request.getIntro());
             if (invitationType == TYPE_PUBLIC_QUOTE) {
                 quote = requirePositiveQuote(request.getQuote());
+                intro = "接受邀请报价";
                 quoteSource = QUOTE_SOURCE_PAINTER;
             } else if (invitationType == TYPE_PUBLIC_PRICED) {
                 if (invitation.getOfferedPrice() == null
@@ -201,6 +201,7 @@ public class InvitationServiceImpl implements InvitationService {
                     throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "邀请价格无效，无法接受");
                 }
                 quote = invitation.getOfferedPrice();
+                intro = "接受带价邀请";
                 quoteSource = QUOTE_SOURCE_EMPLOYER;
             } else {
                 throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "邀请类型不正确");
@@ -413,17 +414,6 @@ public class InvitationServiceImpl implements InvitationService {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "请填写大于 0 的报价");
         }
         return quote;
-    }
-
-    private String requireIntro(String intro) {
-        if (!StringUtils.hasText(intro)) {
-            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "请填写应征说明");
-        }
-        String value = intro.trim();
-        if (value.length() > 500) {
-            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "应征说明不能超过 500 字");
-        }
-        return value;
     }
 
     private String acceptedContent(User painter, Project project) {

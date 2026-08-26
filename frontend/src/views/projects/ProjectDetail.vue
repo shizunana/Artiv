@@ -183,9 +183,6 @@
 
     <el-dialog v-model="invitationAcceptVisible" :title="invitationAcceptTitle" width="480px" @closed="resetInvitationAcceptForm">
       <el-form ref="invitationAcceptFormRef" :model="invitationAcceptForm" :rules="invitationAcceptRules" label-position="top">
-        <el-form-item v-if="isPublicInvitation" label="应征说明" prop="intro">
-          <el-input v-model="invitationAcceptForm.intro" type="textarea" :rows="5" maxlength="500" show-word-limit placeholder="介绍你的创作思路和相关经验" />
-        </el-form-item>
         <el-form-item v-if="!isPricedInvitation" label="报价（元）" prop="quote">
           <el-input-number v-model="invitationAcceptForm.quote" :min="0.01" :precision="2" :step="100" controls-position="right" />
         </el-form-item>
@@ -194,7 +191,7 @@
       </el-form>
       <template #footer>
         <el-button @click="invitationAcceptVisible = false">取消</el-button>
-        <el-button type="primary" :loading="respondingInvitation" @click="submitInvitationAccept">确认邀请</el-button>
+        <el-button type="primary" :loading="respondingInvitation" @click="submitInvitationAccept">确认</el-button>
       </template>
     </el-dialog>
 
@@ -310,15 +307,12 @@ const applicationRules = {
 const currentInvitation = ref(null)
 const invitationAcceptVisible = ref(false)
 const invitationAcceptFormRef = ref()
-const invitationAcceptForm = reactive({ intro: '', quote: undefined })
+const invitationAcceptForm = reactive({ quote: undefined })
 const invitationRejectVisible = ref(false)
 const invitationRejectFormRef = ref()
 const invitationRejectForm = reactive({ reason: '' })
 const respondingInvitation = ref(false)
 const invitationAcceptRules = computed(() => ({
-  intro: isPublicInvitation.value
-    ? [{ required: true, whitespace: true, message: '请填写应征说明', trigger: 'blur' }]
-    : [],
   quote: isPricedInvitation.value
     ? []
     : [
@@ -427,7 +421,6 @@ function resetApplicationForm() {
 
 function resetInvitationAcceptForm() {
   invitationAcceptFormRef.value?.resetFields()
-  invitationAcceptForm.intro = ''
   invitationAcceptForm.quote = undefined
 }
 
@@ -478,7 +471,6 @@ async function submitInvitationAccept() {
   respondingInvitation.value = true
   try {
     await acceptInvitation(currentInvitation.value.invitationId, {
-      ...(isPublicInvitation.value ? { intro: invitationAcceptForm.intro.trim() } : {}),
       ...(!isPricedInvitation.value ? { quote: invitationAcceptForm.quote } : {}),
     })
     ElMessage.success('已接受邀请并建立会话')
@@ -678,10 +670,10 @@ onMounted(async () => {
 .recruit-countdown.expired { color: #f56c6c; font-weight: 600; }
 .invitation-message { padding: 10px 12px; margin: 0 0 12px; color: var(--artiv-text-secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; background: #f2faff; border: 1px solid #c7eafa; border-radius: 6px; }
 .invitation-message strong { display: block; margin-bottom: 2px; color: var(--artiv-primary); }
-.apply-button, .manage-button, .back-button { width: 100%; }
+.apply-button, .manage-button, .back-button { width: 100%; box-sizing: border-box; }
 .apply-button { height: 42px; font-size: 15px; }
-.invitation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.invitation-actions :deep(.el-button) { width: 100%; height: 42px; margin: 0; font-size: 15px; }
+.invitation-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.invitation-actions :deep(.el-button) { width: 100%; min-width: 0; height: 42px; margin: 0; box-sizing: border-box; font-size: 15px; }
 .priced-invitation-quote { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; margin-bottom: 14px; background: #f2faff; border: 1px solid #b9e5f7; border-radius: 7px; }
 .priced-invitation-quote span { color: var(--artiv-text-secondary); }
 .priced-invitation-quote strong { color: var(--artiv-accent); font-size: 22px; }

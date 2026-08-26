@@ -128,7 +128,7 @@ class InvitationServiceTest {
     }
 
     @Test
-    void acceptPricedPublicInvitationUsesLockedEmployerPriceAndPainterIntro() {
+    void acceptPricedPublicInvitationUsesLockedEmployerPriceWithoutPainterIntro() {
         Invitation pending = pendingInvitation();
         pending.setInvitationType(2);
         pending.setOfferedPrice(new BigDecimal("650.00"));
@@ -141,19 +141,46 @@ class InvitationServiceTest {
         when(projectMapper.selectById(7L)).thenReturn(publicProject());
         Application application = new Application();
         application.setId(44L);
-        when(applicationService.createFromInvitation(7L, 16L, "擅长角色设计",
+        when(applicationService.createFromInvitation(7L, 16L, "接受带价邀请",
                 new BigDecimal("650.00"), 1, false)).thenReturn(application);
         when(invitationMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(2);
         InvitationAcceptRequest request = new InvitationAcceptRequest();
-        request.setIntro("擅长角色设计");
 
         Invitation result = invitationService.accept(5L, request, 16L);
 
         assertEquals(1, result.getStatus());
-        verify(applicationService).createFromInvitation(7L, 16L, "擅长角色设计",
+        verify(applicationService).createFromInvitation(7L, 16L, "接受带价邀请",
                 new BigDecimal("650.00"), 1, false);
         verify(messageService).createNotification(eq(1L), eq(0),
                 eq("PUBLIC_PRICED_INVITATION_ACCEPTED"), eq(7L), any(String.class));
+    }
+
+    @Test
+    void acceptQuotePublicInvitationUsesPainterQuoteWithoutPainterIntro() {
+        Invitation pending = pendingInvitation();
+        pending.setInvitationType(1);
+        Invitation accepted = pendingInvitation();
+        accepted.setInvitationType(1);
+        accepted.setStatus(1);
+        accepted.setApplicationId(45L);
+        when(invitationMapper.selectById(5L)).thenReturn(pending, accepted);
+        when(userMapper.selectById(16L)).thenReturn(painter(1, 2));
+        when(projectMapper.selectById(7L)).thenReturn(publicProject());
+        Application application = new Application();
+        application.setId(45L);
+        when(applicationService.createFromInvitation(7L, 16L, "接受邀请报价",
+                new BigDecimal("720.00"), 0, false)).thenReturn(application);
+        when(invitationMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(2);
+        InvitationAcceptRequest request = new InvitationAcceptRequest();
+        request.setQuote(new BigDecimal("720.00"));
+
+        Invitation result = invitationService.accept(5L, request, 16L);
+
+        assertEquals(1, result.getStatus());
+        verify(applicationService).createFromInvitation(7L, 16L, "接受邀请报价",
+                new BigDecimal("720.00"), 0, false);
+        verify(messageService).createNotification(eq(1L), eq(0),
+                eq("PUBLIC_QUOTE_INVITATION_ACCEPTED"), eq(7L), any(String.class));
     }
 
     @Test
