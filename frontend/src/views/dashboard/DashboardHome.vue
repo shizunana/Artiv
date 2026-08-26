@@ -1,5 +1,58 @@
 <template>
   <div v-loading="loading" class="dashboard-home">
+    <section v-if="!hasDashboardHistory" class="wb-card onboarding-card">
+      <div class="onboarding-copy">
+        <span class="onboarding-kicker">FIRST PROJECT</span>
+        <h2>欢迎您，{{ userStore.user?.nickname || userStore.user?.username }}</h2>
+        <h3>从第一次发布企划开始</h3>
+        <p class="onboarding-intro">
+          清晰填写需求、预算和截稿日期，等待画师应征或主动邀请合适的画师，开启您的第一次合作。
+        </p>
+
+        <ol class="onboarding-steps">
+          <li>
+            <span>1</span>
+            <div><strong>发布企划</strong><small>说明需求、预算与创作阶段</small></div>
+          </li>
+          <li>
+            <span>2</span>
+            <div><strong>选择画师</strong><small>查看应征，或主动邀请画师</small></div>
+          </li>
+          <li>
+            <span>3</span>
+            <div><strong>建立订单</strong><small>沟通细节并按阶段完成交付</small></div>
+          </li>
+        </ol>
+
+        <div class="onboarding-actions">
+          <button type="button" class="employer-guide-link" @click="router.push({ name: 'EmployerGuide' })">
+            <el-icon><Reading /></el-icon>
+            <span>企划方指南</span>
+            <span class="employer-guide-link__arrow" aria-hidden="true">→</span>
+          </button>
+          <el-button type="primary" round @click="router.push({ name: 'ProjectNew' })">立即发布企划</el-button>
+        </div>
+      </div>
+
+      <div class="onboarding-visual" aria-hidden="true">
+        <div class="visual-glow"></div>
+        <div class="visual-document">
+          <span class="visual-document__label">NEW PROJECT</span>
+          <div class="visual-document__title"></div>
+          <div class="visual-document__line visual-document__line--wide"></div>
+          <div class="visual-document__line"></div>
+          <div class="visual-document__preview">
+            <span></span>
+            <i></i>
+            <i></i>
+          </div>
+          <div class="visual-document__footer"><i></i><i></i><i></i></div>
+        </div>
+        <div class="visual-brand">艺</div>
+      </div>
+    </section>
+
+    <template v-else>
     <section class="wb-card welcome-card">
       <div>
         <h2>欢迎您，{{ userStore.user?.nickname || userStore.user?.username }}</h2>
@@ -94,12 +147,14 @@
         </article>
       </div>
     </section>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Reading } from '@element-plus/icons-vue'
 import { getMyProjects } from '@/api/project'
 import { getOrders } from '@/api/order'
 import { useUserStore } from '@/stores/user'
@@ -114,7 +169,10 @@ const loading = ref(false)
 const counts = reactive({ projects: 0, recruiting: 0 })
 const activeOrders = ref([])
 const activeOrderTotal = ref(0)
+const totalOrderCount = ref(0)
 const recentProjects = ref([])
+
+const hasDashboardHistory = computed(() => counts.projects > 0 || totalOrderCount.value > 0)
 
 const quickActions = computed(() => [
   { label: '发布企划', detail: '创建公开企划或定向邀请', to: { name: 'ProjectNew' } },
@@ -166,6 +224,7 @@ async function loadDashboard() {
     recentProjects.value = sortedProjects.slice(0, 4)
 
     const orders = [...projectOrders, ...stallOrders]
+    totalOrderCount.value = orders.length
     const active = orders.filter((order) => [0, 1, 2, 5].includes(Number(order.status)))
       .sort(compareActiveOrders)
     activeOrderTotal.value = active.length
@@ -261,6 +320,38 @@ onMounted(loadDashboard)
 <style scoped>
 .dashboard-home { display: flex; min-width: 0; flex-direction: column; gap: 16px; }
 .wb-card { min-width: 0; box-sizing: border-box; border: 1px solid #e4ebf0; border-radius: 12px; background: #fff; box-shadow: 0 7px 24px rgb(42 67 84 / 5%); padding: 24px 26px; }
+.onboarding-card { display: grid; min-height: 510px; grid-template-columns: minmax(0, 1.08fr) minmax(320px, .92fr); align-items: center; gap: 44px; overflow: hidden; padding: 48px 54px; }
+.onboarding-copy { position: relative; z-index: 1; }
+.onboarding-kicker { display: inline-flex; align-items: center; border-radius: 999px; background: #e8f7ff; padding: 6px 11px; color: var(--artiv-primary); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+.onboarding-copy h2 { margin: 17px 0 8px; color: #1b2934; font-size: 29px; line-height: 1.35; }
+.onboarding-copy h3 { margin: 0 0 12px; color: var(--artiv-text); font-size: 18px; }
+.onboarding-intro { max-width: 560px; margin: 0; color: var(--artiv-text-secondary); font-size: 14px; line-height: 1.85; }
+.onboarding-steps { display: grid; margin: 30px 0; padding: 0; gap: 15px; list-style: none; }
+.onboarding-steps li { display: flex; align-items: center; gap: 13px; }
+.onboarding-steps li > span { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--artiv-primary); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 5px 13px rgb(0 169 230 / 18%); }
+.onboarding-steps li div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.onboarding-steps strong { color: var(--artiv-text); font-size: 14px; }
+.onboarding-steps small { color: var(--artiv-text-secondary); font-size: 12px; }
+.onboarding-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.employer-guide-link { display: inline-flex; height: 32px; align-items: center; gap: 6px; border: 0; border-radius: 8px; background: #edf8fd; padding: 0 12px; color: var(--artiv-primary); cursor: pointer; font-size: 13px; font-weight: 600; transition: background .2s, color .2s; }
+.employer-guide-link:hover { background: #dff3fc; color: #008dcc; }
+.employer-guide-link:focus-visible { outline: 2px solid rgb(0 168 233 / 28%); outline-offset: 2px; }
+.employer-guide-link .el-icon { font-size: 15px; }
+.employer-guide-link__arrow { margin-left: 2px; font-size: 15px; transition: transform .2s; }
+.employer-guide-link:hover .employer-guide-link__arrow { transform: translateX(2px); }
+.onboarding-visual { position: relative; min-height: 390px; }
+.visual-glow { position: absolute; inset: 26px 2px 12px 26px; border-radius: 46% 54% 41% 59% / 52% 40% 60% 48%; background: #edf8fe; }
+.visual-document { position: absolute; z-index: 2; top: 52px; right: 35px; width: 250px; min-height: 292px; box-sizing: border-box; transform: rotate(2.5deg); border: 1px solid #dcebf3; border-radius: 18px; background: #fff; box-shadow: 0 22px 42px rgb(64 108 132 / 14%); padding: 28px 25px; }
+.visual-document__label { color: var(--artiv-primary); font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.visual-document__title { width: 62%; height: 13px; margin: 19px 0 17px; border-radius: 999px; background: #d8e9f2; }
+.visual-document__line { width: 70%; height: 7px; margin-top: 10px; border-radius: 999px; background: #edf3f6; }
+.visual-document__line--wide { width: 92%; }
+.visual-document__preview { display: grid; height: 90px; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; margin-top: 22px; gap: 8px; }
+.visual-document__preview span { grid-row: 1 / 3; border-radius: 10px; background: #dff4fd; }
+.visual-document__preview i { border-radius: 8px; background: #f1f6f8; }
+.visual-document__footer { display: flex; margin-top: 18px; gap: 7px; }
+.visual-document__footer i { width: 34px; height: 8px; border-radius: 999px; background: #eaf1f5; }
+.visual-brand { position: absolute; z-index: 3; top: 20px; right: 14px; display: grid; width: 62px; height: 62px; place-items: center; border: 7px solid #fff; border-radius: 20px; background: var(--artiv-primary); box-shadow: 0 14px 28px rgb(0 169 230 / 22%); color: #fff; font-size: 28px; font-weight: 800; transform: rotate(6deg); }
 .welcome-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .welcome-card h2 { margin: 0 0 8px; color: #1b2934; font-size: 25px; }
 .welcome-card p { margin: 0; color: #7a8791; font-size: 14px; line-height: 1.8; }
@@ -293,10 +384,14 @@ onMounted(loadDashboard)
 .quick-copy small { overflow: hidden; color: var(--artiv-text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .quick-arrow { color: var(--artiv-primary); font-size: 24px; line-height: 1; }
 @media (max-width: 980px) {
+  .onboarding-card { grid-template-columns: 1fr; padding: 38px; }
+  .onboarding-visual { display: none; }
   .dashboard-grid { grid-template-columns: 1fr; }
   .quick-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
+  .onboarding-card { min-height: 0; padding: 30px 24px; }
+  .onboarding-copy h2 { font-size: 24px; }
   .welcome-card { align-items: flex-start; flex-direction: column; }
   .quick-list { grid-template-columns: 1fr; }
   .active-order,.recent-project { grid-template-columns: 62px minmax(0, 1fr); }

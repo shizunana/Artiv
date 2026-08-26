@@ -17,12 +17,14 @@
         <template v-if="userStore.isLoggedIn">
           <el-button v-if="!userStore.isAdmin" type="primary" round class="publish-button" @click="goPublish">发布需求</el-button>
           <el-dropdown v-if="!userStore.isAdmin" trigger="hover" placement="bottom" @command="onMessageCommand">
-            <el-badge :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
-              <button type="button" class="message-entry" aria-label="打开消息中心" @click.stop="goMessages('conversations')">
-                <el-icon><MessageIcon /></el-icon>
-                <span>消息</span>
-              </button>
-            </el-badge>
+            <button type="button" class="message-entry" aria-label="打开消息中心" @click.stop="goMessages('conversations')">
+              <el-badge :value="messageStore.unreadCount" :hidden="!messageStore.unreadCount" :max="99" class="msg-badge">
+                <span class="message-entry__content">
+                  <el-icon><MessageIcon /></el-icon>
+                  <span>消息</span>
+                </span>
+              </el-badge>
+            </button>
             <template #dropdown>
               <el-dropdown-menu class="message-quick-menu">
                 <el-dropdown-item command="conversations">我的消息</el-dropdown-item>
@@ -265,6 +267,13 @@ function onCommand(command) {
   font-size: 13px;
   font-weight: 600;
   transition: color .2s, background .2s;
+}
+
+.message-entry__content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .message-entry .el-icon {

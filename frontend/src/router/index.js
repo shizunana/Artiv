@@ -27,6 +27,8 @@ const routes = [
       { path: 'projects/:id', name: 'ProjectDetail', component: () => import('@/views/projects/ProjectDetail.vue'), meta: { title: '企划详情' } },
       { path: 'stalls', name: 'Stalls', component: () => import('@/views/stalls/StallList.vue'), meta: { title: '服务板' } },
       { path: 'stalls/:id', name: 'StallDetail', component: () => import('@/views/stalls/StallDetail.vue'), meta: { title: '服务板详情' } },
+      { path: 'guides/employer', name: 'EmployerGuide', component: () => import('@/views/guides/EmployerGuide.vue'), meta: { title: '企划方指南' } },
+      { path: 'guides/painter-certification', name: 'PainterCertificationGuide', component: () => import('@/views/guides/PainterCertificationGuide.vue'), meta: { title: '画师认证指南' } },
       { path: 'messages', name: 'Messages', component: () => import('@/views/messages/MessageList.vue'), meta: { title: '消息中心', requiresAuth: true } },
       { path: 'settings', name: 'AccountSettings', component: () => import('@/views/account/AccountSettings.vue'), meta: { title: '账户设置', requiresAuth: true } },
     ],
@@ -87,6 +89,11 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, behavior: 'smooth' }
+    return { top: 0 }
+  },
 })
 
 // 登录守卫：未登录访问工作台跳登录；管理员页面校验角色

@@ -22,6 +22,11 @@
       <div class="cert-actions">
         <el-button type="primary" round @click="router.push({ name: 'PainterWorks' })">完善资料与作品</el-button>
         <el-button round @click="router.push({ name: 'AccountSettings', query: { section: 'identity' } })">进行画师认证</el-button>
+        <button type="button" class="cert-guide-link" @click="router.push({ name: 'PainterCertificationGuide' })">
+          <el-icon><Reading /></el-icon>
+          <span>认证指南</span>
+          <span class="cert-guide-link__arrow" aria-hidden="true">→</span>
+        </button>
       </div>
     </section>
 
@@ -129,6 +134,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Reading } from '@element-plus/icons-vue'
 import { getOrders } from '@/api/order'
 import { getMyWorks } from '@/api/work'
 import { getMyStalls } from '@/api/stall'
@@ -280,6 +286,12 @@ onMounted(() => {
 .cert-step p { margin: 6px 0 0; color: var(--artiv-text-secondary); font-size: 13px; line-height: 1.7; }
 .cert-actions,.welcome-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .cert-actions { margin-top: 22px; }
+.cert-guide-link { display: inline-flex; height: 32px; align-items: center; gap: 6px; border: 0; border-radius: 8px; background: #edf8fd; padding: 0 12px; color: var(--artiv-primary); cursor: pointer; font-size: 13px; font-weight: 600; transition: background .2s, color .2s; }
+.cert-guide-link:hover { background: #dff3fc; color: #008dcc; }
+.cert-guide-link:focus-visible { outline: 2px solid rgb(0 168 233 / 28%); outline-offset: 2px; }
+.cert-guide-link .el-icon { font-size: 15px; }
+.cert-guide-link__arrow { margin-left: 2px; font-size: 15px; transition: transform .2s; }
+.cert-guide-link:hover .cert-guide-link__arrow { transform: translateX(2px); }
 .welcome-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .section-header h3 { margin: 0 0 6px; color: var(--artiv-text); font-size: 19px; }
