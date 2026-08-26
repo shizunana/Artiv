@@ -9,7 +9,7 @@ export function getInvitations(params, config = {}) {
 }
 
 export function getInvitationByProject(projectId) {
-  return request.get(`/invitations/project/${projectId}`)
+  return request.get(`/invitations/project/${projectId}`, { silentError: true })
 }
 
 export function acceptInvitation(id, data) {

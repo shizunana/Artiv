@@ -396,7 +396,11 @@ const painterBio = (item) => {
 const painterTags = (item) => String(item.painter?.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean)
 const showOwnerActions = (item) => isOwner.value && Boolean(item?.application)
 const hasActiveProjectOrder = (item) => item?.hasActiveOrder === true
-const isTargetApplication = (item) => Number(item?.application?.id || 0) === Number(route.query.applicationId || 0)
+const isTargetApplication = (item) => {
+  const targetApplicationId = Number(route.query.applicationId || 0)
+  return targetApplicationId > 0
+    && Number(item?.application?.id || 0) === targetApplicationId
+}
 const applicationCardId = (item) => item?.application?.id ? `application-${item.application.id}` : undefined
 
 function handleApplyButton() {

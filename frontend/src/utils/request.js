@@ -28,7 +28,9 @@ request.interceptors.response.use(
       clearAuth()
       router.push({ name: 'Login' })
     }
-    ElMessage.error(res.message || '请求失败')
+    if (!response.config?.silentError) {
+      ElMessage.error(res.message || '请求失败')
+    }
     return Promise.reject(new Error(res.message || '请求失败'))
   },
   (error) => {
@@ -41,7 +43,9 @@ request.interceptors.response.use(
     }
     const responseData = error.response?.data
     const message = responseData?.message || error.message || '网络错误'
-    ElMessage.error(message)
+    if (!error.config?.silentError) {
+      ElMessage.error(message)
+    }
     const normalizedError = new Error(message)
     normalizedError.code = responseData?.code
     normalizedError.status = error.response?.status
