@@ -11,6 +11,7 @@ import com.artiv.mapper.UserMapper;
 import com.artiv.service.AccountRestrictionService;
 import com.artiv.service.ArtistService;
 import com.artiv.service.FollowService;
+import com.artiv.service.UserBlockService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class FollowServiceImpl implements FollowService {
     private final UserMapper userMapper;
     private final AccountRestrictionService accountRestrictionService;
     private final ArtistService artistService;
+    private final UserBlockService userBlockService;
 
     @Override
     @Transactional
@@ -39,6 +41,7 @@ public class FollowServiceImpl implements FollowService {
         if (painterId.equals(userId)) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "不能关注自己");
         }
+        userBlockService.requireNotBlocked(userId, painterId, "关注");
         if (isFollowing(painterId, userId)) {
             return new FollowStateResponse(painterId, true);
         }

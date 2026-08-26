@@ -59,6 +59,7 @@ class OrderServiceTest {
     @Mock private OrderPreviewService orderPreviewService;
     @Mock private AccountRestrictionService accountRestrictionService;
     @Mock private ReviewService reviewService;
+    @Mock private UserBlockService userBlockService;
     @Spy private ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     @InjectMocks private OrderServiceImpl orderService;
 

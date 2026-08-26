@@ -16,6 +16,10 @@ DROP TABLE IF EXISTS `order_dispute_evidence`;
 DROP TABLE IF EXISTS `order_dispute`;
 DROP TABLE IF EXISTS `artist_certification`;
 DROP TABLE IF EXISTS `admin_action_log`;
+DROP TABLE IF EXISTS `report_evidence`;
+DROP TABLE IF EXISTS `report_submission`;
+DROP TABLE IF EXISTS `report_case`;
+DROP TABLE IF EXISTS `user_block`;
 
 -- -----------------------------------------------------
 -- 用户表
@@ -50,6 +54,59 @@ CREATE TABLE `user` (
   KEY `idx_user_created` (`created_at`, `deleted`),
   KEY `idx_user_cert` (`cert_status`, `deleted`)
 ) ENGINE = InnoDB COMMENT = '用户表';
+
+-- -----------------------------------------------------
+-- 用户黑名单与举报聚合
+-- -----------------------------------------------------
+CREATE TABLE `user_block` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `blocker_id` BIGINT NOT NULL COMMENT '屏蔽发起用户',
+  `blocked_id` BIGINT NOT NULL COMMENT '被屏蔽用户',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入黑名单时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_block` (`blocker_id`, `blocked_id`),
+  KEY `idx_user_block_blocker_created` (`blocker_id`, `created_at`),
+  KEY `idx_user_block_blocked` (`blocked_id`)
+) ENGINE=InnoDB COMMENT='用户黑名单';
+
+CREATE TABLE `report_case` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '聚合案件ID',
+  `target_type` VARCHAR(20) NOT NULL DEFAULT 'USER' COMMENT '举报目标类型；第一期仅USER',
+  `target_id` BIGINT NOT NULL COMMENT '被举报用户ID',
+  `target_snapshot` TEXT DEFAULT NULL COMMENT '首次举报时目标公开资料快照',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '0待处理、1已处理、2已驳回',
+  `admin_id` BIGINT DEFAULT NULL COMMENT '最近处理管理员',
+  `decision_reason` VARCHAR(500) DEFAULT NULL COMMENT '最近处理结论',
+  `handled_at` DATETIME DEFAULT NULL COMMENT '最近处理时间',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_report_case_target` (`target_type`, `target_id`),
+  KEY `idx_report_case_status_updated` (`status`, `updated_at`)
+) ENGINE=InnoDB COMMENT='用户举报聚合案件';
+
+CREATE TABLE `report_submission` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '举报提交ID',
+  `case_id` BIGINT NOT NULL COMMENT '聚合案件ID',
+  `reporter_id` BIGINT NOT NULL COMMENT '举报人ID',
+  `category` VARCHAR(30) NOT NULL COMMENT '举报分类',
+  `reason` VARCHAR(500) NOT NULL COMMENT '举报说明',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_report_submission_reporter` (`case_id`, `reporter_id`),
+  KEY `idx_report_submission_case_created` (`case_id`, `created_at`),
+  KEY `idx_report_submission_reporter` (`reporter_id`, `created_at`)
+) ENGINE=InnoDB COMMENT='举报人提交';
+
+CREATE TABLE `report_evidence` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '证据ID',
+  `submission_id` BIGINT NOT NULL COMMENT '举报提交ID',
+  `image_url` VARCHAR(255) NOT NULL COMMENT '本站上传图片地址',
+  `sort_order` INT NOT NULL DEFAULT 0 COMMENT '展示顺序',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_report_evidence_submission` (`submission_id`, `sort_order`, `id`)
+) ENGINE=InnoDB COMMENT='举报图片证据';
 
 -- -----------------------------------------------------
 -- 作品表（作品集）

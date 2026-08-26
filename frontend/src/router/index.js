@@ -80,6 +80,7 @@ const routes = [
       { path: 'projects', name: 'AdminProjects', component: () => import('@/views/admin/Projects.vue'), meta: { title: '企划审核' } },
       { path: 'disputes', name: 'AdminDisputes', component: () => import('@/views/admin/Disputes.vue'), meta: { title: '订单仲裁' } },
       { path: 'review-appeals', name: 'AdminReviewAppeals', component: () => import('@/views/admin/ReviewAppeals.vue'), meta: { title: '评价申诉' } },
+      { path: 'reports', name: 'AdminReports', component: () => import('@/views/admin/Reports.vue'), meta: { title: '用户举报' } },
       { path: 'stats', name: 'AdminStats', component: () => import('@/views/admin/Stats.vue'), meta: { title: '数据统计' } },
       { path: 'audit-logs', name: 'AdminAuditLogs', component: () => import('@/views/admin/AuditLogs.vue'), meta: { title: '操作审计' } },
     ],

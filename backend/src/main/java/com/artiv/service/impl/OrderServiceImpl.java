@@ -29,6 +29,7 @@ import com.artiv.service.OrderPreviewService;
 import com.artiv.service.OrderService;
 import com.artiv.service.AccountRestrictionService;
 import com.artiv.service.ReviewService;
+import com.artiv.service.UserBlockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -71,6 +72,7 @@ public class OrderServiceImpl implements OrderService {
     private final ObjectMapper objectMapper;
     private final AccountRestrictionService accountRestrictionService;
     private final ReviewService reviewService;
+    private final UserBlockService userBlockService;
 
     @Override
     public Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup,
@@ -147,6 +149,7 @@ public class OrderServiceImpl implements OrderService {
                 || stall.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
+        userBlockService.requireNotBlocked(employerId, stall.getPainterId(), "购买橱窗服务");
         User employer = userMapper.selectByIdForUpdate(employerId);
         User painter = userMapper.selectById(stall.getPainterId());
         if (!isActive(employer) || !isActive(painter)) {
@@ -200,6 +203,7 @@ public class OrderServiceImpl implements OrderService {
                 || employerId.equals(application.getPainterId())) {
             throw new BusinessException(ResultCode.NO_PERMISSION);
         }
+        userBlockService.requireNotBlocked(employerId, application.getPainterId(), "发送企划订单");
         long activeOrders = orderInfoMapper.selectCount(new LambdaQueryWrapper<OrderInfo>()
                 .eq(OrderInfo::getApplicationId, applicationId)
                 .eq(OrderInfo::getDeleted, 0)

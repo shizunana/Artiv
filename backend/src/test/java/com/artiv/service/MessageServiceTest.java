@@ -41,6 +41,7 @@ class MessageServiceTest {
     @Mock private UserMapper userMapper;
     @Mock private ProjectMapper projectMapper;
     @Mock private ApplicationMapper applicationMapper;
+    @Mock private UserBlockService userBlockService;
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks private MessageServiceImpl messageService;

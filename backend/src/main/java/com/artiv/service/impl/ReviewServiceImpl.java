@@ -269,9 +269,11 @@ public class ReviewServiceImpl implements ReviewService {
         String decisionReason = normalizeRequired(reason);
         Map<String, Object> before = Map.of("appealStatus", appeal.getStatus(), "reviewDeleted", review.getDeleted());
         if (approve) {
+            if (reviewMapper.hideById(review.getId()) != 1) {
+                throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(), "该评价已被隐藏");
+            }
             review.setDeleted(1);
             review.setUpdatedAt(LocalDateTime.now());
-            reviewMapper.updateById(review);
         }
         appeal.setStatus(approve ? APPEAL_APPROVED : APPEAL_REJECTED);
         appeal.setAdminId(adminId);

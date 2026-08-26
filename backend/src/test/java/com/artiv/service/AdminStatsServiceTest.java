@@ -44,6 +44,7 @@ class AdminStatsServiceTest {
     @Mock private OrderDisputeMapper disputeMapper;
     @Mock private AdminActionLogMapper auditMapper;
     @Mock private ReviewService reviewService;
+    @Mock private ReportService reportService;
 
     @InjectMocks private AdminStatsServiceImpl adminStatsService;
 

@@ -23,17 +23,18 @@
             <el-tag v-for="tag in profile.tags" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
           </div>
         </div>
-        <div v-if="!isOwner && isPainter && profile.certStatus === 2" class="profile-actions">
-          <el-button type="primary" :loading="followLoading" @click="toggleFollow">
+        <div v-if="!isOwner" class="profile-actions">
+          <el-button v-if="isPainter && profile.certStatus === 2" type="primary" :loading="followLoading" :disabled="blocked" @click="toggleFollow">
             {{ followed ? '已关注' : '关注' }}
           </el-button>
-          <el-button class="invite-button" @click="openInvite">邀请</el-button>
-          <el-dropdown trigger="click" @command="showUnavailable">
+          <el-button v-if="isPainter && profile.certStatus === 2" class="invite-button" :disabled="blocked" @click="openInvite">邀请</el-button>
+          <el-tag v-if="blocked" type="info" effect="light">已屏蔽</el-tag>
+          <el-dropdown trigger="click" @command="handleMoreCommand">
             <el-button class="more-button" circle aria-label="更多操作"><el-icon><MoreFilled /></el-icon></el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="加入黑名单">加入黑名单</el-dropdown-item>
-                <el-dropdown-item command="举报">举报</el-dropdown-item>
+                <el-dropdown-item command="block">{{ blocked ? '解除黑名单' : '加入黑名单' }}</el-dropdown-item>
+                <el-dropdown-item command="report">举报用户</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -155,12 +156,45 @@
         <el-button type="primary" :loading="inviting" :disabled="!inviteProjects.length" @click="submitInvite">确认邀请</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="reportVisible" title="举报用户" width="600px" append-to-body destroy-on-close @closed="resetReportForm">
+      <el-alert title="举报仅用于平台治理，不会自动屏蔽对方，也不会向举报人推送处理结果。" type="info" :closable="false" show-icon />
+      <el-form label-position="top" class="report-form">
+        <el-form-item label="举报对象">
+          <div class="invite-painter"><el-avatar :src="profile?.avatar || undefined" />{{ profile?.nickname }}</div>
+        </el-form-item>
+        <el-form-item label="举报类型" required>
+          <el-select v-model="reportForm.category" placeholder="请选择举报类型" style="width: 100%">
+            <el-option v-for="item in reportCategories" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="举报说明" required>
+          <el-input v-model="reportForm.reason" type="textarea" :rows="5" minlength="10" maxlength="500" show-word-limit placeholder="请具体说明问题发生的场景和原因（10–500 字）" />
+        </el-form-item>
+        <el-form-item label="图片证据（选填，最多 6 张）">
+          <el-upload
+            v-model:file-list="reportFileList"
+            list-type="picture-card"
+            accept="image/*"
+            :limit="6"
+            :http-request="uploadReportImage"
+            :on-remove="removeReportImage"
+          >
+            <span class="upload-plus">＋</span>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="reportVisible = false">取消</el-button>
+        <el-button type="primary" :loading="reportSubmitting" @click="submitReport">提交举报</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { MoreFilled } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -173,6 +207,8 @@ import { formatProjectBudget } from '@/utils/budget'
 import { isProjectExpired } from '@/utils/projectDeadline'
 import { getMyProjects } from '@/api/project'
 import { createPublicInvitation } from '@/api/invitation'
+import { blockUser, getUserBlockStatus, submitUserReport, unblockUser } from '@/api/governance'
+import { uploadFile } from '@/api/upload'
 
 const route = useRoute()
 const router = useRouter()
@@ -190,11 +226,23 @@ const previewUrl = ref('')
 const resourceError = ref(false)
 const followed = ref(false)
 const followLoading = ref(false)
+const blocked = ref(false)
 const inviteVisible = ref(false)
 const inviteProjectsLoading = ref(false)
 const inviteProjects = ref([])
 const inviteFormRef = ref()
 const inviting = ref(false)
+const reportVisible = ref(false)
+const reportSubmitting = ref(false)
+const reportFileList = ref([])
+const reportCategories = [
+  { value: 'HARASSMENT', label: '骚扰或人身攻击' },
+  { value: 'FRAUD', label: '欺诈或虚假交易' },
+  { value: 'IMPERSONATION', label: '冒充他人' },
+  { value: 'ILLEGAL_CONTENT', label: '违法违规内容' },
+  { value: 'OTHER', label: '其他问题' },
+]
+const reportForm = reactive({ category: '', reason: '', images: [] })
 const inviteForm = reactive({ projectId: null, invitationType: 1, offeredPrice: undefined, message: '' })
 const inviteRules = {
   projectId: [{ required: true, message: '请选择公开企划', trigger: 'change' }],
@@ -249,10 +297,16 @@ async function loadProfile() {
     profile.value = data
     activeTab.value = isPainter.value ? 'works' : 'projects'
     followed.value = false
-    if (userStore.isLoggedIn && !isOwner.value && isPainter.value && data.certStatus === 2) {
-      const state = await getPainterFollowStatus(profileId.value)
+    blocked.value = false
+    if (userStore.isLoggedIn && !isOwner.value) {
+      const blockState = await getUserBlockStatus(profileId.value)
       if (version !== requestVersion) return
-      followed.value = Boolean(state?.followed)
+      blocked.value = Boolean(blockState?.blocked)
+      if (isPainter.value && data.certStatus === 2) {
+        const state = await getPainterFollowStatus(profileId.value)
+        if (version !== requestVersion) return
+        followed.value = Boolean(state?.followed)
+      }
     }
     await resetResources()
   } finally {
@@ -322,7 +376,7 @@ function requireLogin() {
 }
 
 async function toggleFollow() {
-  if (!requireLogin() || followLoading.value) return
+  if (!requireLogin() || followLoading.value || blocked.value) return
   followLoading.value = true
   try {
     const state = followed.value
@@ -336,7 +390,7 @@ async function toggleFollow() {
 }
 
 async function openInvite() {
-  if (!requireLogin()) return
+  if (!requireLogin() || blocked.value) return
   inviteVisible.value = true
   inviteProjectsLoading.value = true
   try {
@@ -376,7 +430,78 @@ async function submitInvite() {
   }
 }
 
-function showUnavailable(name) { ElMessage.info(`${name}功能暂未开放`) }
+async function handleMoreCommand(command) {
+  if (!requireLogin()) return
+  if (command === 'report') {
+    reportVisible.value = true
+    return
+  }
+  try {
+    if (blocked.value) {
+      await ElMessageBox.confirm(
+        `解除对「${profile.value?.nickname}」的屏蔽后，双方将可以重新进行平台互动。`,
+        '解除屏蔽',
+        { confirmButtonText: '解除屏蔽', cancelButtonText: '取消', type: 'warning' },
+      )
+      await unblockUser(profileId.value)
+      blocked.value = false
+      ElMessage.success('已解除屏蔽')
+    } else {
+      await ElMessageBox.confirm(
+        `加入黑名单后，您与「${profile.value?.nickname}」仍可查看彼此公开内容，但无法关注、邀请、应征、下单、建立会话或发送私信。待处理邀请会失效，尚未下单的应征关系会结束。`,
+        '加入黑名单',
+        { confirmButtonText: '确认屏蔽', cancelButtonText: '取消', type: 'warning' },
+      )
+      await blockUser(profileId.value)
+      blocked.value = true
+      followed.value = false
+      inviteVisible.value = false
+      ElMessage.success('已加入黑名单')
+    }
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') throw error
+  }
+}
+
+function resetReportForm() {
+  Object.assign(reportForm, { category: '', reason: '', images: [] })
+  reportFileList.value = []
+}
+
+async function uploadReportImage(options) {
+  try {
+    const url = await uploadFile(options.file)
+    reportForm.images.push(url)
+    options.onSuccess(url)
+  } catch (error) {
+    options.onError(error)
+  }
+}
+
+function removeReportImage(file) {
+  const url = typeof file.response === 'string' ? file.response : file.url
+  reportForm.images = reportForm.images.filter((item) => item !== url)
+}
+
+async function submitReport() {
+  const reason = reportForm.reason.trim()
+  if (!reportForm.category) return ElMessage.warning('请选择举报类型')
+  if (reason.length < 10 || reason.length > 500) return ElMessage.warning('举报说明应为 10–500 字')
+  if (reportFileList.value.some((item) => item.status === 'uploading')) return ElMessage.warning('请等待图片上传完成')
+  reportSubmitting.value = true
+  try {
+    const result = await submitUserReport({
+      targetUserId: profileId.value,
+      category: reportForm.category,
+      reason,
+      images: reportForm.images,
+    })
+    reportVisible.value = false
+    ElMessage.success(result?.recorded === false ? '您已举报过该用户，本次未重复计数' : '举报已提交')
+  } finally {
+    reportSubmitting.value = false
+  }
+}
 function formatRate(value) { return value === null || value === undefined ? '暂无' : `${value}%` }
 function previewWork(work) { previewUrl.value = work.image || '' }
 function projectCover(project) {

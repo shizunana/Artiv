@@ -6,10 +6,19 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Delete;
 
 import java.util.List;
 
 public interface UserFollowMapper extends BaseMapper<UserFollow> {
+
+    @Delete("""
+            DELETE FROM user_follow
+            WHERE (user_id = #{firstUserId} AND painter_id = #{secondUserId})
+               OR (user_id = #{secondUserId} AND painter_id = #{firstUserId})
+            """)
+    int deleteBetweenUsers(@Param("firstUserId") Long firstUserId,
+                           @Param("secondUserId") Long secondUserId);
 
     @Select("""
             <script>

@@ -22,6 +22,7 @@ import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.ApplicationService;
+import com.artiv.service.UserBlockService;
 import com.artiv.service.MessageService;
 import com.artiv.service.AccountRestrictionService;
 import com.artiv.service.ReviewService;
@@ -62,6 +63,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final WorkMapper workMapper;
     private final MessageService messageService;
     private final AccountRestrictionService accountRestrictionService;
+    private final UserBlockService userBlockService;
     private final ReviewService reviewService;
 
     @Override
@@ -234,6 +236,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (project.getEmployerId().equals(application.getPainterId())) {
             throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "不能应征自己发布的企划");
         }
+        userBlockService.requireNotBlocked(project.getEmployerId(), application.getPainterId(), "应征企划");
         User painter = userMapper.selectById(application.getPainterId());
         if (painter == null || !Integer.valueOf(0).equals(painter.getDeleted())
                 || !Integer.valueOf(0).equals(painter.getStatus())

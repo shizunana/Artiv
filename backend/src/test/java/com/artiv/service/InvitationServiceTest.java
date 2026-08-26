@@ -57,6 +57,7 @@ class InvitationServiceTest {
     @Mock private ApplicationService applicationService;
     @Mock private MessageService messageService;
     @Mock private AccountRestrictionService accountRestrictionService;
+    @Mock private UserBlockService userBlockService;
 
     @InjectMocks private InvitationServiceImpl invitationService;
 

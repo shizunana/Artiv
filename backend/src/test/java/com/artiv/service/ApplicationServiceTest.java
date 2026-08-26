@@ -70,6 +70,9 @@ class ApplicationServiceTest {
     @Mock
     private ReviewService reviewService;
 
+    @Mock
+    private UserBlockService userBlockService;
+
     @InjectMocks
     private ApplicationServiceImpl applicationService;
 

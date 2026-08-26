@@ -22,6 +22,7 @@ import com.artiv.mapper.UserMapper;
 import com.artiv.service.ProjectService;
 import com.artiv.service.AccountRestrictionService;
 import com.artiv.service.MessageService;
+import com.artiv.service.UserBlockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +55,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final OrderInfoMapper orderInfoMapper;
     private final AccountRestrictionService accountRestrictionService;
     private final MessageService messageService;
+    private final UserBlockService userBlockService;
 
     @Override
     public Page<Project> listProjects(long page, long size, String keyword, Integer status,
@@ -115,6 +117,7 @@ public class ProjectServiceImpl implements ProjectService {
                 throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "定向邀请必须选择画师");
             }
             requireCertifiedPainter(request.getInvitePainterId(), employerId);
+            userBlockService.requireNotBlocked(employerId, request.getInvitePainterId(), "发送邀请");
         }
         requireEditableDeadline(request.getDeadline());
         LocalDateTime now = LocalDateTime.now();

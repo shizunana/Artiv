@@ -21,6 +21,7 @@ import com.artiv.service.AccountRestrictionService;
 import com.artiv.service.ApplicationService;
 import com.artiv.service.InvitationService;
 import com.artiv.service.MessageService;
+import com.artiv.service.UserBlockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +59,7 @@ public class InvitationServiceImpl implements InvitationService {
     private final ApplicationService applicationService;
     private final MessageService messageService;
     private final AccountRestrictionService accountRestrictionService;
+    private final UserBlockService userBlockService;
 
     @Override
     @Transactional
@@ -75,6 +77,7 @@ public class InvitationServiceImpl implements InvitationService {
         if (employerId.equals(painter.getId())) {
             throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "不能邀请自己参与企划");
         }
+        userBlockService.requireNotBlocked(employerId, painter.getId(), "发送邀请");
         Long activeApplication = applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
                 .eq(Application::getProjectId, project.getId())
                 .eq(Application::getPainterId, painter.getId())
@@ -207,6 +210,7 @@ public class InvitationServiceImpl implements InvitationService {
                 throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "邀请类型不正确");
             }
         }
+        userBlockService.requireNotBlocked(project.getEmployerId(), painterId, "接受邀请");
 
         Application application = applicationService.createFromInvitation(
                 project.getId(), painterId, intro, quote, quoteSource, directed);

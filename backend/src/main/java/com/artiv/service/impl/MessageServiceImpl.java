@@ -19,6 +19,7 @@ import com.artiv.mapper.ProjectMapper;
 import com.artiv.mapper.OrderInfoMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.MessageService;
+import com.artiv.service.UserBlockService;
 import com.artiv.websocket.MessageWebSocketHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +60,7 @@ public class MessageServiceImpl implements MessageService {
     private final OrderInfoMapper orderInfoMapper;
     private final MessageWebSocketHandler messageWebSocketHandler;
     private final ObjectMapper objectMapper;
+    private final UserBlockService userBlockService;
 
     @Override
     public Message sendPrivateMessage(Long fromUserId, PrivateMessageRequest request) {
@@ -79,6 +81,7 @@ public class MessageServiceImpl implements MessageService {
         if (request.getProjectId() != null && request.getOrderId() != null) {
             throw new BusinessException(ResultCode.PARAM_INVALID);
         }
+        userBlockService.requireNotBlocked(fromUserId, request.getToId(), "发送消息");
         // 保留旧入口携带企划/订单上下文时的权限校验；消息中心合并会话后发送普通私信。
         validateProjectConversation(fromUserId, request.getToId(), request.getProjectId());
         validateOrderConversation(fromUserId, request.getToId(), request.getOrderId());
@@ -236,6 +239,7 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public Message startProjectConversation(Long employerId, Long projectId, Long painterId) {
+        userBlockService.requireNotBlocked(employerId, painterId, "发起会话");
         Project project = requireOwnedProject(employerId, projectId);
         requireActiveApplication(project.getId(), painterId);
         Message existing = findProjectConversationStarter(employerId, painterId, projectId);
@@ -266,6 +270,7 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public Message createInvitationAcceptedConversation(Long employerId, Long painterId,
                                                          Long projectId, String content) {
+        userBlockService.requireNotBlocked(employerId, painterId, "建立会话");
         Project project = requireOwnedProject(employerId, projectId);
         requireActiveApplication(project.getId(), painterId);
         Message existing = findProjectConversationStarter(employerId, painterId, projectId);

@@ -5,6 +5,7 @@ import com.artiv.entity.Review;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -26,6 +27,19 @@ public interface ReviewMapper extends BaseMapper<Review> {
 
     @Select("SELECT * FROM review WHERE id = #{id} FOR UPDATE")
     Review selectByIdForUpdate(@Param("id") Long id);
+
+    /**
+     * 申诉获批时显式隐藏评价。
+     *
+     * <p>deleted 是全局逻辑删除字段，普通 updateById 不会把它作为常规字段从 0 更新为 1，
+     * 因此这里使用受 deleted = 0 保护的专用更新。</p>
+     */
+    @Update("""
+            UPDATE review
+            SET deleted = 1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = #{id} AND deleted = 0
+            """)
+    int hideById(@Param("id") Long id);
 
     @Select("""
             <script>

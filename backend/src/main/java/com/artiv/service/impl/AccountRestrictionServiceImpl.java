@@ -28,11 +28,15 @@ public class AccountRestrictionServiceImpl implements AccountRestrictionService 
         if (user == null || Integer.valueOf(1).equals(user.getDeleted())) {
             throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
         }
-        if (isExpired(user, LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now();
+        if (isExpired(user, now)) {
             User before = copyBanState(user);
-            clearBan(user);
-            userMapper.updateById(user);
-            auditService.record(null, "AUTO_UNBAN_USER", "USER", user.getId(), before, user, "限时封禁到期自动解封");
+            if (userMapper.clearExpiredBan(user.getId(), now) == 1) {
+                clearBan(user);
+                auditService.record(null, "AUTO_UNBAN_USER", "USER", user.getId(), before, user, "限时封禁到期自动解封");
+            } else {
+                user = userMapper.selectById(userId);
+            }
         }
         return user;
     }
@@ -56,13 +60,16 @@ public class AccountRestrictionServiceImpl implements AccountRestrictionService 
                 .eq(User::getStatus, 1)
                 .isNotNull(User::getBannedUntil)
                 .le(User::getBannedUntil, now));
+        int released = 0;
         for (User user : users) {
             User before = copyBanState(user);
-            clearBan(user);
-            userMapper.updateById(user);
-            auditService.record(null, "AUTO_UNBAN_USER", "USER", user.getId(), before, user, "限时封禁到期自动解封");
+            if (userMapper.clearExpiredBan(user.getId(), now) == 1) {
+                clearBan(user);
+                auditService.record(null, "AUTO_UNBAN_USER", "USER", user.getId(), before, user, "限时封禁到期自动解封");
+                released++;
+            }
         }
-        return users.size();
+        return released;
     }
 
     private boolean isExpired(User user, LocalDateTime now) {

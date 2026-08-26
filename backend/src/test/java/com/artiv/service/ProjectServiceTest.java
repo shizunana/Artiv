@@ -55,6 +55,9 @@ class ProjectServiceTest {
     @Mock
     private MessageService messageService;
 
+    @Mock
+    private UserBlockService userBlockService;
+
     @InjectMocks
     private ProjectServiceImpl projectService;
 

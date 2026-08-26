@@ -133,6 +133,35 @@ class ReviewServiceTest {
         assertThrows(BusinessException.class, () -> reviewService.submitAppeal(81L, 15L, request));
     }
 
+    @Test
+    void approvedAppealUsesDedicatedLogicalHideUpdate() {
+        Review review = review(81L, 31L, 15L, 2L, 2);
+        ReviewAppeal appeal = new ReviewAppeal();
+        appeal.setId(9L);
+        appeal.setReviewId(81L);
+        appeal.setApplicantId(2L);
+        appeal.setStatus(0);
+        when(reviewAppealMapper.selectByIdForUpdate(9L)).thenReturn(appeal);
+        when(reviewMapper.selectByIdForUpdate(81L)).thenReturn(review);
+        when(orderInfoMapper.selectById(31L)).thenReturn(completedOrder());
+        when(reviewMapper.hideById(81L)).thenReturn(1);
+        when(reviewMapper.selectIncludingDeletedByIds(any())).thenReturn(List.of(review));
+        when(orderInfoMapper.selectBatchIds(any())).thenReturn(List.of(completedOrder()));
+        when(reviewImageMapper.selectList(any())).thenReturn(List.of());
+        User employer = new User(); employer.setId(15L); employer.setNickname("企划方");
+        User painter = new User(); painter.setId(2L); painter.setNickname("画师");
+        when(userMapper.selectBatchIds(any())).thenReturn(List.of(employer, painter));
+
+        var result = reviewService.resolveAppeal(9L, 3L, true, "申诉成立");
+
+        assertEquals(1, result.getAppeal().getStatus());
+        assertEquals(1, review.getDeleted());
+        verify(reviewMapper).hideById(81L);
+        verify(reviewMapper, never()).updateById(any(Review.class));
+        verify(adminAuditService).record(eq(3L), eq("REVIEW_APPEAL_APPROVED"),
+                eq("REVIEW_APPEAL"), eq(9L), any(), any(), eq("申诉成立"));
+    }
+
     private ReviewRequest request() {
         ReviewRequest request = new ReviewRequest(); request.setScore(4); return request;
     }

@@ -14,6 +14,10 @@
           <strong>身份认证</strong>
           <span>画师信息与认证资料</span>
         </button>
+        <button :class="{ active: activeSection === 'blocks' }" type="button" @click="setSection('blocks')">
+          <strong>黑名单</strong>
+          <span>查看与解除已屏蔽用户</span>
+        </button>
       </aside>
 
       <main v-loading="pageLoading" class="settings-main">
@@ -84,7 +88,7 @@
           </section>
         </template>
 
-        <template v-else>
+        <template v-else-if="activeSection === 'identity'">
           <header class="settings-heading">
             <div>
               <span class="heading-kicker">IDENTITY</span>
@@ -170,6 +174,17 @@
             </div>
           </section>
         </template>
+
+        <template v-else>
+          <header class="settings-heading">
+            <div>
+              <span class="heading-kicker">PRIVACY</span>
+              <h1>黑名单管理</h1>
+              <p>管理账号级屏蔽关系；公开内容仍然可见，平台互动将被双向限制。</p>
+            </div>
+          </header>
+          <BlockList />
+        </template>
       </main>
     </div>
 
@@ -238,6 +253,7 @@ import { Check, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import AvatarEditor from '@/components/account/AvatarEditor.vue'
+import BlockList from '@/components/account/BlockList.vue'
 import { SUBJECT_OPTIONS } from '@/constants/subjects'
 import {
   getCertificationStatus,
@@ -275,7 +291,7 @@ const painterForm = reactive({ bio: '', tags: [] })
 const initialForm = reactive({ commonId: '', commonSite: '' })
 const changeForm = reactive({ commonId: '', commonSite: '' })
 
-const activeSection = computed(() => route.query.section === 'identity' ? 'identity' : 'account')
+const activeSection = computed(() => ['identity', 'blocks'].includes(route.query.section) ? route.query.section : 'account')
 const certStatus = computed(() => Number(certification.value.certStatus || 0))
 const certStatusText = computed(() => ({ 0: '未认证', 1: '审核中', 2: '已认证' }[certStatus.value] || '未认证'))
 const certStatusType = computed(() => ({ 0: 'info', 1: 'warning', 2: 'success' }[certStatus.value] || 'info'))
@@ -304,7 +320,7 @@ function syncForms() {
   painterForm.tags = (user.tags || '').split(',').map((tag) => tag.trim()).filter((tag) => subjectOptions.includes(tag))
 }
 function setSection(section) {
-  router.replace({ name: 'AccountSettings', query: section === 'identity' ? { section: 'identity' } : {} })
+  router.replace({ name: 'AccountSettings', query: section === 'account' ? {} : { section } })
 }
 async function saveAccountProfile() {
   const nickname = accountForm.nickname.trim()

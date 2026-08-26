@@ -31,6 +31,7 @@ class FollowServiceTest {
     @Mock private UserMapper userMapper;
     @Mock private ArtistService artistService;
     @Mock private AccountRestrictionService accountRestrictionService;
+    @Mock private UserBlockService userBlockService;
 
     @InjectMocks private FollowServiceImpl followService;
 
