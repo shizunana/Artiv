@@ -45,6 +45,22 @@ public class WorkController {
         ));
     }
 
+    @GetMapping("/following")
+    public Result<Page<Work>> following(@RequestParam(defaultValue = "1") long page,
+                                        @RequestParam(defaultValue = "12") long size,
+                                        @RequestParam(required = false) String category,
+                                        @RequestParam(required = false) String subject,
+                                        @RequestParam(required = false) String keyword) {
+        return Result.ok(workService.listFollowingWorks(
+                page,
+                size,
+                UserContext.getUserId(),
+                normalizeFilter(category),
+                normalizeFilter(subject),
+                normalizeFilter(keyword)
+        ));
+    }
+
     @GetMapping("/{id}")
     public Result<WorkDetailResponse> detail(@PathVariable Long id) {
         return Result.ok(workService.getPublicDetail(id));

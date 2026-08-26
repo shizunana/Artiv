@@ -49,6 +49,17 @@ class WorkServiceTest {
     }
 
     @Test
+    void followingListUsesFollowRelationQueryAndKeepsGalleryFilters() {
+        Page<Work> expected = new Page<>(1, 12);
+        when(workMapper.selectFollowingPage(any(Page.class), any(), any(), any(), any())).thenReturn(expected);
+
+        Page<Work> result = workService.listFollowingWorks(1, 12, 19L, "立绘", "女性,日系", "角色");
+
+        verify(workMapper).selectFollowingPage(any(Page.class), any(), any(), any(), any());
+        assertEquals(expected, result);
+    }
+
+    @Test
     void createDefaultsVisibilityToPublicForCompatibility() {
         Work work = new Work();
         work.setTitle("新作品");

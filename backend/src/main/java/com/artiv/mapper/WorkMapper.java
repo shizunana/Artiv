@@ -43,6 +43,39 @@ public interface WorkMapper extends BaseMapper<Work> {
             @Param("subjects") List<String> subjects,
             @Param("keyword") String keyword);
 
+    /** 当前用户关注的正常认证画师所发布的公开作品，按发布时间倒序组成关注动态。 */
+    @Select("""
+            <script>
+            SELECT w.*
+            FROM work w
+            JOIN user_follow f ON f.painter_id = w.user_id
+            JOIN user u ON u.id = w.user_id
+            WHERE f.user_id = #{userId}
+              AND w.deleted = 0
+              AND w.visibility = 1
+              AND u.deleted = 0
+              AND u.status = 0
+              AND u.cert_status = 2
+            <if test="category != null and category != ''">
+              AND w.category = #{category}
+            </if>
+            <if test="keyword != null and keyword != ''">
+              AND (w.title LIKE CONCAT('%', #{keyword}, '%')
+                OR w.description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <foreach collection="subjects" item="subject">
+              AND w.subject LIKE CONCAT('%', #{subject}, '%')
+            </foreach>
+            ORDER BY w.created_at DESC, w.id DESC
+            </script>
+            """)
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<Work> selectFollowingPage(
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<Work> page,
+            @Param("userId") Long userId,
+            @Param("category") String category,
+            @Param("subjects") List<String> subjects,
+            @Param("keyword") String keyword);
+
     /**
      * 使用窗口函数只读取当前页每名画师最近的若干公开作品，避免把其全部作品载入内存。
      */

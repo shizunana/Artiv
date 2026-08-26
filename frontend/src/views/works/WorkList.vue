@@ -5,6 +5,7 @@
         <button type="button" :class="{ 'is-active': viewMode === 'latest' }" @click="setViewMode('latest')">最新</button>
         <button type="button" :class="{ 'is-active': viewMode === 'popular' }" @click="setViewMode('popular')">热门</button>
         <button type="button" :class="{ 'is-active': viewMode === 'favorites' }" @click="setViewMode('favorites')">我收藏的</button>
+        <button type="button" :class="{ 'is-active': viewMode === 'following' }" @click="setViewMode('following')">关注画师的</button>
       </nav>
       <el-input v-model="keyword" clearable class="search-input" placeholder="搜索作品标题、作品说明" @keyup.enter="reload" @clear="reload">
         <template #prefix><el-icon><Search /></el-icon></template>
@@ -39,7 +40,7 @@
       </section>
     </div>
 
-    <EmptyState v-if="!loading && works.length === 0" :description="viewMode === 'favorites' ? '暂未收藏符合条件的作品' : '暂无符合筛选条件的公开作品'" />
+    <EmptyState v-if="!loading && works.length === 0" :description="emptyDescription" />
     <div ref="loadSentinel" class="load-sentinel" aria-live="polite">
       <span v-if="loadingMore">正在加载更多作品…</span>
       <span v-else-if="works.length && !hasMore">已加载全部 {{ total }} 件作品</span>
@@ -92,7 +93,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
-import { getWorkDetail, getWorks } from '@/api/work'
+import { getFollowingWorks, getWorkDetail, getWorks } from '@/api/work'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
 import FavoriteIcon from '@/components/common/FavoriteIcon.vue'
@@ -127,6 +128,11 @@ const favoriteLoading = ref(false)
 const detailTags = computed(() => (detail.subject || '').split(',').map(tag => tag.trim()).filter(Boolean))
 const authorInitial = computed(() => (detail.authorName || '画').slice(0, 1))
 const isDetailOwner = computed(() => Number(userStore.user?.id) === Number(detail.userId))
+const emptyDescription = computed(() => {
+  if (viewMode.value === 'favorites') return '暂未收藏符合条件的作品'
+  if (viewMode.value === 'following') return '关注的画师暂未发布符合条件的作品'
+  return '暂无符合筛选条件的公开作品'
+})
 const imageRatioCache = new Map()
 let loadObserver = null
 let loadVersion = 0
@@ -209,7 +215,7 @@ function reload() {
 }
 
 function normalizeView(value) {
-  return value === 'popular' || value === 'favorites' ? value : 'latest'
+  return value === 'popular' || value === 'favorites' || value === 'following' ? value : 'latest'
 }
 
 function setViewMode(value) {
@@ -297,7 +303,7 @@ async function load(reset = false) {
     loadingMore.value = true
   }
   try {
-    if (viewMode.value === 'favorites' && !userStore.isLoggedIn) {
+    if ((viewMode.value === 'favorites' || viewMode.value === 'following') && !userStore.isLoggedIn) {
       router.push({ name: 'Login', query: { redirect: route.fullPath } })
       return
     }
@@ -308,6 +314,8 @@ async function load(reset = false) {
     let data
     if (viewMode.value === 'favorites') {
       data = await getFavoriteWorks(params)
+    } else if (viewMode.value === 'following') {
+      data = await getFollowingWorks(params)
     } else {
       data = await getWorks({ ...params, sort: viewMode.value === 'popular' ? 'popular' : 'newest' })
     }

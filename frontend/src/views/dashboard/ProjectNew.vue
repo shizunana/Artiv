@@ -218,6 +218,23 @@
       destroy-on-close
       @closed="resetInvitePainterDialog"
     >
+      <template #header>
+        <div class="invite-dialog-header">
+          <span>选择定向邀请画师</span>
+          <el-button
+            class="followed-painters-button"
+            type="primary"
+            plain
+            round
+            size="small"
+            :loading="invitePaintersLoading && inviteResultMode === 'following'"
+            @click="loadFollowedInvitePainters"
+          >
+            <el-icon><Star /></el-icon>
+            关注的画师
+          </el-button>
+        </div>
+      </template>
       <div class="invite-dialog-body">
         <el-input
           v-model="inviteSearchKeyword"
@@ -233,7 +250,9 @@
         </el-input>
 
         <section class="invite-search-section" v-loading="invitePaintersLoading">
-          <h4 v-if="inviteSearchPerformed">搜索结果</h4>
+          <h4 v-if="inviteResultMode !== 'idle'">
+            {{ inviteResultMode === 'following' ? '关注的画师' : '搜索结果' }}
+          </h4>
           <div v-if="invitePainters.length" class="invite-painter-results">
             <button
               v-for="painter in invitePainters"
@@ -254,11 +273,11 @@
             </button>
           </div>
           <el-empty
-            v-else-if="inviteSearchPerformed && !invitePaintersLoading"
+            v-else-if="inviteResultMode !== 'idle' && !invitePaintersLoading"
             :image-size="72"
-            description="未找到对应的已认证画师"
+            :description="inviteResultMode === 'following' ? '暂未关注可邀请的认证画师' : '未找到对应的已认证画师'"
           />
-          <p v-else class="invite-search-placeholder">输入画师名字并搜索后，才会显示可邀请的已认证画师。</p>
+          <p v-else class="invite-search-placeholder">可以搜索画师名字，或直接查看已关注的可邀请画师。</p>
         </section>
       </div>
 
@@ -274,11 +293,12 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowRight, Check, Plus, Search, User } from '@element-plus/icons-vue'
+import { ArrowRight, Check, Plus, Search, Star, User } from '@element-plus/icons-vue'
 import { createProject } from '@/api/project'
 import { uploadFile } from '@/api/upload'
 import { disableBeforeProjectDeadline, minimumProjectDeadlineText } from '@/utils/projectDeadline'
 import { getArtists, getPublicProfile } from '@/api/user'
+import { getFollowedPainters } from '@/api/social'
 import { useUserStore } from '@/stores/user'
 import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
 import CreativePhaseEditor from '@/components/common/CreativePhaseEditor.vue'
@@ -292,7 +312,7 @@ const invitePainters = ref([])
 const invitePaintersLoading = ref(false)
 const inviteDialogVisible = ref(false)
 const inviteSearchKeyword = ref('')
-const inviteSearchPerformed = ref(false)
+const inviteResultMode = ref('idle')
 const pendingInvitePainterId = ref(null)
 const selectedInvitePainter = ref(null)
 let inviteSearchVersion = 0
@@ -405,7 +425,7 @@ function openInvitePainterDialog() {
 function resetInvitePainterDialog() {
   inviteSearchVersion += 1
   inviteSearchKeyword.value = ''
-  inviteSearchPerformed.value = false
+  inviteResultMode.value = 'idle'
   invitePainters.value = []
   pendingInvitePainterId.value = null
   invitePaintersLoading.value = false
@@ -414,18 +434,35 @@ function resetInvitePainterDialog() {
 async function searchInvitePainters() {
   const keyword = inviteSearchKeyword.value.trim()
   if (!keyword) {
-    inviteSearchPerformed.value = false
+    inviteResultMode.value = 'idle'
     invitePainters.value = []
     pendingInvitePainterId.value = null
     return
   }
   const version = ++inviteSearchVersion
   invitePaintersLoading.value = true
-  inviteSearchPerformed.value = true
+  inviteResultMode.value = 'search'
   invitePainters.value = []
   pendingInvitePainterId.value = null
   try {
     const data = await getArtists({ page: 1, size: 20, keyword })
+    if (version !== inviteSearchVersion) return
+    const currentUserId = Number(userStore.user?.id || 0)
+    invitePainters.value = (data.records || []).filter((painter) => Number(painter.id) !== currentUserId)
+  } finally {
+    if (version === inviteSearchVersion) invitePaintersLoading.value = false
+  }
+}
+
+async function loadFollowedInvitePainters() {
+  const version = ++inviteSearchVersion
+  inviteSearchKeyword.value = ''
+  invitePaintersLoading.value = true
+  inviteResultMode.value = 'following'
+  invitePainters.value = []
+  pendingInvitePainterId.value = null
+  try {
+    const data = await getFollowedPainters({ page: 1, size: 50 })
     if (version !== inviteSearchVersion) return
     const currentUserId = Number(userStore.user?.id || 0)
     invitePainters.value = (data.records || []).filter((painter) => Number(painter.id) !== currentUserId)
@@ -723,6 +760,20 @@ async function submit() {
 
 .invite-dialog-body {
   min-height: 390px;
+}
+
+.invite-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 28px;
+  color: var(--artiv-text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.followed-painters-button {
+  font-weight: 500;
 }
 
 .invite-search-section {

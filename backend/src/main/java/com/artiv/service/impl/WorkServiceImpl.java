@@ -58,6 +58,20 @@ public class WorkServiceImpl implements WorkService {
         return workMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
     }
 
+    @Override
+    public Page<Work> listFollowingWorks(long page, long size, Long userId,
+                                         String category, String subject, String keyword) {
+        long safePage = Math.max(1, page);
+        long safeSize = Math.min(50, Math.max(1, size));
+        return workMapper.selectFollowingPage(
+                new Page<>(safePage, safeSize),
+                userId,
+                category,
+                splitValues(subject),
+                keyword
+        );
+    }
+
     private List<String> splitValues(String values) {
         if (!StringUtils.hasText(values)) {
             return List.of();

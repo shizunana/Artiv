@@ -209,18 +209,18 @@ onMounted(load)
 .category-bar {
   display: flex;
   align-items: center;
-  padding: 10px 0 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--artiv-border);
 }
 
 .type-bar {
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .category-tab {
-  padding: 7px 16px;
+  padding: 6px 14px;
   border-radius: 18px;
   background: #fff;
   border: 1px solid var(--artiv-border);
@@ -245,8 +245,8 @@ onMounted(load)
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 0;
+  gap: 9px;
+  padding: 10px 0;
   flex-wrap: nowrap;
 }
 
