@@ -1,6 +1,7 @@
 package com.artiv.service;
 
 import com.artiv.entity.User;
+import com.artiv.entity.Application;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.Project;
 import com.artiv.mapper.AdminActionLogMapper;
@@ -77,6 +78,42 @@ class AdminStatsServiceTest {
         String sql = queryCaptor.getValue().getCustomSqlSegment();
         assertTrue(sql.contains("cert_status"));
         assertFalse(sql.contains("role"));
+    }
+
+    @Test
+    void demandTrendCountsApplicationsByOwnCreatedAtAndUsesWeeklyBuckets() {
+        LocalDate start = LocalDate.of(2026, 8, 1);
+        LocalDate end = LocalDate.of(2026, 9, 1);
+        Project project = new Project();
+        project.setId(7L);
+        project.setCategory("头像");
+        project.setCreatedAt(start.atTime(10, 0));
+
+        Application applicationForOlderProject = new Application();
+        applicationForOlderProject.setId(11L);
+        applicationForOlderProject.setProjectId(99L);
+        applicationForOlderProject.setDeleted(0);
+        applicationForOlderProject.setCreatedAt(start.plusDays(4).atTime(12, 0));
+
+        when(projectMapper.selectList(any())).thenReturn(List.of(project));
+        when(applicationMapper.selectList(any()))
+                .thenReturn(List.of(), List.of(applicationForOlderProject));
+        when(orderInfoMapper.selectList(any())).thenReturn(List.of());
+        when(stallMapper.selectList(any())).thenReturn(List.of());
+        when(userMapper.selectList(any())).thenReturn(List.of());
+        when(userMapper.selectCount(any())).thenReturn(0L);
+        when(orderInfoMapper.selectCount(any())).thenReturn(0L);
+
+        Map<String, Object> result = adminStatsService.demand(start, end);
+
+        assertEquals("WEEK", result.get("granularity"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> trend = (List<Map<String, Object>>) result.get("trend");
+        assertEquals(5, trend.size());
+        assertEquals(start, trend.get(0).get("startDate"));
+        assertEquals(start.plusDays(6), trend.get(0).get("endDate"));
+        assertEquals(1L, trend.get(0).get("secondary"));
+        assertEquals(1L, trend.stream().mapToLong(item -> ((Number) item.get("secondary")).longValue()).sum());
     }
 
     @Test

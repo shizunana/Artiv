@@ -33,6 +33,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -119,8 +121,9 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("range", rangeMap(range));
         response.put("topMetrics", topMetrics);
-        response.put("userTrend", daily(range, userTrend, null));
-        response.put("orderTrend", daily(range, orderTrend, completedTrend));
+        response.put("granularity", granularity(range));
+        response.put("userTrend", timeline(range, userTrend, null));
+        response.put("orderTrend", timeline(range, orderTrend, completedTrend));
         response.put("userRoles", countBy(allUsers, user -> switch (user.getRole()) {
             case 1 -> "默认企划方工作台"; case 2 -> "默认画师工作台"; case 3 -> "管理员"; default -> "未知";
         }));
@@ -141,6 +144,10 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         Set<Long> projectIds = projects.stream().map(Project::getId).collect(Collectors.toSet());
         List<Application> applications = projectIds.isEmpty() ? List.of() : applicationMapper.selectList(
                 new LambdaQueryWrapper<Application>().in(Application::getProjectId, projectIds).eq(Application::getDeleted, 0));
+        List<Application> trendApplications = applicationMapper.selectList(new LambdaQueryWrapper<Application>()
+                .eq(Application::getDeleted, 0)
+                .ge(Application::getCreatedAt, range.start())
+                .lt(Application::getCreatedAt, range.endExclusive()));
         List<OrderInfo> orders = projectIds.isEmpty() ? List.of() : orderInfoMapper.selectList(
                 new LambdaQueryWrapper<OrderInfo>().in(OrderInfo::getProjectId, projectIds).eq(OrderInfo::getDeleted, 0));
 
@@ -155,7 +162,7 @@ public class AdminStatsServiceImpl implements AdminStatsService {
 
         Map<LocalDate, Long> projectTrend = projects.stream().collect(Collectors.groupingBy(
                 p -> p.getCreatedAt().toLocalDate(), Collectors.counting()));
-        Map<LocalDate, Long> appTrend = applications.stream().collect(Collectors.groupingBy(
+        Map<LocalDate, Long> appTrend = trendApplications.stream().collect(Collectors.groupingBy(
                 a -> a.getCreatedAt().toLocalDate(), Collectors.counting()));
         Map<String, Long> categoryCounts = countBy(projects, p -> blankAs(p.getCategory(), "未分类"));
         Map<String, Double> categoryZeroRates = new HashMap<>();
@@ -187,7 +194,8 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         response.put("range", rangeMap(range));
         response.put("topMetrics", basicMetrics(range));
         response.put("summary", summary);
-        response.put("trend", daily(range, projectTrend, appTrend));
+        response.put("granularity", granularity(range));
+        response.put("trend", timeline(range, projectTrend, appTrend));
         response.put("categories", sorted(categoryCounts, 20));
         response.put("funnel", List.of(
                 Map.of("name", "发布企划", "value", projects.size()),
@@ -449,16 +457,68 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         return Map.of("startDate", range.start().toLocalDate(), "endDate", range.endExclusive().minusDays(1).toLocalDate());
     }
 
-    private List<Map<String, Object>> daily(Range range, Map<LocalDate, Long> primary, Map<LocalDate, Long> secondary) {
+    private String granularity(Range range) {
+        long days = ChronoUnit.DAYS.between(range.start().toLocalDate(), range.endExclusive().toLocalDate());
+        if (days <= 31) return "DAY";
+        if (days <= 90) return "WEEK";
+        return "MONTH";
+    }
+
+    private List<Map<String, Object>> timeline(Range range, Map<LocalDate, Long> primary,
+                                               Map<LocalDate, Long> secondary) {
+        String granularity = granularity(range);
+        LocalDate first = range.start().toLocalDate();
+        LocalDate last = range.endExclusive().minusDays(1).toLocalDate();
         List<Map<String, Object>> result = new ArrayList<>();
-        for (LocalDate day = range.start().toLocalDate(); day.isBefore(range.endExclusive().toLocalDate()); day = day.plusDays(1)) {
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("date", day);
-            item.put("value", primary.getOrDefault(day, 0L));
-            if (secondary != null) item.put("secondary", secondary.getOrDefault(day, 0L));
-            result.add(item);
+        if ("DAY".equals(granularity)) {
+            for (LocalDate day = first; !day.isAfter(last); day = day.plusDays(1)) {
+                result.add(timelineBucket(day, day, granularity, primary, secondary));
+            }
+            return result;
+        }
+        if ("WEEK".equals(granularity)) {
+            for (LocalDate start = first; !start.isAfter(last); start = start.plusDays(7)) {
+                LocalDate end = start.plusDays(6).isAfter(last) ? last : start.plusDays(6);
+                result.add(timelineBucket(start, end, granularity, primary, secondary));
+            }
+            return result;
+        }
+        for (YearMonth month = YearMonth.from(first); !month.atDay(1).isAfter(last); month = month.plusMonths(1)) {
+            LocalDate start = month.atDay(1).isBefore(first) ? first : month.atDay(1);
+            LocalDate end = month.atEndOfMonth().isAfter(last) ? last : month.atEndOfMonth();
+            result.add(timelineBucket(start, end, granularity, primary, secondary));
         }
         return result;
+    }
+
+    private Map<String, Object> timelineBucket(LocalDate start, LocalDate end, String granularity,
+                                                Map<LocalDate, Long> primary,
+                                                Map<LocalDate, Long> secondary) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("date", start);
+        item.put("startDate", start);
+        item.put("endDate", end);
+        item.put("label", timelineLabel(start, end, granularity));
+        item.put("value", sumRange(primary, start, end));
+        if (secondary != null) item.put("secondary", sumRange(secondary, start, end));
+        return item;
+    }
+
+    private long sumRange(Map<LocalDate, Long> values, LocalDate start, LocalDate end) {
+        long total = 0;
+        for (LocalDate day = start; !day.isAfter(end); day = day.plusDays(1)) {
+            total += values.getOrDefault(day, 0L);
+        }
+        return total;
+    }
+
+    private String timelineLabel(LocalDate start, LocalDate end, String granularity) {
+        if ("MONTH".equals(granularity)) {
+            return start.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        }
+        String startLabel = start.format(DateTimeFormatter.ofPattern("MM-dd"));
+        if (start.equals(end)) return startLabel;
+        return startLabel + "–" + end.format(DateTimeFormatter.ofPattern("MM-dd"));
     }
 
     private <T> Map<String, Long> countBy(Collection<T> values, Function<T, String> classifier) {
