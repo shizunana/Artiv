@@ -8,4 +8,5 @@ import lombok.Data;
 public class FavoriteStateResponse {
     private Long targetId;
     private boolean favorited;
+    private Long favoriteCount;
 }

@@ -24,6 +24,8 @@ import com.artiv.service.AdminStatsService;
 import com.artiv.service.ReportService;
 import com.artiv.service.ReviewService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +49,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AdminStatsServiceImpl implements AdminStatsService {
+    private static final List<String> PROJECT_CATEGORIES = List.of(
+            "头像", "Q版全身", "半身像", "立绘", "组合页",
+            "服设", "壁纸", "表情包", "Live2d", "平面设计");
+
     private final UserMapper userMapper;
     private final ProjectMapper projectMapper;
     private final ApplicationMapper applicationMapper;
@@ -58,6 +64,7 @@ public class AdminStatsServiceImpl implements AdminStatsService {
     private final AdminActionLogMapper auditMapper;
     private final ReviewService reviewService;
     private final ReportService reportService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public Map<String, Object> overview() {
@@ -156,13 +163,6 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                 .forEach((category, categoryProjects) -> categoryZeroRates.put(category,
                         round(categoryProjects.stream().filter(p -> !applicationsByProject.containsKey(p.getId())).count()
                                 * 100.0 / categoryProjects.size())));
-        Map<String, Long> subjectCounts = new HashMap<>();
-        for (Project project : projects) {
-            split(project.getSubject()).forEach(subject -> subjectCounts.merge(subject, 1L, Long::sum));
-        }
-        Map<String, Long> budgetBuckets = countBy(projects, p -> budgetBucket(p.getBudget()));
-        Map<String, Long> deadlineBuckets = countBy(projects, this::deadlineBucket);
-
         double totalApplications = applications.size();
         List<Double> firstResponseHours = new ArrayList<>();
         for (Project project : projects) {
@@ -189,9 +189,6 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         response.put("summary", summary);
         response.put("trend", daily(range, projectTrend, appTrend));
         response.put("categories", sorted(categoryCounts, 20));
-        response.put("subjects", sorted(subjectCounts, 10));
-        response.put("budgetBuckets", mapItems(budgetBuckets));
-        response.put("deadlineBuckets", mapItems(deadlineBuckets));
         response.put("funnel", List.of(
                 Map.of("name", "发布企划", "value", projects.size()),
                 Map.of("name", "收到应征", "value", withApplication),
@@ -199,6 +196,170 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                 Map.of("name", "完成交易", "value", completed)));
         response.put("supplyDemandGap", supplyDemandGap(categoryCounts, categoryZeroRates));
         return response;
+    }
+
+    @Override
+    public Map<String, Object> priceDistribution(LocalDate startDate, LocalDate endDate, String category) {
+        Range range = resolve(startDate, endDate);
+        String normalizedCategory = normalizeCategory(category);
+        List<OrderInfo> completedProjectOrders = orderInfoMapper.selectList(new LambdaQueryWrapper<OrderInfo>()
+                .eq(OrderInfo::getDeleted, 0)
+                .eq(OrderInfo::getStatus, 3)
+                .isNotNull(OrderInfo::getProjectId)
+                .isNotNull(OrderInfo::getAmount)
+                .gt(OrderInfo::getAmount, BigDecimal.ZERO)
+                .ge(OrderInfo::getCompletedAt, range.start())
+                .lt(OrderInfo::getCompletedAt, range.endExclusive()));
+
+        Map<Long, String> snapshotCategories = new HashMap<>();
+        Set<Long> fallbackProjectIds = new HashSet<>();
+        for (OrderInfo order : completedProjectOrders) {
+            String snapshotCategory = projectSnapshotCategory(order.getProjectSnapshot());
+            if (snapshotCategory != null) {
+                snapshotCategories.put(order.getId(), snapshotCategory);
+            } else if (order.getProjectId() != null) {
+                fallbackProjectIds.add(order.getProjectId());
+            }
+        }
+        Map<Long, Project> fallbackProjects = fallbackProjectIds.isEmpty() ? Map.of()
+                : projectMapper.selectBatchIds(fallbackProjectIds).stream()
+                .collect(Collectors.toMap(Project::getId, Function.identity()));
+
+        List<BigDecimal> amounts = completedProjectOrders.stream()
+                .filter(order -> {
+                    String orderCategory = snapshotCategories.get(order.getId());
+                    if (orderCategory == null) {
+                        Project project = fallbackProjects.get(order.getProjectId());
+                        orderCategory = project == null ? "未分类" : blankAs(project.getCategory(), "未分类");
+                    }
+                    return normalizedCategory == null || normalizedCategory.equals(orderCategory);
+                })
+                .map(OrderInfo::getAmount)
+                .sorted()
+                .toList();
+
+        return priceDistributionResponse(range, normalizedCategory, amounts);
+    }
+
+    private Map<String, Object> priceDistributionResponse(Range range, String category, List<BigDecimal> amounts) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("range", rangeMap(range));
+        response.put("category", category);
+        response.put("categoryLabel", category == null ? "全部类型" : category);
+        response.put("sampleSize", amounts.size());
+        long distinctPriceCount = amounts.stream().map(BigDecimal::stripTrailingZeros).distinct().count();
+        response.put("distinctPriceCount", distinctPriceCount);
+
+        if (amounts.isEmpty()) {
+            response.put("sufficient", false);
+            response.put("reason", "NO_DATA");
+            response.put("buckets", List.of());
+            return response;
+        }
+
+        BigDecimal total = amounts.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        response.put("averageAmount", total.divide(BigDecimal.valueOf(amounts.size()), 2, RoundingMode.HALF_UP));
+        response.put("medianAmount", median(amounts).setScale(2, RoundingMode.HALF_UP));
+        response.put("minimumAmount", amounts.get(0).setScale(2, RoundingMode.HALF_UP));
+        response.put("maximumAmount", amounts.get(amounts.size() - 1).setScale(2, RoundingMode.HALF_UP));
+
+        if (amounts.size() < 10) {
+            response.put("sufficient", false);
+            response.put("reason", "INSUFFICIENT_SAMPLE");
+            response.put("buckets", List.of());
+            return response;
+        }
+
+        BigDecimal p10 = percentileBoundary(amounts, 0.10);
+        BigDecimal p30 = percentileBoundary(amounts, 0.30);
+        BigDecimal p70 = percentileBoundary(amounts, 0.70);
+        BigDecimal p90 = percentileBoundary(amounts, 0.90);
+        List<BigDecimal> boundaries = List.of(p10, p30, p70, p90);
+        boolean boundariesAreDistinct = p10.compareTo(p30) < 0 && p30.compareTo(p70) < 0
+                && p70.compareTo(p90) < 0;
+        if (distinctPriceCount < 5 || !boundariesAreDistinct) {
+            response.put("sufficient", false);
+            response.put("reason", "PRICE_CONCENTRATED");
+            response.put("buckets", List.of());
+            return response;
+        }
+
+        String[] keys = {"LOWEST", "LOW", "MAINSTREAM", "HIGH", "HIGHEST"};
+        String[] names = {"低价段", "偏低价段", "主流价格段", "偏高价段", "高价段"};
+        int[] targetRates = {10, 20, 40, 20, 10};
+        String[] labels = {
+                "< " + currency(p10),
+                currency(p10) + "–" + currency(p30),
+                currency(p30) + "–" + currency(p70),
+                currency(p70) + "–" + currency(p90),
+                "> " + currency(p90)
+        };
+        int[] counts = new int[5];
+        BigDecimal[] gmvs = {BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO};
+        for (BigDecimal amount : amounts) {
+            int bucket = bucketIndex(amount, boundaries);
+            counts[bucket]++;
+            gmvs[bucket] = gmvs[bucket].add(amount);
+        }
+        List<Map<String, Object>> buckets = new ArrayList<>();
+        for (int index = 0; index < 5; index++) {
+            Map<String, Object> bucket = new LinkedHashMap<>();
+            bucket.put("key", keys[index]);
+            bucket.put("name", names[index]);
+            bucket.put("rangeLabel", labels[index]);
+            bucket.put("targetRate", targetRates[index]);
+            bucket.put("orderCount", counts[index]);
+            bucket.put("actualRate", round(counts[index] * 100.0 / amounts.size()));
+            bucket.put("gmv", gmvs[index].setScale(2, RoundingMode.HALF_UP));
+            buckets.add(bucket);
+        }
+        response.put("sufficient", true);
+        response.put("reason", null);
+        response.put("buckets", buckets);
+        return response;
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null || category.isBlank() || "全部".equals(category.trim()) || "全部类型".equals(category.trim())) {
+            return null;
+        }
+        String normalized = category.trim();
+        if (!PROJECT_CATEGORIES.contains(normalized)) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "企划类型不存在");
+        }
+        return normalized;
+    }
+
+    private String projectSnapshotCategory(String projectSnapshot) {
+        if (projectSnapshot == null || projectSnapshot.isBlank()) return null;
+        try {
+            JsonNode category = objectMapper.readTree(projectSnapshot).get("category");
+            return category == null || category.isNull() ? null : blankAs(category.asText(), null);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private BigDecimal percentileBoundary(List<BigDecimal> sorted, double percentile) {
+        int cut = Math.max(1, Math.min(sorted.size() - 1, (int) Math.round(sorted.size() * percentile)));
+        return sorted.get(cut - 1).add(sorted.get(cut)).divide(BigDecimal.valueOf(2));
+    }
+
+    private BigDecimal median(List<BigDecimal> sorted) {
+        int middle = sorted.size() / 2;
+        return sorted.size() % 2 == 1 ? sorted.get(middle)
+                : sorted.get(middle - 1).add(sorted.get(middle)).divide(BigDecimal.valueOf(2));
+    }
+
+    private int bucketIndex(BigDecimal amount, List<BigDecimal> boundaries) {
+        for (int index = 0; index < boundaries.size(); index++) {
+            if (amount.compareTo(boundaries.get(index)) < 0) return index;
+        }
+        return boundaries.size();
+    }
+
+    private String currency(BigDecimal amount) {
+        return "¥" + amount.stripTrailingZeros().toPlainString();
     }
 
     private List<Map<String, Object>> supplyDemandGap(Map<String, Long> demand, Map<String, Double> zeroRates) {
@@ -309,10 +470,6 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                 .map(entry -> Map.<String, Object>of("name", entry.getKey(), "value", entry.getValue())).toList();
     }
 
-    private List<Map<String, Object>> mapItems(Map<String, Long> values) {
-        return values.entrySet().stream().map(entry -> Map.<String, Object>of("name", entry.getKey(), "value", entry.getValue())).toList();
-    }
-
     private BigDecimal money(List<OrderInfo> orders) {
         return orders.stream().map(OrderInfo::getAmount).filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP);
@@ -324,29 +481,6 @@ public class AdminStatsServiceImpl implements AdminStatsService {
             case 0 -> "待接单"; case 1 -> "进行中"; case 2 -> "待验收"; case 3 -> "已完成";
             case 4 -> "已取消"; case 5 -> "争议中"; default -> "未知";
         };
-    }
-
-    private String budgetBucket(BigDecimal budget) {
-        if (budget == null) return "未填写";
-        if (budget.compareTo(BigDecimal.valueOf(500)) < 0) return "0-499";
-        if (budget.compareTo(BigDecimal.valueOf(1000)) < 0) return "500-999";
-        if (budget.compareTo(BigDecimal.valueOf(3000)) < 0) return "1000-2999";
-        if (budget.compareTo(BigDecimal.valueOf(5000)) < 0) return "3000-4999";
-        return "5000以上";
-    }
-
-    private String deadlineBucket(Project project) {
-        if (project.getDeadline() == null || project.getCreatedAt() == null) return "未填写";
-        long days = ChronoUnit.DAYS.between(project.getCreatedAt().toLocalDate(), project.getDeadline());
-        if (days <= 7) return "7天内";
-        if (days <= 14) return "8-14天";
-        if (days <= 30) return "15-30天";
-        return "30天以上";
-    }
-
-    private List<String> split(String value) {
-        if (value == null || value.isBlank()) return List.of("未填写");
-        return java.util.Arrays.stream(value.split(",")).map(String::trim).filter(s -> !s.isBlank()).distinct().toList();
     }
 
     private String blankAs(String value, String fallback) {

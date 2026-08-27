@@ -21,4 +21,5 @@ public class WorkDetailResponse {
     private String authorAvatar;
     private String authorBio;
     private Integer authorCertStatus;
+    private Long favoriteCount;
 }

@@ -6,7 +6,8 @@ import com.artiv.entity.Work;
 
 public interface WorkService {
 
-    Page<Work> listWorks(long page, long size, String category, String subject, String keyword, String sort);
+    Page<Work> listWorks(long page, long size, Long userId,
+                         String category, String subject, String keyword, String sort);
 
     Page<Work> listFollowingWorks(long page, long size, Long userId,
                                   String category, String subject, String keyword);

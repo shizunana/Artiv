@@ -2,6 +2,8 @@ package com.artiv.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.entity.Work;
+import com.artiv.dto.WorkFavoriteCount;
+import com.artiv.mapper.WorkFavoriteMapper;
 import com.artiv.mapper.WorkMapper;
 import com.artiv.service.impl.WorkServiceImpl;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +26,9 @@ class WorkServiceTest {
     @Mock
     private WorkMapper workMapper;
 
+    @Mock
+    private WorkFavoriteMapper workFavoriteMapper;
+
     @InjectMocks
     private WorkServiceImpl workService;
 
@@ -31,7 +37,7 @@ class WorkServiceTest {
         Page<Work> expected = new Page<>(1, 12);
         when(workMapper.selectPage(any(Page.class), any())).thenReturn(expected);
 
-        Page<Work> result = workService.listWorks(1, 12, "立绘", "女性", "角色", "oldest");
+        Page<Work> result = workService.listWorks(1, 12, null, "立绘", "女性", "角色", "oldest");
 
         verify(workMapper).selectPage(any(Page.class), any());
         assertEquals(expected, result);
@@ -42,7 +48,7 @@ class WorkServiceTest {
         Page<Work> expected = new Page<>(1, 12);
         when(workMapper.selectPopularPage(any(Page.class), any(), any(), any())).thenReturn(expected);
 
-        Page<Work> result = workService.listWorks(1, 12, "立绘", "女性,日系", "角色", "popular");
+        Page<Work> result = workService.listWorks(1, 12, null, "立绘", "女性,日系", "角色", "popular");
 
         verify(workMapper).selectPopularPage(any(Page.class), any(), any(), any());
         assertEquals(expected, result);
@@ -57,6 +63,26 @@ class WorkServiceTest {
 
         verify(workMapper).selectFollowingPage(any(Page.class), any(), any(), any(), any());
         assertEquals(expected, result);
+    }
+
+    @Test
+    void publicListFillsFavoriteCountAndCurrentUserStateInBatch() {
+        Work work = new Work();
+        work.setId(6L);
+        Page<Work> expected = new Page<>(1, 12);
+        expected.setRecords(java.util.List.of(work));
+        when(workMapper.selectPage(any(Page.class), any())).thenReturn(expected);
+        WorkFavoriteCount count = new WorkFavoriteCount();
+        count.setWorkId(6L);
+        count.setFavoriteCount(4L);
+        when(workFavoriteMapper.selectCounts(java.util.List.of(6L))).thenReturn(java.util.List.of(count));
+        when(workFavoriteMapper.selectFavoritedWorkIds(eq(19L), eq(java.util.List.of(6L))))
+                .thenReturn(java.util.List.of(6L));
+
+        Page<Work> result = workService.listWorks(1, 12, 19L, null, null, null, "newest");
+
+        assertEquals(4L, result.getRecords().get(0).getFavoriteCount());
+        assertEquals(true, result.getRecords().get(0).getFavorited());
     }
 
     @Test

@@ -61,7 +61,7 @@ public class FavoriteServiceImpl implements FavoriteService {
                 // 联合唯一索引处理并发重复点击，接口保持幂等。
             }
         }
-        return new FavoriteStateResponse(workId, true);
+        return workFavoriteState(workId, true);
     }
 
     @Override
@@ -70,12 +70,12 @@ public class FavoriteServiceImpl implements FavoriteService {
         workFavoriteMapper.delete(new LambdaQueryWrapper<WorkFavorite>()
                 .eq(WorkFavorite::getUserId, userId)
                 .eq(WorkFavorite::getWorkId, workId));
-        return new FavoriteStateResponse(workId, false);
+        return workFavoriteState(workId, false);
     }
 
     @Override
     public FavoriteStateResponse getWorkState(Long workId, Long userId) {
-        return new FavoriteStateResponse(workId, isWorkFavorited(workId, userId));
+        return workFavoriteState(workId, isWorkFavorited(workId, userId));
     }
 
     @Override
@@ -104,7 +104,7 @@ public class FavoriteServiceImpl implements FavoriteService {
                 // 联合唯一索引处理并发重复点击，接口保持幂等。
             }
         }
-        return new FavoriteStateResponse(stallId, true);
+        return new FavoriteStateResponse(stallId, true, null);
     }
 
     @Override
@@ -113,12 +113,12 @@ public class FavoriteServiceImpl implements FavoriteService {
         stallFavoriteMapper.delete(new LambdaQueryWrapper<StallFavorite>()
                 .eq(StallFavorite::getUserId, userId)
                 .eq(StallFavorite::getStallId, stallId));
-        return new FavoriteStateResponse(stallId, false);
+        return new FavoriteStateResponse(stallId, false, null);
     }
 
     @Override
     public FavoriteStateResponse getStallState(Long stallId, Long userId) {
-        return new FavoriteStateResponse(stallId, isStallFavorited(stallId, userId));
+        return new FavoriteStateResponse(stallId, isStallFavorited(stallId, userId), null);
     }
 
     @Override
@@ -191,6 +191,13 @@ public class FavoriteServiceImpl implements FavoriteService {
                 .eq(WorkFavorite::getUserId, userId)
                 .eq(WorkFavorite::getWorkId, workId));
         return count != null && count > 0;
+    }
+
+    private FavoriteStateResponse workFavoriteState(Long workId, boolean favorited) {
+        Long favoriteCount = workFavoriteMapper.selectCount(new LambdaQueryWrapper<WorkFavorite>()
+                .eq(WorkFavorite::getWorkId, workId));
+        return new FavoriteStateResponse(workId, favorited,
+                favoriteCount == null ? 0L : favoriteCount);
     }
 
     private boolean isStallFavorited(Long stallId, Long userId) {

@@ -5,9 +5,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.WorkDetailResponse;
+import com.artiv.dto.WorkFavoriteCount;
 import com.artiv.entity.Work;
+import com.artiv.entity.WorkFavorite;
 import com.artiv.entity.User;
 import com.artiv.mapper.WorkMapper;
+import com.artiv.mapper.WorkFavoriteMapper;
 import com.artiv.mapper.UserMapper;
 import com.artiv.service.WorkService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +20,11 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,14 +32,16 @@ public class WorkServiceImpl implements WorkService {
 
     private final WorkMapper workMapper;
     private final UserMapper userMapper;
+    private final WorkFavoriteMapper workFavoriteMapper;
 
     @Override
-    public Page<Work> listWorks(long page, long size, String category, String subject, String keyword, String sort) {
+    public Page<Work> listWorks(long page, long size, Long userId,
+                                String category, String subject, String keyword, String sort) {
         long safePage = Math.max(1, page);
         long safeSize = Math.min(50, Math.max(1, size));
         if ("popular".equals(sort)) {
-            return workMapper.selectPopularPage(new Page<>(safePage, safeSize),
-                    category, splitValues(subject), keyword);
+            return enrichFavoriteState(workMapper.selectPopularPage(new Page<>(safePage, safeSize),
+                    category, splitValues(subject), keyword), userId);
         }
         LambdaQueryWrapper<Work> wrapper = new LambdaQueryWrapper<Work>()
                 .eq(Work::getDeleted, 0)
@@ -55,7 +64,7 @@ public class WorkServiceImpl implements WorkService {
         } else {
             wrapper.orderByDesc(Work::getCreatedAt);
         }
-        return workMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
+        return enrichFavoriteState(workMapper.selectPage(new Page<>(safePage, safeSize), wrapper), userId);
     }
 
     @Override
@@ -63,13 +72,36 @@ public class WorkServiceImpl implements WorkService {
                                          String category, String subject, String keyword) {
         long safePage = Math.max(1, page);
         long safeSize = Math.min(50, Math.max(1, size));
-        return workMapper.selectFollowingPage(
+        return enrichFavoriteState(workMapper.selectFollowingPage(
                 new Page<>(safePage, safeSize),
                 userId,
                 category,
                 splitValues(subject),
                 keyword
-        );
+        ), userId);
+    }
+
+    private Page<Work> enrichFavoriteState(Page<Work> result, Long userId) {
+        List<Long> workIds = result.getRecords().stream()
+                .map(Work::getId)
+                .distinct()
+                .toList();
+        if (workIds.isEmpty()) {
+            return result;
+        }
+        Map<Long, Long> counts = workFavoriteMapper.selectCounts(workIds).stream()
+                .collect(Collectors.toMap(
+                        WorkFavoriteCount::getWorkId,
+                        WorkFavoriteCount::getFavoriteCount,
+                        (left, right) -> left));
+        Set<Long> favoritedIds = userId == null
+                ? Set.of()
+                : new HashSet<>(workFavoriteMapper.selectFavoritedWorkIds(userId, workIds));
+        result.getRecords().forEach(work -> {
+            work.setFavoriteCount(counts.getOrDefault(work.getId(), 0L));
+            work.setFavorited(favoritedIds.contains(work.getId()));
+        });
+        return result;
     }
 
     private List<String> splitValues(String values) {
@@ -103,6 +135,9 @@ public class WorkServiceImpl implements WorkService {
         response.setAuthorAvatar(author.getAvatar());
         response.setAuthorBio(author.getBio());
         response.setAuthorCertStatus(author.getCertStatus());
+        response.setFavoriteCount(workFavoriteMapper.selectCount(
+                new LambdaQueryWrapper<WorkFavorite>()
+                        .eq(WorkFavorite::getWorkId, id)));
         return response;
     }
 

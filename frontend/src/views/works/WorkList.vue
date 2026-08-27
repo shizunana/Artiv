@@ -36,6 +36,17 @@
         <article v-for="work in column" :key="work.id" class="work-card" :aria-label="work.title" @click="openWork(work.id)">
           <img v-if="work.image" :src="work.image" :alt="work.title" class="work-image">
           <div v-else class="work-placeholder" :title="work.title"><span>🎨</span></div>
+          <button
+            type="button"
+            class="work-card__favorite"
+            :class="{ 'is-active': Boolean(work.favorited), 'is-loading': isCardFavoriteLoading(work.id) }"
+            :disabled="isWorkOwner(work) || isCardFavoriteLoading(work.id)"
+            :aria-label="favoriteButtonLabel(work)"
+            @click.stop="toggleCardFavorite(work)"
+          >
+            <FavoriteIcon :active="Boolean(work.favorited)" />
+            <span>{{ work.favoriteCount || 0 }}</span>
+          </button>
         </article>
       </section>
     </div>
@@ -56,10 +67,18 @@
             <p>{{ detail.authorBio || '这位画师暂未填写个人简介。' }}</p>
           </div>
           <div class="detail-author__actions">
-            <el-button v-if="!isDetailOwner" class="work-favorite-button" :loading="favoriteLoading" @click="toggleFavorite">
+            <button
+              v-if="!isDetailOwner"
+              type="button"
+              class="detail-favorite-button"
+              :class="{ 'is-active': favorited, 'is-loading': favoriteLoading }"
+              :disabled="favoriteLoading"
+              :aria-label="favorited ? '取消收藏' : '收藏作品'"
+              @click="toggleFavorite"
+            >
               <FavoriteIcon :active="favorited" />
-              {{ favorited ? '已收藏' : '收藏' }}
-            </el-button>
+              <span>{{ detail.favoriteCount || 0 }}</span>
+            </button>
             <el-button type="primary" plain class="profile-button" @click="openProfilePlaceholder">进入主页</el-button>
           </div>
         </div>
@@ -74,7 +93,6 @@
               <h2>{{ detail.title }}</h2>
               <p>{{ formatDate(detail.createdAt) }}</p>
             </div>
-            <el-button text type="danger" disabled>举报作品</el-button>
           </div>
           <p v-if="detail.description" class="work-description">{{ detail.description }}</p>
           <div class="work-tags">
@@ -125,6 +143,7 @@ const detailLoading = ref(false)
 const detail = reactive({})
 const favorited = ref(false)
 const favoriteLoading = ref(false)
+const cardFavoriteLoadingIds = ref(new Set())
 const detailTags = computed(() => (detail.subject || '').split(',').map(tag => tag.trim()).filter(Boolean))
 const authorInitial = computed(() => (detail.authorName || '画').slice(0, 1))
 const isDetailOwner = computed(() => Number(userStore.user?.id) === Number(detail.userId))
@@ -227,6 +246,27 @@ function setViewMode(value) {
   router.push({ name: 'Works', query })
 }
 
+function isWorkOwner(work) {
+  return Number(userStore.user?.id) === Number(work.userId)
+}
+
+function isCardFavoriteLoading(id) {
+  return cardFavoriteLoadingIds.value.has(Number(id))
+}
+
+function setCardFavoriteLoading(id, loadingState) {
+  const next = new Set(cardFavoriteLoadingIds.value)
+  if (loadingState) next.add(Number(id))
+  else next.delete(Number(id))
+  cardFavoriteLoadingIds.value = next
+}
+
+function favoriteButtonLabel(work) {
+  const count = Number(work.favoriteCount || 0)
+  if (isWorkOwner(work)) return `该作品有 ${count} 人收藏`
+  return work.favorited ? `取消收藏，当前 ${count} 人收藏` : `收藏作品，当前 ${count} 人收藏`
+}
+
 async function openWork(id) {
   detailVisible.value = true
   detailLoading.value = true
@@ -238,6 +278,7 @@ async function openWork(id) {
       try {
         const state = await getWorkFavoriteStatus(id)
         favorited.value = Boolean(state?.favorited)
+        if (state?.favoriteCount != null) detail.favoriteCount = Number(state.favoriteCount)
       } catch {
         favorited.value = false
       }
@@ -259,6 +300,12 @@ async function toggleFavorite() {
   try {
     const state = favorited.value ? await unfavoriteWork(detail.id) : await favoriteWork(detail.id)
     favorited.value = Boolean(state?.favorited)
+    if (state?.favoriteCount != null) detail.favoriteCount = Number(state.favoriteCount)
+    const listItem = works.value.find(work => Number(work.id) === Number(detail.id))
+    if (listItem) {
+      listItem.favorited = favorited.value
+      listItem.favoriteCount = Number(detail.favoriteCount || 0)
+    }
     ElMessage.success(favorited.value ? '作品已收藏' : '已取消收藏')
     if (!favorited.value && viewMode.value === 'favorites') {
       works.value = works.value.filter(work => Number(work.id) !== Number(detail.id))
@@ -267,6 +314,32 @@ async function toggleFavorite() {
     }
   } finally {
     favoriteLoading.value = false
+  }
+}
+
+async function toggleCardFavorite(work) {
+  if (!userStore.isLoggedIn) {
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (isWorkOwner(work) || isCardFavoriteLoading(work.id)) return
+  setCardFavoriteLoading(work.id, true)
+  try {
+    const state = work.favorited ? await unfavoriteWork(work.id) : await favoriteWork(work.id)
+    work.favorited = Boolean(state?.favorited)
+    if (state?.favoriteCount != null) work.favoriteCount = Number(state.favoriteCount)
+    if (Number(detail.id) === Number(work.id)) {
+      favorited.value = work.favorited
+      detail.favoriteCount = Number(work.favoriteCount || 0)
+    }
+    ElMessage.success(work.favorited ? '作品已收藏' : '已取消收藏')
+    if (!work.favorited && viewMode.value === 'favorites') {
+      works.value = works.value.filter(item => Number(item.id) !== Number(work.id))
+      total.value = Math.max(0, total.value - 1)
+      await arrangeWorks()
+    }
+  } finally {
+    setCardFavoriteLoading(work.id, false)
   }
 }
 
@@ -326,6 +399,7 @@ async function load(reset = false) {
           id: work.workId,
           authorName: work.authorNickname,
           authorAvatar: work.authorAvatar,
+          favorited: true,
         }
       : work)
     if (reset) {
@@ -384,9 +458,15 @@ onBeforeUnmount(() => {
 .work-card { position: relative; margin: 0 0 15px; overflow: hidden; border-radius: 8px; background: #dfe5ee; cursor: zoom-in; }
 .work-card:hover .work-image { transform: scale(1.015); }
 .work-image { display: block; width: 100%; height: auto; min-height: 110px; transition: transform .25s ease; }
+.work-card__favorite { position: absolute; z-index: 2; top: 9px; right: 9px; display: inline-flex; min-width: 42px; height: 28px; align-items: center; justify-content: center; gap: 3px; padding: 0 6px; border: 0; border-radius: 15px; color: #fff; background: transparent; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; line-height: 1; text-shadow: 0 1px 4px rgba(18, 31, 49, .78); filter: drop-shadow(0 1px 2px rgba(18, 31, 49, .38)); transition: color .18s ease, transform .18s ease; }
+.work-card__favorite :deep(.favorite-icon) { width: 18px; height: 18px; }
+.work-card__favorite:hover:not(:disabled), .work-card__favorite.is-active { color: #f04f67; transform: translateY(-1px); }
+.work-card__favorite:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.work-card__favorite:disabled { cursor: default; opacity: .92; }
+.work-card__favorite.is-loading { pointer-events: none; opacity: .62; }
 .work-placeholder { display: grid; place-items: center; aspect-ratio: 1 / 1; background: linear-gradient(135deg, #e2f4fd, #efe8ff); color: #6d9db4; font-size: 42px; }
 .load-sentinel { display: flex; min-height: 48px; align-items: center; justify-content: center; color: var(--artiv-text-secondary); font-size: 13px; }
-.detail-author { display: flex; align-items: center; gap: 13px; padding-right: 38px; }.detail-author__copy { min-width: 0; flex: 1; }.detail-author__copy strong { color: var(--artiv-text); font-size: 17px; }.detail-author__copy p { overflow: hidden; margin: 5px 0 0; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.cert-label { margin-left: 8px; color: #2ca46e; font-size: 12px; }.detail-author__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }.work-favorite-button :deep(.el-icon), .work-favorite-button :deep(svg) { margin-right: 4px; }.profile-button { flex-shrink: 0; }.work-detail-content { min-height: 240px; }.work-detail-image { display: block; width: 100%; max-height: 62vh; object-fit: contain; background: #f4f7fa; }.work-detail-empty { display: grid; min-height: 300px; place-items: center; color: var(--artiv-text-secondary); background: #f4f7fa; }.work-detail-info { padding: 18px 22px 22px; }.work-detail-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--artiv-border); padding-bottom: 14px; }.work-detail-heading h2 { margin: 0; color: var(--artiv-text); font-size: 19px; }.work-detail-heading p { margin: 7px 0 0; color: var(--artiv-text-secondary); font-size: 12px; }.work-description { margin: 16px 0; color: var(--artiv-text); line-height: 1.8; white-space: pre-wrap; }.work-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }.tag-title { margin-right: 4px; color: var(--artiv-text-secondary); font-size: 13px; }.tag-empty { color: var(--artiv-text-secondary); font-size: 13px; }
+.detail-author { display: flex; align-items: center; gap: 13px; padding-right: 38px; }.detail-author__copy { min-width: 0; flex: 1; }.detail-author__copy strong { color: var(--artiv-text); font-size: 17px; }.detail-author__copy p { overflow: hidden; margin: 5px 0 0; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.cert-label { margin-left: 8px; color: #2ca46e; font-size: 12px; }.detail-author__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }.detail-favorite-button { display: inline-flex; min-width: 60px; height: 34px; align-items: center; justify-content: center; gap: 5px; padding: 0 11px; border: 1px solid #d8e0e9; border-radius: 6px; color: #697586; background: transparent; cursor: pointer; font: inherit; font-size: 13px; transition: color .18s ease, border-color .18s ease, background-color .18s ease; }.detail-favorite-button:hover:not(:disabled), .detail-favorite-button.is-active { color: #f04f67; border-color: #f3a4b0; background: #fff7f8; }.detail-favorite-button:focus-visible { outline: 2px solid rgba(240, 79, 103, .28); outline-offset: 2px; }.detail-favorite-button:disabled { cursor: wait; opacity: .62; }.profile-button { flex-shrink: 0; }.work-detail-content { min-height: 240px; }.work-detail-image { display: block; width: 100%; max-height: 62vh; object-fit: contain; background: #f4f7fa; }.work-detail-empty { display: grid; min-height: 300px; place-items: center; color: var(--artiv-text-secondary); background: #f4f7fa; }.work-detail-info { padding: 18px 22px 22px; }.work-detail-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--artiv-border); padding-bottom: 14px; }.work-detail-heading h2 { margin: 0; color: var(--artiv-text); font-size: 19px; }.work-detail-heading p { margin: 7px 0 0; color: var(--artiv-text-secondary); font-size: 12px; }.work-description { margin: 16px 0; color: var(--artiv-text); line-height: 1.8; white-space: pre-wrap; }.work-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }.tag-title { margin-right: 4px; color: var(--artiv-text-secondary); font-size: 13px; }.tag-empty { color: var(--artiv-text-secondary); font-size: 13px; }
 @media (max-width: 1100px) { .list-page { width: 96vw; } }
 @media (max-width: 900px) { .list-page { width: 100%; }.waterfall-column { width: 33.333%; } }
 @media (max-width: 560px) { .work-controls { flex-direction: column; align-items: stretch; gap: 14px; padding: 11px; }.work-view-tabs { min-height: 34px; }.work-view-tabs button.is-active::after { bottom: -4px; }.search-input { width: 100%; }.waterfall-column { width: 50%; }.detail-author { padding-right: 24px; }.detail-author__copy p { white-space: normal; }.profile-button { padding: 8px 10px; } }

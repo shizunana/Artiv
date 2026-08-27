@@ -3,6 +3,7 @@ import request from '@/utils/request'
 export const getAdminOverview = () => request.get('/admin/overview')
 export const getAdminStats = (params) => request.get('/admin/stats', { params })
 export const getAdminDemandStats = (params) => request.get('/admin/stats/demand', { params })
+export const getAdminPriceDistribution = (params) => request.get('/admin/stats/price-distribution', { params })
 
 export const getAdminUsers = (params) => request.get('/admin/users', { params })
 export const getAdminUser = (id) => request.get(`/admin/users/${id}`)

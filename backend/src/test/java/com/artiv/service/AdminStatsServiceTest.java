@@ -1,6 +1,8 @@
 package com.artiv.service;
 
 import com.artiv.entity.User;
+import com.artiv.entity.OrderInfo;
+import com.artiv.entity.Project;
 import com.artiv.mapper.AdminActionLogMapper;
 import com.artiv.mapper.ApplicationMapper;
 import com.artiv.mapper.ArtistCertificationMapper;
@@ -20,11 +22,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
-import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,6 +55,7 @@ class AdminStatsServiceTest {
     @Mock private AdminActionLogMapper auditMapper;
     @Mock private ReviewService reviewService;
     @Mock private ReportService reportService;
+    @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks private AdminStatsServiceImpl adminStatsService;
 
@@ -66,5 +77,57 @@ class AdminStatsServiceTest {
         String sql = queryCaptor.getValue().getCustomSqlSegment();
         assertTrue(sql.contains("cert_status"));
         assertFalse(sql.contains("role"));
+    }
+
+    @Test
+    void priceDistributionUsesCompletedProjectOrderAmountsAndSnapshotCategory() {
+        List<OrderInfo> orders = new ArrayList<>();
+        for (int index = 1; index <= 10; index++) {
+            OrderInfo order = new OrderInfo();
+            order.setId((long) index);
+            order.setProjectId(100L + index);
+            order.setAmount(BigDecimal.valueOf(index * 100L));
+            order.setProjectSnapshot("{\"category\":\"头像\"}");
+            order.setCompletedAt(LocalDateTime.now());
+            orders.add(order);
+        }
+        OrderInfo ignoredCategory = new OrderInfo();
+        ignoredCategory.setId(99L);
+        ignoredCategory.setProjectId(999L);
+        ignoredCategory.setAmount(BigDecimal.valueOf(9999));
+        ignoredCategory.setProjectSnapshot("{\"category\":\"立绘\"}");
+        orders.add(ignoredCategory);
+        when(orderInfoMapper.selectList(any())).thenReturn(orders);
+
+        Map<String, Object> result = adminStatsService.priceDistribution(
+                LocalDate.now(), LocalDate.now(), "头像");
+
+        assertEquals(10, result.get("sampleSize"));
+        assertEquals(true, result.get("sufficient"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> buckets = (List<Map<String, Object>>) result.get("buckets");
+        assertEquals(List.of(1, 2, 4, 2, 1), buckets.stream().map(item -> item.get("orderCount")).toList());
+        assertEquals(List.of(10, 20, 40, 20, 10), buckets.stream().map(item -> item.get("targetRate")).toList());
+    }
+
+    @Test
+    void priceDistributionFallsBackToCurrentProjectCategoryForLegacySnapshot() {
+        OrderInfo order = new OrderInfo();
+        order.setId(1L);
+        order.setProjectId(7L);
+        order.setAmount(BigDecimal.valueOf(500));
+        order.setCompletedAt(LocalDateTime.now());
+        Project project = new Project();
+        project.setId(7L);
+        project.setCategory("立绘");
+        when(orderInfoMapper.selectList(any())).thenReturn(List.of(order));
+        when(projectMapper.selectBatchIds(any())).thenReturn(List.of(project));
+
+        Map<String, Object> result = adminStatsService.priceDistribution(
+                LocalDate.now(), LocalDate.now(), "立绘");
+
+        assertEquals(1, result.get("sampleSize"));
+        assertEquals(false, result.get("sufficient"));
+        assertEquals("INSUFFICIENT_SAMPLE", result.get("reason"));
     }
 }

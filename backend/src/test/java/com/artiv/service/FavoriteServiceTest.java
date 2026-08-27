@@ -48,11 +48,12 @@ class FavoriteServiceTest {
     @Test
     void favoritePublicWorkCreatesRelation() {
         when(workMapper.selectById(8L)).thenReturn(work(8L, 16L, 1));
-        when(workFavoriteMapper.selectCount(any())).thenReturn(0L);
+        when(workFavoriteMapper.selectCount(any())).thenReturn(0L, 1L);
 
         var state = favoriteService.favoriteWork(8L, 3L);
 
         assertTrue(state.isFavorited());
+        assertEquals(1L, state.getFavoriteCount());
         ArgumentCaptor<WorkFavorite> captor = ArgumentCaptor.forClass(WorkFavorite.class);
         verify(workFavoriteMapper).insert(captor.capture());
         assertEquals(3L, captor.getValue().getUserId());

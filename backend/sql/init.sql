@@ -525,8 +525,8 @@ INSERT INTO `work` (`id`, `user_id`, `title`, `category`, `subject`, `descriptio
   (2, 2, '少女与猫·立绘', '立绘', '女性,日系', '游戏角色立绘练习，半身像。', 1);
 
 INSERT INTO `stall` (`id`, `painter_id`, `title`, `category`, `price`, `description`, `status`) VALUES
-  (1, 2, '国潮插画约稿（单张）', '国潮插画', 1200.00, '含初稿、2 次修改、终稿源文件，交付周期 2 周。', 1),
-  (2, 2, '角色立绘（半身）', '角色立绘', 800.00, '半身像立绘，含分层 PSD 源文件。', 1);
+  (1, 2, '国潮插画约稿（单张）', '平面设计', 1200.00, '含初稿、2 次修改、终稿源文件，交付周期 2 周。', 1),
+  (2, 2, '角色立绘（半身）', '立绘', 800.00, '半身像立绘，含分层 PSD 源文件。', 1);
 
 INSERT INTO `project` (`id`, `employer_id`, `title`, `description`, `budget`, `deadline`, `tags`, `mode`, `status`) VALUES
   (1, 1, '国潮风节日海报插画', '需要一张国潮风格的节日海报插画，用于品牌宣传，希望风格大气、细节丰富。', 1500.00, '2026-09-01', '国潮,插画,海报', 0, 0),

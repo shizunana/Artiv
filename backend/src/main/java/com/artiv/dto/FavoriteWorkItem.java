@@ -16,4 +16,5 @@ public class FavoriteWorkItem {
     private String authorNickname;
     private String authorAvatar;
     private LocalDateTime favoritedAt;
+    private Long favoriteCount;
 }

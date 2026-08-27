@@ -36,4 +36,12 @@ public class AdminStatsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return Result.ok(adminStatsService.demand(startDate, endDate));
     }
+
+    @GetMapping("/stats/price-distribution")
+    public Result<Map<String, Object>> priceDistribution(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String category) {
+        return Result.ok(adminStatsService.priceDistribution(startDate, endDate, category));
+    }
 }

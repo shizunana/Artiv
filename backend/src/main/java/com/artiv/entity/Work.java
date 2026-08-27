@@ -1,6 +1,7 @@
 package com.artiv.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -38,4 +39,12 @@ public class Work {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    /** 公开列表展示字段，不落库。 */
+    @TableField(exist = false)
+    private Long favoriteCount;
+
+    /** 当前登录用户是否已收藏，不落库。 */
+    @TableField(exist = false)
+    private Boolean favorited;
 }

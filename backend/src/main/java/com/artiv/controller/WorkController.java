@@ -38,6 +38,7 @@ public class WorkController {
         return Result.ok(workService.listWorks(
                 page,
                 size,
+                UserContext.getUserId(),
                 normalizeFilter(category),
                 normalizeFilter(subject),
                 normalizeFilter(keyword),
