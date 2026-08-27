@@ -51,6 +51,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AdminStatsServiceImpl implements AdminStatsService {
+    private static final LocalDate PLATFORM_STATS_START_DATE = LocalDate.of(2026, 8, 10);
+    private static final long MAX_STATS_RANGE_DAYS = 366;
     private static final List<String> PROJECT_CATEGORIES = List.of(
             "头像", "Q版全身", "半身像", "立绘", "组合页",
             "服设", "壁纸", "表情包", "Live2d", "平面设计");
@@ -447,8 +449,14 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         LocalDate actualEnd = end == null ? LocalDate.now() : end;
         LocalDate actualStart = start == null ? actualEnd.minusDays(6) : start;
         long days = ChronoUnit.DAYS.between(actualStart, actualEnd) + 1;
-        if (days < 1 || days > 366) {
+        if (actualStart.isBefore(PLATFORM_STATS_START_DATE)) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "统计起始日期不能早于2026-08-10");
+        }
+        if (days < 1 || days > MAX_STATS_RANGE_DAYS) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "统计日期范围必须为1至366天");
+        }
+        if (actualEnd.isAfter(LocalDate.now())) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "统计结束日期不能晚于今天");
         }
         return new Range(actualStart.atStartOfDay(), actualEnd.plusDays(1).atStartOfDay());
     }
