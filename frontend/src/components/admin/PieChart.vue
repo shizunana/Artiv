@@ -80,23 +80,8 @@ const option = computed(() => ({
     emphasis: {
       scale: true,
       scaleSize: 5,
-      label: {
-        show: true,
-        position: 'outside',
-        alignTo: 'edge',
-        edgeDistance: 3,
-        color: '#34414d',
-        fontSize: 11,
-        fontWeight: 700,
-        formatter: '{b} {d}%',
-      },
-      labelLine: {
-        show: true,
-        length: 12,
-        length2: 0,
-        smooth: 0.18,
-        lineStyle: { width: 1.4 },
-      },
+      label: { show: false },
+      labelLine: { show: false },
       itemStyle: { shadowBlur: 12, shadowColor: 'rgba(26, 88, 116, .24)' },
     },
     data: normalized.value.map(item => ({
