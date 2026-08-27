@@ -68,7 +68,7 @@ const option = computed(() => ({
     name: props.title,
     type: 'pie',
     center: ['50%', '50%'],
-    radius: ['38%', '62%'],
+    radius: ['42%', '70%'],
     minAngle: 2,
     avoidLabelOverlap: true,
     itemStyle: {
