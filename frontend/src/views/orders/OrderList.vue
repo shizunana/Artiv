@@ -1,7 +1,7 @@
 <template>
   <div class="order-list wb-card">
     <header class="order-header">
-      <div><h2>订单管理</h2><p>统一查看我委托和我承接的全部交易。</p></div>
+      <div><h2>{{ listTitle }}</h2><p>{{ listDescription }}</p></div>
       <el-button @click="load">刷新</el-button>
     </header>
 
@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOrders } from '@/api/order'
 import { formatDateTime } from '@/utils/date'
@@ -53,7 +53,9 @@ const route = useRoute()
 const router = useRouter()
 const source = ref('stall')
 const statusGroup = ref('all')
-const participantRole = ref(resolveParticipantRole(route.query.participantRole))
+const participantRole = computed(() => route.path.startsWith('/dashboard') ? 'employer' : 'painter')
+const listTitle = computed(() => participantRole.value === 'employer' ? '我委托的订单' : '我承接的订单')
+const listDescription = computed(() => participantRole.value === 'employer' ? '查看我向画师发起的全部交易。' : '查看我作为画师承接的全部交易。')
 const listState = ref({ queryKey: '', records: [] })
 const loadingQueryKey = ref('')
 const reviewVisible = ref(false)
@@ -101,7 +103,6 @@ function goOrderDetail(id) {
   router.push({
     name: isPainterRoute.value ? 'PainterOrderDetail' : 'DashboardOrderDetail',
     params: { id },
-    query: { participantRole: participantRole.value },
   })
 }
 function goStallDetail(id) { router.push({ name: 'StallDetail', params: { id }, query: { from: 'order' } }) }
@@ -119,20 +120,6 @@ function reviewSubmitted() {
 function orderTitle(order) { return order.projectTitle || order.stallTitle || `订单 #${order.id}` }
 function orderCover(order) { return order.projectCover || order.stallCover || '' }
 function money(value) { return Number(value || 0).toFixed(2) }
-function resolveParticipantRole(value) {
-  if (value === 'employer' || value === 'painter') return value
-  return route.path.startsWith('/dashboard') ? 'employer' : 'painter'
-}
-watch(
-  () => route.query.participantRole,
-  (value) => {
-    const nextRole = resolveParticipantRole(value)
-    if (nextRole === participantRole.value) return
-    participantRole.value = nextRole
-    load()
-  },
-  { flush: 'sync' },
-)
 onMounted(load)
 onBeforeUnmount(() => activeRequestController?.abort())
 </script>

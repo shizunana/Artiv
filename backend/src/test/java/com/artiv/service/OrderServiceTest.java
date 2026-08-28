@@ -218,7 +218,7 @@ class OrderServiceTest {
         when(orderStageMapper.selectList(any())).thenReturn(List.of(legacy));
         when(orderPreviewService.isGeneratedPreview("/uploads/legacy-preview.png")).thenReturn(false);
         when(orderPreviewService.ensureWatermarkedPreview(
-                "/uploads/legacy-preview.png", "/uploads/original.png"))
+                eq("/uploads/legacy-preview.png"), eq("/uploads/original.png"), any()))
                 .thenReturn("/uploads/order-previews/fixed.jpg");
 
         var detail = orderService.getDetail(77L, 15L);
@@ -243,7 +243,7 @@ class OrderServiceTest {
         when(orderInfoMapper.selectByIdForUpdate(77L)).thenReturn(stallOrder);
         when(orderInfoMapper.selectByIdForUpdate(78L)).thenReturn(projectOrder);
         when(orderStageMapper.selectCount(any())).thenReturn(0L);
-        when(orderPreviewService.createWatermarkedPreview("/uploads/original.png"))
+        when(orderPreviewService.createWatermarkedPreview("/uploads/original.png", "Enana"))
                 .thenReturn("/uploads/order-previews/preview.jpg");
         User painter = activeUser(2L, BigDecimal.ZERO);
         painter.setNickname("Enana");
@@ -265,6 +265,35 @@ class OrderServiceTest {
                 eq("画师「Enana」已提交订单「夏日角色立绘」的「初稿」，请验收。"));
         verify(messageService).createOrderEventMessage(eq(projectOrder), eq(2L), eq("ORDER_STAGE_SUBMITTED"),
                 eq("画师「Enana」已提交订单「夏日角色立绘长期企划...」的「初稿」，请验收。"));
+    }
+
+    @Test
+    void submitStageStoresMultipleOriginalsAndGeneratedPreviewsInUploadOrder() {
+        OrderInfo order = activeOrder(1);
+        order.setId(79L);
+        order.setProjectId(8L);
+        order.setProjectTitle("多图交付企划");
+        order.setPhaseSnapshot("[{\"name\":\"初稿\"}]");
+        when(orderInfoMapper.selectByIdForUpdate(79L)).thenReturn(order);
+        when(orderStageMapper.selectCount(any())).thenReturn(0L);
+        when(orderPreviewService.createWatermarkedPreview("/uploads/a.png", "Enana"))
+                .thenReturn("/uploads/order-previews/a.jpg");
+        when(orderPreviewService.createWatermarkedPreview("/uploads/b.png", "Enana"))
+                .thenReturn("/uploads/order-previews/b.jpg");
+        User painter = activeUser(2L, BigDecimal.ZERO);
+        painter.setNickname("Enana");
+        when(userMapper.selectById(2L)).thenReturn(painter);
+        OrderStageSubmitRequest request = new OrderStageSubmitRequest();
+        request.setImages(List.of("/uploads/a.png", "/uploads/b.png"));
+        request.setContent("两张阶段稿");
+
+        orderService.submitStage(79L, 2L, request);
+
+        ArgumentCaptor<OrderStage> captor = ArgumentCaptor.forClass(OrderStage.class);
+        verify(orderStageMapper).insert(captor.capture());
+        assertEquals("/uploads/order-previews/a.jpg,/uploads/order-previews/b.jpg",
+                captor.getValue().getAttachments());
+        assertEquals("/uploads/a.png,/uploads/b.png", captor.getValue().getOriginals());
     }
 
     @Test

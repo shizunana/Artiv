@@ -40,6 +40,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -121,7 +122,8 @@ public class OrderServiceImpl implements OrderService {
         List<OrderStage> stages = orderStageMapper.selectList(new LambdaQueryWrapper<OrderStage>()
                 .eq(OrderStage::getOrderId, id).eq(OrderStage::getDeleted, 0)
                 .orderByAsc(OrderStage::getStageIndex).orderByAsc(OrderStage::getSubmissionNo));
-        stages.forEach(this::repairLegacyPreview);
+        String painterName = displayName(painter);
+        stages.forEach(stage -> repairLegacyPreview(stage, painterName));
         if (userId.equals(order.getEmployerId()) && order.getStatus() != COMPLETED) {
             stages = stages.stream().map(this::withoutOriginals).toList();
         }
@@ -308,8 +310,12 @@ public class OrderServiceImpl implements OrderService {
     public OrderInfo submitStage(Long id, Long userId, OrderStageSubmitRequest request) {
         OrderInfo order = requireParticipant(id, userId, true);
         if (!userId.equals(order.getPainterId()) || order.getStatus() != IN_PROGRESS || request == null) flowError();
-        String original = validateFile(request.getImage());
-        String preview = orderPreviewService.createWatermarkedPreview(original);
+        User painter = userMapper.selectById(order.getPainterId());
+        String painterName = displayName(painter);
+        List<String> originals = validateStageFiles(request);
+        List<String> previews = originals.stream()
+                .map(original -> orderPreviewService.createWatermarkedPreview(original, painterName))
+                .toList();
         int stageIndex = order.getCurrentStage() == null ? 0 : order.getCurrentStage();
         List<Map<String, Object>> phases = phases(order);
         if (stageIndex < 0 || stageIndex >= phases.size()) flowError();
@@ -324,8 +330,8 @@ public class OrderServiceImpl implements OrderService {
         stage.setPercent(asPercent(phases.get(stageIndex).get("percent")));
         stage.setSubmitter(1);
         stage.setContent(trim(request.getContent(), 1000));
-        stage.setAttachments(preview);
-        stage.setOriginals(original);
+        stage.setAttachments(String.join(",", previews));
+        stage.setOriginals(String.join(",", originals));
         stage.setStatus(0);
         stage.setDeleted(0);
         LocalDateTime now = LocalDateTime.now();
@@ -334,7 +340,6 @@ public class OrderServiceImpl implements OrderService {
         orderStageMapper.insert(stage);
         order.setStatus(PENDING_REVIEW);
         save(order);
-        User painter = userMapper.selectById(order.getPainterId());
         record(order, userId, "STAGE_SUBMITTED",
                 painterOrderLabel(painter, order) + "已提交订单" + notificationOrderTitle(order)
                         + "的" + mark(stage.getName()) + "，请验收。",
@@ -615,6 +620,28 @@ public class OrderServiceImpl implements OrderService {
         return result;
     }
 
+    private List<String> validateStageFiles(OrderStageSubmitRequest request) {
+        List<String> files = request.getImages();
+        if (files == null || files.isEmpty()) {
+            if (!StringUtils.hasText(request.getImage())) {
+                throw new BusinessException(ResultCode.PARAM_INVALID);
+            }
+            files = List.of(request.getImage());
+        }
+        if (files.size() > 9) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        return files.stream().map(this::validateFile).toList();
+    }
+
+    private List<String> splitFiles(String value) {
+        if (!StringUtils.hasText(value)) return List.of();
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .toList();
+    }
+
     private OrderStage withoutOriginals(OrderStage source) {
         OrderStage copy = new OrderStage();
         BeanUtils.copyProperties(source, copy);
@@ -622,21 +649,30 @@ public class OrderServiceImpl implements OrderService {
         return copy;
     }
 
-    private void repairLegacyPreview(OrderStage stage) {
-        if (!StringUtils.hasText(stage.getOriginals())
-                || orderPreviewService.isGeneratedPreview(stage.getAttachments())) {
+    private void repairLegacyPreview(OrderStage stage, String painterName) {
+        List<String> originals = splitFiles(stage.getOriginals());
+        List<String> attachments = splitFiles(stage.getAttachments());
+        if (originals.isEmpty()) {
             return;
         }
+        boolean previewsReady = attachments.size() == originals.size()
+                && attachments.stream().allMatch(orderPreviewService::isGeneratedPreview);
+        if (previewsReady) return;
         try {
-            String preview = orderPreviewService.ensureWatermarkedPreview(stage.getAttachments(), stage.getOriginals());
-            if (!preview.equals(stage.getAttachments())) {
-                stage.setAttachments(preview);
+            List<String> previews = java.util.stream.IntStream.range(0, originals.size())
+                    .mapToObj(index -> orderPreviewService.ensureWatermarkedPreview(
+                            index < attachments.size() ? attachments.get(index) : originals.get(index),
+                            originals.get(index), painterName))
+                    .toList();
+            String previewValue = String.join(",", previews);
+            if (!previewValue.equals(stage.getAttachments())) {
+                stage.setAttachments(previewValue);
                 stage.setUpdatedAt(LocalDateTime.now());
                 orderStageMapper.updateById(stage);
             }
         } catch (BusinessException exception) {
             // 历史原图若已被人工清理，订单详情仍应可打开；保留旧附件并记录待维护信息。
-            log.warn("无法补生成订单阶段预览图，stageId={}, original={}", stage.getId(), stage.getOriginals());
+            log.warn("无法补生成订单阶段预览图，stageId={}, originals={}", stage.getId(), stage.getOriginals());
         }
     }
 

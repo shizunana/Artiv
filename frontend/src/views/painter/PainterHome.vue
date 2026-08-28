@@ -258,11 +258,11 @@ function orderProgress(order) {
 }
 
 function openOrder(id) {
-  router.push({ name: 'PainterOrderDetail', params: { id }, query: { participantRole: 'painter' } })
+  router.push({ name: 'PainterOrderDetail', params: { id } })
 }
 
 function openOrders() {
-  router.push({ name: 'PainterOrders', query: { participantRole: 'painter' } })
+  router.push({ name: 'PainterOrders' })
 }
 
 function openPublicProfile() {

@@ -11,11 +11,12 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,7 +31,7 @@ public class OrderPreviewService {
 
     private static final int MAX_EDGE = 1080;
     private static final String PREVIEW_DIR = "order-previews";
-    private static final String WATERMARK = "ARTIV PREVIEW";
+    private static final String PREVIEW_FILENAME_PREFIX = "v4-";
 
     private final Path uploadRoot;
     private final String uploadUrlPrefix;
@@ -42,6 +43,10 @@ public class OrderPreviewService {
     }
 
     public String createWatermarkedPreview(String originalUrl) {
+        return createWatermarkedPreview(originalUrl, "画师");
+    }
+
+    public String createWatermarkedPreview(String originalUrl, String artistName) {
         Path source = resolveSource(originalUrl);
         try {
             BufferedImage original = ImageIO.read(source.toFile());
@@ -59,13 +64,14 @@ public class OrderPreviewService {
                 graphics.setColor(Color.WHITE);
                 graphics.fillRect(0, 0, width, height);
                 graphics.drawImage(original, 0, 0, width, height, null);
-                paintWatermark(graphics, width, height);
+                paintWatermark(graphics, width, height, artistName);
             } finally {
                 graphics.dispose();
             }
             Path targetDir = uploadRoot.resolve(PREVIEW_DIR);
             Files.createDirectories(targetDir);
-            String filename = UUID.randomUUID().toString().replace("-", "") + ".jpg";
+            String filename = PREVIEW_FILENAME_PREFIX
+                    + UUID.randomUUID().toString().replace("-", "") + ".jpg";
             writeJpeg(preview, targetDir.resolve(filename));
             return uploadUrlPrefix + "/" + PREVIEW_DIR + "/" + filename;
         } catch (BusinessException exception) {
@@ -80,10 +86,15 @@ public class OrderPreviewService {
      * 已存在且可读取的标准预览图直接复用，否则从原图补生成一次。
      */
     public synchronized String ensureWatermarkedPreview(String currentPreviewUrl, String originalUrl) {
+        return ensureWatermarkedPreview(currentPreviewUrl, originalUrl, "画师");
+    }
+
+    public synchronized String ensureWatermarkedPreview(String currentPreviewUrl, String originalUrl,
+                                                         String artistName) {
         if (isGeneratedPreview(currentPreviewUrl)) {
             return currentPreviewUrl;
         }
-        return createWatermarkedPreview(originalUrl);
+        return createWatermarkedPreview(originalUrl, artistName);
     }
 
     public boolean isGeneratedPreview(String previewUrl) {
@@ -93,7 +104,9 @@ public class OrderPreviewService {
         }
         String relative = previewUrl.substring(uploadUrlPrefix.length() + 1);
         Path preview = uploadRoot.resolve(relative).normalize();
-        return preview.startsWith(uploadRoot.resolve(PREVIEW_DIR)) && Files.isRegularFile(preview);
+        return preview.startsWith(uploadRoot.resolve(PREVIEW_DIR))
+                && preview.getFileName().toString().startsWith(PREVIEW_FILENAME_PREFIX)
+                && Files.isRegularFile(preview);
     }
 
     private Path resolveSource(String originalUrl) {
@@ -108,22 +121,57 @@ public class OrderPreviewService {
         return source;
     }
 
-    private void paintWatermark(Graphics2D graphics, int width, int height) {
-        int fontSize = Math.max(18, Math.min(42, width / 20));
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
+    private void paintWatermark(Graphics2D graphics, int width, int height, String artistName) {
+        String displayName = artistName == null ? "画师" : artistName.trim().replaceAll("[\\r\\n]+", " ");
+        if (displayName.isEmpty()) displayName = "画师";
+        if (displayName.length() > 24) displayName = displayName.substring(0, 24) + "...";
+        String authorLine = "@" + displayName + " 进行创作";
+        String noticeLine = "仅供预览，请勿使用";
+        int maxTextWidth = Math.max(1, (int) (width * 0.82));
+        int fontSize = Math.max(18, Math.min(52, width / 16));
+        Font authorFont = fitFont(graphics, authorLine, fontSize, maxTextWidth);
+        Font noticeFont = fitFont(graphics, noticeLine, Math.max(16, fontSize - 4), maxTextWidth);
+        FontMetrics authorMetrics = graphics.getFontMetrics(authorFont);
+        FontMetrics noticeMetrics = graphics.getFontMetrics(noticeFont);
+        int gap = Math.max(8, fontSize / 3);
+        int contentHeight = authorMetrics.getHeight() + gap + noticeMetrics.getHeight();
+        int authorBaseline = (height - contentHeight) / 2 + authorMetrics.getAscent();
+        int noticeBaseline = authorBaseline + authorMetrics.getDescent() + gap + noticeMetrics.getAscent();
+        int ruleMargin = Math.max(12, fontSize / 2);
+        int ruleStart = Math.max(10, (int) (width * 0.10));
+        int ruleEnd = Math.min(width - 10, (int) (width * 0.90));
+
         graphics.setColor(Color.WHITE);
-        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.34F));
-        AffineTransform originalTransform = graphics.getTransform();
-        graphics.rotate(Math.toRadians(-28), width / 2D, height / 2D);
-        int xStep = Math.max(240, fontSize * 10);
-        int yStep = Math.max(150, fontSize * 5);
-        for (int y = -height; y < height * 2; y += yStep) {
-            for (int x = -width; x < width * 2; x += xStep) {
-                graphics.drawString(WATERMARK, x, y);
-            }
-        }
-        graphics.setTransform(originalTransform);
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.42F));
+        graphics.setStroke(new BasicStroke(Math.max(1.5F, width / 420F), BasicStroke.CAP_ROUND,
+                BasicStroke.JOIN_ROUND));
+        graphics.drawLine(ruleStart, authorBaseline - authorMetrics.getAscent() - ruleMargin,
+                ruleEnd, authorBaseline - authorMetrics.getAscent() - ruleMargin);
+        graphics.drawLine(ruleStart, noticeBaseline + noticeMetrics.getDescent() + ruleMargin,
+                ruleEnd, noticeBaseline + noticeMetrics.getDescent() + ruleMargin);
+        drawCenteredText(graphics, authorLine, authorFont, authorBaseline, width);
+        drawCenteredText(graphics, noticeLine, noticeFont, noticeBaseline, width);
         graphics.setComposite(AlphaComposite.SrcOver);
+    }
+
+    private Font fitFont(Graphics2D graphics, String text, int preferredSize, int maxWidth) {
+        int size = preferredSize;
+        Font font = new Font(Font.SANS_SERIF, Font.BOLD, size);
+        while (size > 14 && graphics.getFontMetrics(font).stringWidth(text) > maxWidth) {
+            font = font.deriveFont((float) --size);
+        }
+        return font;
+    }
+
+    private void drawCenteredText(Graphics2D graphics, String text, Font font, int baseline, int width) {
+        graphics.setFont(font);
+        int x = (width - graphics.getFontMetrics(font).stringWidth(text)) / 2;
+        graphics.setColor(new Color(22, 35, 55));
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.28F));
+        graphics.drawString(text, x + 2, baseline + 2);
+        graphics.setColor(Color.WHITE);
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.68F));
+        graphics.drawString(text, x, baseline);
     }
 
     private void writeJpeg(BufferedImage image, Path target) throws IOException {

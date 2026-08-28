@@ -2,7 +2,7 @@
   <div class="order-detail" v-loading="loading">
     <template v-if="detail">
       <section class="wb-card order-summary">
-        <header><div><el-button link @click="router.back()">← 返回订单管理</el-button><h2>{{ order.projectTitle || order.stallTitle || `订单 #${order.id}` }}</h2><p>订单编号 {{ order.id }} · {{ formatDateTime(order.createdAt) }}</p></div><el-tag size="large" :type="statusType(ORDER_STATUS, order.status)">{{ orderStatusText(order.status, detail.viewerRole) }}</el-tag></header>
+        <header><div><el-button link @click="router.back()">← 返回{{ isPainter ? '我承接的订单' : '我委托的订单' }}</el-button><h2>{{ order.projectTitle || order.stallTitle || `订单 #${order.id}` }}</h2><p>订单编号 {{ order.id }} · {{ formatDateTime(order.createdAt) }}</p></div><el-tag size="large" :type="statusType(ORDER_STATUS, order.status)">{{ orderStatusText(order.status, detail.viewerRole) }}</el-tag></header>
         <div class="summary-grid">
           <div><small>交易金额</small><strong>¥{{ money(order.amount) }}</strong></div>
           <div><small>企划方</small><strong>{{ detail.employerName }}</strong></div>
@@ -55,8 +55,8 @@
           <p>{{ currentSubmission.content || '画师未填写交稿说明' }}</p>
           <div v-if="currentSubmission.status === 2 && currentSubmission.reviewRemark" class="revision-note"><b>企划方修改意见</b><p>{{ currentSubmission.reviewRemark }}</p></div>
           <h4>水印预览图</h4>
-          <div class="image-grid"><el-image v-for="url in splitFiles(currentSubmission.attachments)" :key="url" :src="url" :preview-src-list="splitFiles(currentSubmission.attachments)" preview-teleported fit="cover" /></div>
-          <template v-if="order.status === 3 && splitFiles(currentSubmission.originals).length"><h4>高清原图</h4><div class="original-list"><a v-for="url in splitFiles(currentSubmission.originals)" :key="url" :href="url" target="_blank" download>下载原图</a></div></template>
+          <div class="image-grid"><el-image v-for="(url,index) in splitFiles(currentSubmission.attachments)" :key="url" :src="url" :preview-src-list="splitFiles(currentSubmission.attachments)" :initial-index="index" preview-teleported fit="cover" /></div>
+          <template v-if="order.status === 3 && splitFiles(currentSubmission.originals).length"><h4>高清原图</h4><div class="original-list"><a v-for="(url,index) in splitFiles(currentSubmission.originals)" :key="url" :href="url" target="_blank" download>下载原图 {{ index + 1 }}</a></div></template>
           <div v-if="isEmployer && order.status === 2" class="review-actions">
             <el-button v-if="!finalStage" type="primary" @click="review('approve')">通过并进入下一阶段</el-button>
             <el-button type="success" @click="review('complete')">确认当前交付并完成交易</el-button>
@@ -70,12 +70,12 @@
       <section class="wb-card timeline-card"><h3>订单记录</h3><el-timeline><el-timeline-item v-for="event in detail.events" :key="event.id" :timestamp="formatDateTime(event.createdAt)">{{ event.content }}</el-timeline-item></el-timeline></section>
     </template>
 
-    <el-dialog v-model="submitVisible" title="交付当前阶段" width="600px">
+    <el-dialog v-model="submitVisible" title="交付当前阶段" width="600px" @closed="resetDelivery">
       <el-input v-model="submitForm.content" type="textarea" :rows="3" maxlength="1000" placeholder="填写交稿说明" />
       <h4>本阶段交付图</h4>
-      <p class="upload-tip">只需上传一张原图。系统会自动生成低分辨率水印预览供企划方验收；确认完成交易后才开放原图。</p>
-      <el-upload :http-request="uploadDelivery" :limit="1" :on-remove="clearDelivery" :show-file-list="true" accept="image/png,image/jpeg,image/gif,image/webp"><el-button>选择交付图片</el-button></el-upload>
-      <template #footer><el-button @click="submitVisible=false">取消</el-button><el-button type="primary" :loading="acting" @click="submitStage">提交交稿</el-button></template>
+      <p class="upload-tip">可上传 1–9 张原图。系统会为每张图片生成低分辨率水印预览供企划方验收；确认完成交易后才开放全部原图。</p>
+      <el-upload ref="deliveryUploadRef" :http-request="uploadDelivery" :limit="9" :on-remove="removeDelivery" :show-file-list="true" multiple accept="image/png,image/jpeg,image/gif,image/webp"><el-button>选择交付图片（最多9张）</el-button></el-upload>
+      <template #footer><el-button @click="submitVisible=false">取消</el-button><el-button type="primary" :loading="acting || deliveryUploading > 0" @click="submitStage">提交交稿</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="disputeVisible" title="申请争议仲裁" width="600px">
@@ -109,7 +109,8 @@ import ReviewDialog from '@/components/reviews/ReviewDialog.vue'
 const route=useRoute(), router=useRouter(), userStore=useUserStore()
 const detail=ref(null), loading=ref(false), acting=ref(false), submitVisible=ref(false)
 const reviewVisible=ref(false)
-const submitForm=reactive({content:'',image:''})
+const submitForm=reactive({content:''})
+const deliveryUploadRef=ref(null), deliveryFiles=ref([]), deliveryUploading=ref(0)
 const dispute=ref({}), disputeVisible=ref(false), evidenceVisible=ref(false)
 const disputeForm=reactive({reason:'',description:'',images:[]}), evidenceForm=reactive({description:'',images:[]})
 const order=computed(()=>detail.value?.order || {})
@@ -134,9 +135,32 @@ async function uploadEvidenceImage(options){try{const url=await uploadFile(optio
 function removeEvidenceImage(file){const url=file.response||file.url;evidenceForm.images=evidenceForm.images.filter(item=>item!==url)}
 async function submitDispute(){if(!disputeForm.reason.trim()){ElMessage.warning('请填写争议原因');return}await run(()=>createOrderDispute(order.value.id,{...disputeForm}),'仲裁申请已提交');disputeVisible.value=false}
 async function submitEvidence(){if(!evidenceForm.images.length){ElMessage.warning('请至少上传一张图片证据');return}await run(()=>addDisputeEvidence(dispute.value.dispute.id,{...evidenceForm}),'证据已提交');evidenceVisible.value=false;evidenceForm.description='';evidenceForm.images=[]}
-async function uploadDelivery(options){try{submitForm.image=await uploadFile(options.file);options.onSuccess(submitForm.image)}catch(e){options.onError(e)}}
-function clearDelivery(){submitForm.image=''}
-async function submitStage(){if(!submitForm.image){ElMessage.warning('请先上传本阶段交付图片');return}await run(()=>submitOrderStage(order.value.id,submitForm),'阶段稿已提交');submitVisible.value=false;submitForm.content='';submitForm.image=''}
+async function uploadDelivery(options){
+  const uid=options.file.uid
+  const deliveryFile={uid,url:''}
+  deliveryFiles.value.push(deliveryFile)
+  deliveryUploading.value++
+  try{
+    const url=await uploadFile(options.file)
+    deliveryFile.url=url
+    options.onSuccess(url)
+  }catch(e){
+    deliveryFiles.value=deliveryFiles.value.filter(item=>item.uid!==uid)
+    options.onError(e)
+  }finally{
+    deliveryUploading.value--
+  }
+}
+function removeDelivery(file){deliveryFiles.value=deliveryFiles.value.filter(item=>item.uid!==file.uid)}
+function resetDelivery(){submitForm.content='';deliveryFiles.value=[];deliveryUploadRef.value?.clearFiles()}
+async function submitStage(){
+  if(deliveryUploading.value){ElMessage.warning('图片仍在上传，请稍候');return}
+  const images=deliveryFiles.value.map(file=>file.url).filter(Boolean)
+  if(!images.length){ElMessage.warning('请先上传本阶段交付图片');return}
+  if(images.length!==deliveryFiles.value.length){ElMessage.warning('存在上传失败的图片，请移除后重试');return}
+  await run(()=>submitOrderStage(order.value.id,{content:submitForm.content,images}),'阶段稿已提交')
+  submitVisible.value=false
+}
 async function review(action){let remark='';if(action==='revise'){try{const result=await ElMessageBox.prompt('请填写明确的修改意见','要求修改',{inputType:'textarea',inputValidator:(v)=>!!v?.trim()||'请填写修改意见'});remark=result.value}catch{return}}if(action==='complete'){try{await ElMessageBox.confirm('确认后将立即完成交易、把款项结算给画师，并开放当前交付原图。未执行的后续阶段会被跳过。','确认完成交易',{type:'warning',confirmButtonText:'确认收货并完成'})}catch{return}}await run(()=>reviewOrderStage(order.value.id,{action,remark}),action==='complete'?'交易已完成并结算':action==='approve'?'阶段已通过':'已要求修改')}
 function goMessage(){const otherId=isPainter.value?order.value.employerId:order.value.painterId;const nickname=isPainter.value?detail.value.employerName:detail.value.painterName;router.push({name:'Messages',query:{withUserId:otherId,nickname,orderId:order.value.id}})}
 function goProject(){router.push({name:'ProjectDetail',params:{id:order.value.projectId},query:{from:'order'}})}

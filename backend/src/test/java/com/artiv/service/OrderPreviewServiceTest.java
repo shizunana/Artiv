@@ -39,4 +39,30 @@ class OrderPreviewServiceTest {
         assertTrue(service.isGeneratedPreview(result));
         assertEquals(result, service.ensureWatermarkedPreview(result, "/uploads/original.png"));
     }
+
+    @Test
+    void watermarkRemainsVisibleOnLightArtwork() throws Exception {
+        BufferedImage source = new BufferedImage(600, 600, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = source.createGraphics();
+        graphics.setColor(Color.WHITE);
+        graphics.fillRect(0, 0, source.getWidth(), source.getHeight());
+        graphics.dispose();
+        ImageIO.write(source, "png", uploadRoot.resolve("light.png").toFile());
+        OrderPreviewService service = new OrderPreviewService(uploadRoot.toString(), "/uploads");
+
+        String result = service.createWatermarkedPreview("/uploads/light.png");
+
+        BufferedImage preview = ImageIO.read(
+                uploadRoot.resolve(result.substring("/uploads/".length())).toFile());
+        long visiblePixels = 0;
+        for (int y = 0; y < preview.getHeight(); y++) {
+            for (int x = 0; x < preview.getWidth(); x++) {
+                Color pixel = new Color(preview.getRGB(x, y));
+                if (pixel.getRed() < 220 || pixel.getGreen() < 220 || pixel.getBlue() < 220) {
+                    visiblePixels++;
+                }
+            }
+        }
+        assertTrue(visiblePixels > 1000, "浅色稿件上应能看见深色水印轮廓");
+    }
 }

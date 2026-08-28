@@ -177,7 +177,7 @@ const hasDashboardHistory = computed(() => counts.projects > 0 || totalOrderCoun
 const quickActions = computed(() => [
   { label: '发布企划', detail: '创建公开企划或定向邀请', to: { name: 'ProjectNew' } },
   { label: '我的企划', detail: `${counts.projects} 个企划 · ${counts.recruiting} 个招募中`, to: { name: 'DashboardProjects' } },
-  { label: '订单管理', detail: `${activeOrderTotal.value} 笔进行中`, to: { name: 'DashboardOrders', query: { participantRole: 'employer' } } },
+  { label: '我委托的订单', detail: `${activeOrderTotal.value} 笔进行中`, to: { name: 'DashboardOrders' } },
   { label: '消息中心', detail: '联系画师并查看系统通知', to: { name: 'Messages' } },
 ])
 
@@ -303,11 +303,11 @@ function orderProgress(order) {
 }
 
 function openOrder(id) {
-  router.push({ name: 'DashboardOrderDetail', params: { id }, query: { participantRole: 'employer' } })
+  router.push({ name: 'DashboardOrderDetail', params: { id } })
 }
 
 function openOrders() {
-  router.push({ name: 'DashboardOrders', query: { participantRole: 'employer' } })
+  router.push({ name: 'DashboardOrders' })
 }
 
 function openProject(id) {
