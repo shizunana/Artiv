@@ -76,25 +76,15 @@
 
         <el-empty v-if="!activeOrders.length" :image-size="92" description="暂无进行中的订单" />
         <div v-else class="active-order-list">
-          <article v-for="order in activeOrders" :key="order.id" class="active-order" @click="openOrder(order.id)">
-            <img v-if="orderCover(order)" :src="orderCover(order)" alt="订单封面" />
-            <div v-else class="item-cover">订单</div>
-            <div class="active-order-main">
-              <div class="item-title-row">
-                <h4 :title="orderTitle(order)">{{ orderTitle(order) }}</h4>
-                <el-tag size="small" :type="statusType(ORDER_STATUS, order.status)">
-                  {{ orderStatusText(order.status, 'employer') }}
-                </el-tag>
-              </div>
-              <p>{{ orderSource(order) }} · 订单 #{{ order.id }} · {{ formatDateTime(order.createdAt) }}</p>
-              <p class="item-summary">{{ orderProgress(order) }}</p>
-            </div>
-            <div class="item-side">
-              <small>托管金额</small>
-              <strong>{{ formatMoney(order.amount) }}</strong>
-              <el-button type="primary" link @click.stop="openOrder(order.id)">继续处理</el-button>
-            </div>
-          </article>
+          <OrderListItem
+            v-for="order in activeOrders"
+            :key="order.id"
+            :order="order"
+            participant-role="employer"
+            @open-order="openOrder"
+            @open-project="openProject"
+            @open-stall="openStall"
+          />
         </div>
       </section>
 
@@ -128,23 +118,13 @@
 
       <el-empty v-if="!recentProjects.length" :image-size="92" description="还没有发布企划" />
       <div v-else class="recent-project-list">
-        <article v-for="project in recentProjects" :key="project.id" class="recent-project" @click="openProject(project.id)">
-          <img v-if="firstImage(project.images)" :src="firstImage(project.images)" :alt="`${project.title}封面`" />
-          <div v-else class="item-cover">企划</div>
-          <div class="recent-project-main">
-            <div class="item-title-row">
-              <h4 :title="project.title">{{ truncate(project.title, 10) }}</h4>
-              <el-tag size="small" :type="projectCardStatus(project).type">{{ projectCardStatus(project).text }}</el-tag>
-            </div>
-            <p>类型：{{ project.category || '未分类' }} · 发布时间：{{ formatDateTime(project.createdAt) }}</p>
-            <p class="item-summary" :title="project.description || ''">企划详情：{{ truncate(project.description || '暂无详情', 15) }}</p>
-          </div>
-          <div class="item-side">
-            <small>预算区间</small>
-            <strong>{{ formatProjectBudget(project) }}</strong>
-            <el-button type="primary" link @click.stop="openProject(project.id)">企划详情</el-button>
-          </div>
-        </article>
+        <ProjectListItem
+          v-for="project in recentProjects"
+          :key="project.id"
+          :project="project"
+          @open-detail="openProject"
+          @open-panel="openProjectPanel"
+        />
       </div>
     </section>
     </template>
@@ -158,10 +138,9 @@ import { Reading } from '@element-plus/icons-vue'
 import { getMyProjects } from '@/api/project'
 import { getOrders } from '@/api/order'
 import { useUserStore } from '@/stores/user'
-import { formatDateTime } from '@/utils/date'
-import { formatProjectBudget } from '@/utils/budget'
-import { ORDER_STATUS, PROJECT_STATUS, orderStatusText, statusText, statusType } from '@/utils/status'
 import { isProjectExpired } from '@/utils/projectDeadline'
+import OrderListItem from '@/components/orders/OrderListItem.vue'
+import ProjectListItem from '@/components/projects/ProjectListItem.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -245,63 +224,6 @@ function compareActiveOrders(left, right) {
   return rankDiff || compareCreatedAt(left, right)
 }
 
-function formatMoney(value) {
-  return `¥${Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
-}
-
-function truncate(value, limit) {
-  const characters = Array.from(String(value || ''))
-  return characters.length > limit ? `${characters.slice(0, limit).join('')}...` : characters.join('')
-}
-
-function firstImage(images) {
-  if (!images) return ''
-  try {
-    const parsed = JSON.parse(images)
-    if (Array.isArray(parsed)) return parsed[0] || ''
-  } catch { /* 兼容历史逗号分隔数据 */ }
-  return String(images).split(',').map((item) => item.trim()).find(Boolean) || ''
-}
-
-function projectCardStatus(project) {
-  if (Number(project.moderationStatus) === 1) return { text: '违规下架', type: 'danger' }
-  if (Number(project.status) === 4) {
-    return Number(project.mode) === 1 && Number(project.invitationStatus) === 2
-      ? { text: '已拒绝', type: 'danger' }
-      : { text: '已下架', type: 'info' }
-  }
-  if (isProjectExpired(project.deadline)) return { text: '已过期', type: 'info' }
-  if (Number(project.mode) === 1) {
-    const invitation = {
-      0: { text: '待回应', type: 'warning' },
-      1: { text: '已接受', type: 'success' },
-      2: { text: '已拒绝', type: 'danger' },
-    }[Number(project.invitationStatus)]
-    if (invitation) return invitation
-  }
-  return { text: statusText(PROJECT_STATUS, project.status), type: statusType(PROJECT_STATUS, project.status) }
-}
-
-function orderTitle(order) {
-  return order.projectTitle || order.stallTitle || `订单 #${order.id}`
-}
-
-function orderCover(order) {
-  return order.projectCover || order.stallCover || ''
-}
-
-function orderSource(order) {
-  return order.projectId ? '企划订单' : '橱窗订单'
-}
-
-function orderProgress(order) {
-  const status = Number(order.status)
-  if (status === 0) return '等待画师确认接单'
-  if (status === 2) return `第 ${(order.currentStage ?? 0) + 1} 阶段 · 等待您验收`
-  if (status === 5) return '争议处理中'
-  return `当前阶段：第 ${(order.currentStage ?? 0) + 1} 阶段`
-}
-
 function openOrder(id) {
   router.push({ name: 'DashboardOrderDetail', params: { id } })
 }
@@ -312,6 +234,15 @@ function openOrders() {
 
 function openProject(id) {
   router.push({ name: 'ProjectDetail', params: { id } })
+}
+
+function openProjectPanel(id) {
+  const target = router.resolve({ name: 'ProjectPanel', params: { id } })
+  window.open(target.href, '_blank', 'noopener,noreferrer')
+}
+
+function openStall(id) {
+  router.push({ name: 'StallDetail', params: { id }, query: { from: 'order' } })
 }
 
 onMounted(loadDashboard)
@@ -362,19 +293,8 @@ onMounted(loadDashboard)
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(230px, .82fr); align-items: stretch; gap: 16px; }
 .compact-header { padding-bottom: 15px; border-bottom: 1px solid var(--artiv-border); }
 .active-order-list,.recent-project-list { display: flex; flex-direction: column; }
-.active-order,.recent-project { display: grid; grid-template-columns: 76px minmax(0, 1fr) minmax(105px, auto); align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
-.active-order:last-child,.recent-project:last-child { border-bottom: 0; padding-bottom: 0; }
-.active-order:hover,.recent-project:hover { background: #fbfdff; }
-.active-order img,.recent-project img,.item-cover { width: 76px; height: 60px; border-radius: 7px; object-fit: cover; }
-.item-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); font-size: 13px; }
-.active-order-main,.recent-project-main { min-width: 0; }
-.item-title-row { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.item-title-row h4 { min-width: 0; margin: 0; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.active-order-main p,.recent-project-main p { margin: 6px 0 0; overflow: hidden; color: var(--artiv-text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.active-order-main .item-summary,.recent-project-main .item-summary { color: var(--artiv-text); }
-.item-side { display: grid; justify-items: end; gap: 5px; }
-.item-side small { color: var(--artiv-text-secondary); font-size: 12px; }
-.item-side strong { color: var(--artiv-accent); font-size: 16px; white-space: nowrap; }
+.active-order-list :deep(.order-card:last-child) { border-bottom: 0; }
+.recent-project-list :deep(.project-card:last-child) { border-bottom: 0; }
 .quick-card { display: flex; flex-direction: column; }
 .quick-list { display: grid; gap: 10px; padding-top: 14px; }
 .quick-list button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--artiv-border); border-radius: 9px; background: #fff; padding: 14px; text-align: left; cursor: pointer; transition: border-color .2s, background .2s; }
@@ -394,8 +314,5 @@ onMounted(loadDashboard)
   .onboarding-copy h2 { font-size: 24px; }
   .welcome-card { align-items: flex-start; flex-direction: column; }
   .quick-list { grid-template-columns: 1fr; }
-  .active-order,.recent-project { grid-template-columns: 62px minmax(0, 1fr); }
-  .active-order img,.recent-project img,.item-cover { width: 62px; }
-  .item-side { grid-column: 2; justify-items: start; }
 }
 </style>

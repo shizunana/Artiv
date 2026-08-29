@@ -86,25 +86,19 @@
 
           <el-empty v-if="!activeOrders.length" :image-size="92" description="暂无进行中的订单" />
           <div v-else class="active-order-list">
-            <article v-for="order in activeOrders" :key="order.id" class="active-order" @click="openOrder(order.id)">
-              <img v-if="orderCover(order)" :src="orderCover(order)" alt="订单封面" />
-              <div v-else class="order-cover">订单</div>
-              <div class="active-order-main">
-                <div class="active-order-title">
-                  <h4 :title="orderTitle(order)">{{ orderTitle(order) }}</h4>
-                  <el-tag size="small" :type="statusType(ORDER_STATUS, order.status)">
-                    {{ orderStatusText(order.status, 'painter') }}
-                  </el-tag>
-                </div>
-                <p>{{ orderSource(order) }} · 订单 #{{ order.id }} · {{ formatDateTime(order.createdAt) }}</p>
-                <p class="order-progress">{{ orderProgress(order) }}</p>
-              </div>
-              <div class="active-order-side">
-                <small>托管金额</small>
-                <strong>{{ formatMoney(order.amount) }}</strong>
-                <el-button type="primary" link @click.stop="openOrder(order.id)">继续处理</el-button>
-              </div>
-            </article>
+            <OrderListItem
+              v-for="order in activeOrders"
+              :key="order.id"
+              :order="order"
+              participant-role="painter"
+              :action-loading="actingOrderId === order.id"
+              @open-order="openOrder"
+              @open-project="openProject"
+              @open-stall="openStall"
+              @deliver="goDelivery"
+              @accept="quickAccept"
+              @reject="quickReject"
+            />
           </div>
         </section>
 
@@ -134,16 +128,16 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Reading } from '@element-plus/icons-vue'
-import { getOrders } from '@/api/order'
+import { acceptOrder, getOrders, rejectOrder } from '@/api/order'
 import { getMyWorks } from '@/api/work'
 import { getMyStalls } from '@/api/stall'
 import { getMyApplications } from '@/api/project'
 import { getInvitations } from '@/api/invitation'
 import { getPublicProfile } from '@/api/user'
-import { formatDateTime } from '@/utils/date'
-import { ORDER_STATUS, orderStatusText, statusType } from '@/utils/status'
 import { useUserStore } from '@/stores/user'
+import OrderListItem from '@/components/orders/OrderListItem.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -152,6 +146,7 @@ const counts = reactive({ works: 0, stalls: 0, applications: 0, invitations: 0 }
 const overview = reactive({ monthRevenue: 0, totalRevenue: 0, completedOrders: 0, monthCompleted: 0, averageScore: null, reviewCount: 0 })
 const activeOrders = ref([])
 const activeOrderTotal = ref(0)
+const actingOrderId = ref(null)
 
 const certStatus = computed(() => userStore.user?.certStatus ?? 0)
 const quickActions = computed(() => [
@@ -237,28 +232,53 @@ function formatMoney(value) {
   return `¥${Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 }
 
-function orderTitle(order) {
-  return order.projectTitle || order.stallTitle || `订单 #${order.id}`
-}
-
-function orderCover(order) {
-  return order.projectCover || order.stallCover || ''
-}
-
-function orderSource(order) {
-  return order.projectId ? '企划订单' : '橱窗订单'
-}
-
-function orderProgress(order) {
-  const status = Number(order.status)
-  if (status === 0) return '等待您确认接单'
-  if (status === 2) return `第 ${(order.currentStage ?? 0) + 1} 阶段 · 等待企划方验收`
-  if (status === 5) return '争议处理中'
-  return `当前阶段：第 ${(order.currentStage ?? 0) + 1} 阶段`
-}
-
 function openOrder(id) {
   router.push({ name: 'PainterOrderDetail', params: { id } })
+}
+
+function openProject(id) {
+  router.push({ name: 'ProjectDetail', params: { id }, query: { from: 'order' } })
+}
+
+function openStall(id) {
+  router.push({ name: 'StallDetail', params: { id }, query: { from: 'order' } })
+}
+
+function goDelivery(id) {
+  router.push({ name: 'PainterOrderDetail', params: { id }, query: { action: 'deliver' } })
+}
+
+async function quickAccept(order) {
+  actingOrderId.value = order.id
+  try {
+    await acceptOrder(order.id)
+    ElMessage.success('已接受订单，可以开始创作')
+    await loadDashboard()
+  } finally {
+    actingOrderId.value = null
+  }
+}
+
+async function quickReject(order) {
+  let reason = ''
+  try {
+    const result = await ElMessageBox.prompt('可填写拒绝原因', `拒绝订单 #${order.id}`, {
+      inputType: 'textarea',
+      confirmButtonText: '确认拒绝',
+      cancelButtonText: '取消',
+    })
+    reason = result.value
+  } catch {
+    return
+  }
+  actingOrderId.value = order.id
+  try {
+    await rejectOrder(order.id, reason)
+    ElMessage.success('已拒绝订单')
+    await loadDashboard()
+  } finally {
+    actingOrderId.value = null
+  }
 }
 
 function openOrders() {
@@ -303,19 +323,7 @@ onMounted(() => {
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(230px, .82fr); align-items: stretch; gap: 16px; }
 .compact-header { padding-bottom: 15px; border-bottom: 1px solid var(--artiv-border); }
 .active-order-list { display: flex; flex-direction: column; }
-.active-order { display: grid; grid-template-columns: 76px minmax(0, 1fr) minmax(105px, auto); align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
-.active-order:last-child { border-bottom: 0; padding-bottom: 0; }
-.active-order:hover { background: #fbfdff; }
-.active-order img,.order-cover { width: 76px; height: 60px; border-radius: 7px; object-fit: cover; }
-.order-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); font-size: 13px; }
-.active-order-main { min-width: 0; }
-.active-order-title { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.active-order-title h4 { min-width: 0; margin: 0; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.active-order-main p { margin: 6px 0 0; overflow: hidden; color: var(--artiv-text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.active-order-main .order-progress { color: var(--artiv-text); }
-.active-order-side { display: grid; justify-items: end; gap: 5px; }
-.active-order-side small { color: var(--artiv-text-secondary); font-size: 12px; }
-.active-order-side strong { color: var(--artiv-accent); font-size: 16px; }
+.active-order-list :deep(.order-card:last-child) { border-bottom: 0; }
 .quick-card { display: flex; flex-direction: column; }
 .quick-list { display: grid; gap: 10px; padding-top: 14px; }
 .quick-list button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--artiv-border); border-radius: 9px; background: #fff; padding: 14px; text-align: left; cursor: pointer; transition: border-color .2s, background .2s; }
@@ -332,8 +340,5 @@ onMounted(() => {
 @media (max-width: 720px) {
   .welcome-card { align-items: flex-start; flex-direction: column; }
   .cert-steps,.business-metrics,.quick-list { grid-template-columns: 1fr; }
-  .active-order { grid-template-columns: 62px minmax(0, 1fr); }
-  .active-order img,.order-cover { width: 62px; }
-  .active-order-side { grid-column: 2; justify-items: start; }
 }
 </style>

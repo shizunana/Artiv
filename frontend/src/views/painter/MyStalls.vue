@@ -7,7 +7,7 @@
           <p>统一查看和管理我发布的绘画服务。</p>
         </div>
         <div class="header-actions">
-          <el-button @click="load">刷新</el-button>
+          <el-button type="danger" plain @click="deleteVisible = true">删除橱窗</el-button>
           <el-button v-if="permissionReady && isCertifiedPainter" type="primary" round @click="openCreateDialog">+ 创建橱窗</el-button>
         </div>
       </header>
@@ -58,6 +58,8 @@
         </article>
       </div>
     </div>
+
+    <StallDeleteDialog v-model="deleteVisible" @deleted="handleDeletedStalls" />
 
     <el-dialog v-model="dialogVisible" title="创建橱窗" width="640px" append-to-body @closed="resetForm">
       <el-form label-position="top">
@@ -160,6 +162,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getMyStalls, createStall } from '@/api/stall'
+import StallDeleteDialog from '@/components/stalls/StallDeleteDialog.vue'
 import { uploadFile } from '@/api/upload'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import { useUserStore } from '@/stores/user'
@@ -169,6 +172,7 @@ const router = useRouter()
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
+const deleteVisible = ref(false)
 const categories = CATEGORY_OPTIONS
 const subjectOptions = SUBJECT_OPTIONS
 function createDefaultForm() {
@@ -312,6 +316,10 @@ function goEdit(id) {
 
 function goDetail(id) {
   router.push({ name: 'StallDetail', params: { id } })
+}
+
+function handleDeletedStalls(ids) {
+  stalls.value = stalls.value.filter((stall) => !ids.includes(stall.id))
 }
 
 function truncate(value, limit = 10) {
