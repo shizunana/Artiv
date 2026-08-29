@@ -3,6 +3,7 @@ package com.artiv.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.Result;
 import com.artiv.dto.ProjectRequest;
+import com.artiv.dto.ProjectContentUpdateRequest;
 import com.artiv.entity.Project;
 import com.artiv.security.UserContext;
 import com.artiv.service.ProjectService;
@@ -64,6 +65,19 @@ public class ProjectController {
     @GetMapping("/{id}")
     public Result<Project> detail(@PathVariable Long id) {
         return Result.ok(projectService.getById(id, UserContext.getUserId()));
+    }
+
+    /** 发布者专属企划面板摘要。 */
+    @GetMapping("/{id}/panel")
+    public Result<Project> panel(@PathVariable Long id) {
+        return Result.ok(projectService.getPanel(id, UserContext.getUserId()));
+    }
+
+    /** 仅在企划尚未形成有效应征、有效邀请或任何历史订单时允许完整编辑内容。 */
+    @PutMapping("/{id}/content")
+    public Result<Project> updateContent(@PathVariable Long id,
+                                         @Valid @RequestBody ProjectContentUpdateRequest request) {
+        return Result.ok(projectService.updateContent(id, request, UserContext.getUserId()));
     }
 
     /** 仅修改企划截稿日期；过期或下架企划也允许修改。 */

@@ -18,24 +18,21 @@
 
     <div v-loading="loading" class="order-cards">
       <el-empty v-if="!orders.length" :description="source === 'project' ? '暂无符合条件的企划订单' : '暂无符合条件的橱窗订单'" />
-      <article v-for="order in orders" :key="order.id" class="order-card" @click="goOrderDetail(order.id)">
-        <img v-if="orderCover(order)" :src="orderCover(order)" :alt="order.stallId ? '橱窗封面' : '企划封面'" />
-        <div v-else class="order-cover">订单</div>
-        <div class="order-main">
-          <div class="order-title-row"><h3>{{ orderTitle(order) }}</h3><el-tag :type="statusType(ORDER_STATUS, order.status)">{{ orderStatusText(order.status, participantRole) }}</el-tag></div>
-          <p>订单编号：{{ order.id }} · 下单时间：{{ formatDateTime(order.createdAt) }}</p>
-          <p class="stage">当前阶段：第 {{ (order.currentStage ?? 0) + 1 }} 阶段</p>
-        </div>
-        <div class="order-price">
-          <small>托管金额</small><strong>¥{{ money(order.amount) }}</strong>
-          <div class="order-actions">
-            <el-button v-if="statusGroup === 'review'" type="primary" @click.stop="openReview(order)">去评价</el-button>
-            <el-button v-if="order.stallId" type="primary" link @click.stop="goStallDetail(order.stallId)">橱窗详情</el-button>
-            <el-button v-if="order.projectId" type="primary" link @click.stop="goProjectDetail(order.projectId)">企划详情</el-button>
-            <el-button type="primary" link @click.stop="goOrderDetail(order.id)">订单详情</el-button>
-          </div>
-        </div>
-      </article>
+      <OrderListItem
+        v-for="order in orders"
+        :key="order.id"
+        :order="order"
+        :participant-role="participantRole"
+        :show-review="statusGroup === 'review'"
+        :action-loading="actingOrderId === order.id"
+        @open-order="goOrderDetail"
+        @open-project="goProjectDetail"
+        @open-stall="goStallDetail"
+        @review="openReview"
+        @deliver="goDelivery"
+        @accept="quickAccept"
+        @reject="quickReject"
+      />
     </div>
     <ReviewDialog v-model="reviewVisible" :order-id="reviewTarget?.id" :order-title="reviewTarget ? orderTitle(reviewTarget) : ''" @submitted="reviewSubmitted" />
   </div>
@@ -44,10 +41,10 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getOrders } from '@/api/order'
-import { formatDateTime } from '@/utils/date'
-import { ORDER_STATUS, orderStatusText, statusType } from '@/utils/status'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { acceptOrder, getOrders, rejectOrder } from '@/api/order'
 import ReviewDialog from '@/components/reviews/ReviewDialog.vue'
+import OrderListItem from '@/components/orders/OrderListItem.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,6 +57,7 @@ const listState = ref({ queryKey: '', records: [] })
 const loadingQueryKey = ref('')
 const reviewVisible = ref(false)
 const reviewTarget = ref(null)
+const actingOrderId = ref(null)
 let activeRequestController = null
 let requestSequence = 0
 const filters = [
@@ -105,6 +103,44 @@ function goOrderDetail(id) {
     params: { id },
   })
 }
+function goDelivery(id) {
+  router.push({
+    name: 'PainterOrderDetail',
+    params: { id },
+    query: { action: 'deliver' },
+  })
+}
+async function quickAccept(order) {
+  actingOrderId.value = order.id
+  try {
+    await acceptOrder(order.id)
+    ElMessage.success('已接受订单，可以开始创作')
+    await load()
+  } finally {
+    actingOrderId.value = null
+  }
+}
+async function quickReject(order) {
+  let reason = ''
+  try {
+    const result = await ElMessageBox.prompt('可填写拒绝原因', `拒绝订单 #${order.id}`, {
+      inputType: 'textarea',
+      confirmButtonText: '确认拒绝',
+      cancelButtonText: '取消',
+    })
+    reason = result.value
+  } catch {
+    return
+  }
+  actingOrderId.value = order.id
+  try {
+    await rejectOrder(order.id, reason)
+    ElMessage.success('已拒绝订单')
+    await load()
+  } finally {
+    actingOrderId.value = null
+  }
+}
 function goStallDetail(id) { router.push({ name: 'StallDetail', params: { id }, query: { from: 'order' } }) }
 function goProjectDetail(id) { router.push({ name: 'ProjectDetail', params: { id }, query: { from: 'order' } }) }
 function openReview(order) { reviewTarget.value = order; reviewVisible.value = true }
@@ -118,8 +154,6 @@ function reviewSubmitted() {
   reviewTarget.value = null
 }
 function orderTitle(order) { return order.projectTitle || order.stallTitle || `订单 #${order.id}` }
-function orderCover(order) { return order.projectCover || order.stallCover || '' }
-function money(value) { return Number(value || 0).toFixed(2) }
 onMounted(load)
 onBeforeUnmount(() => activeRequestController?.abort())
 </script>
@@ -135,19 +169,5 @@ onBeforeUnmount(() => activeRequestController?.abort())
 .status-filters button { border: 1px solid var(--artiv-border); border-radius: 18px; background: #fff; padding: 7px 18px; color: var(--artiv-text-secondary); cursor: pointer; }
 .status-filters button.active { border-color: var(--artiv-primary); background: var(--artiv-primary); color: #fff; }
 .order-cards { min-width: 0; min-height: 360px; padding-top: 16px; }
-.order-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0,1fr) minmax(220px,240px); align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
-.order-card:hover { background: #fbfdff; }
-.order-card img,.order-cover { width: 92px; height: 72px; border-radius: 7px; object-fit: cover; }
-.order-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); }
-.order-title-row { display: flex; min-width: 0; align-items: center; gap: 10px; }
-.order-title-row h3 { min-width: 0; margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
-.order-main { min-width: 0; }
-.order-main p { margin: 8px 0 0; color: var(--artiv-text-secondary); font-size: 13px; }
-.order-main .stage { color: var(--artiv-text); }
-.order-price { display: grid; min-width: 0; justify-items: end; gap: 7px; }
-.order-price small { color: var(--artiv-text-secondary); }
-.order-price strong { color: var(--artiv-accent); font-size: 18px; }
-.order-actions { display: flex; width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; }
-.order-actions :deep(.el-button + .el-button) { margin-left: 0; }
-@media(max-width:720px){.order-card{grid-template-columns:70px 1fr}.order-card img,.order-cover{width:70px}.order-price{grid-column:2;justify-items:start}.status-filters{overflow-x:auto}}
+@media(max-width:720px){.status-filters{overflow-x:auto}}
 </style>

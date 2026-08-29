@@ -23,7 +23,17 @@
 
       <div v-loading="loading" class="stall-cards">
         <el-empty v-if="!stalls.length" description="还没有橱窗，创建一个明码标价的服务吧" />
-        <article v-for="stall in stalls" :key="stall.id" class="stall-card" @click="goDetail(stall.id)">
+        <article
+          v-for="stall in stalls"
+          :key="stall.id"
+          class="stall-card"
+          role="link"
+          tabindex="0"
+          :aria-label="`查看橱窗 ${stall.title}`"
+          @click="goDetail(stall.id)"
+          @keydown.enter.self="goDetail(stall.id)"
+          @keydown.space.self.prevent="goDetail(stall.id)"
+        >
           <img v-if="stall.cover" :src="stall.cover" :alt="`${stall.title}封面`" />
           <div v-else class="stall-cover">橱窗</div>
 
@@ -34,7 +44,7 @@
             </div>
             <p>类型：{{ stall.category || '未分类' }}</p>
             <p class="stall-detail" :title="stall.description || ''">
-              库存：{{ stall.stock ?? 0 }} 件 · 橱窗详情：{{ truncate(stall.description || '暂无详情') }}
+              库存：{{ stall.stock ?? 0 }} 件 · 橱窗简介：{{ truncate(stall.description || '暂无简介') }}
             </p>
           </div>
 
@@ -42,7 +52,6 @@
             <small>价格</small>
             <strong>¥{{ money(stall.price) }}</strong>
             <div class="stall-actions">
-              <el-button type="primary" link @click.stop="goDetail(stall.id)">橱窗详情</el-button>
               <el-button type="primary" link @click.stop="goEdit(stall.id)">编辑</el-button>
             </div>
           </div>
@@ -352,8 +361,9 @@ onMounted(async () => {
 }
 
 .stall-cards { min-width: 0; min-height: 240px; padding-top: 16px; }
-.stall-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(200px, 240px); align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
-.stall-card:hover { background: #fbfdff; }
+.stall-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(200px, 240px); align-items: center; gap: 18px; padding: 16px 8px; border-bottom: 1px solid var(--artiv-border); border-radius: 6px; outline: none; cursor: pointer; transition: background-color .18s ease, box-shadow .18s ease; }
+.stall-card:hover, .stall-card:focus-visible { background: #f8fcfe; box-shadow: inset 3px 0 0 color-mix(in srgb, var(--artiv-primary) 55%, transparent); }
+.stall-card:hover .stall-title-row h3 { color: var(--artiv-primary); }
 .stall-card img, .stall-cover { width: 92px; height: 72px; border-radius: 7px; object-fit: cover; }
 .stall-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); }
 .stall-main { min-width: 0; }

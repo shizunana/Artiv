@@ -25,7 +25,13 @@
         v-for="invitation in invitations"
         :key="invitation.invitationId"
         class="invitation-card"
+        :class="{ 'is-unavailable': invitation.projectAvailable === false }"
+        role="link"
+        tabindex="0"
+        :aria-label="invitation.projectAvailable === false ? `${invitation.projectTitle || '企划'}已删除` : `查看企划 ${invitation.projectTitle || '未命名企划'}`"
         @click="openProject(invitation)"
+        @keydown.enter.self="openProject(invitation)"
+        @keydown.space.self.prevent="openProject(invitation)"
       >
         <img v-if="invitation.cover" :src="invitation.cover" alt="企划封面" />
         <div v-else class="invitation-cover">企划</div>
@@ -42,7 +48,7 @@
           </div>
           <p>类型：{{ invitation.category || '未分类' }} · 邀请时间：{{ formatDateTime(invitation.createdAt) }}</p>
           <p class="invitation-description" :title="invitation.projectDescription || ''">
-            企划详情：{{ truncate(invitation.projectDescription || '暂无详情', 15) }}
+            企划简介：{{ truncate(invitation.projectDescription || '暂无简介', 15) }}
           </p>
         </div>
 
@@ -50,9 +56,7 @@
           <small>预算</small>
           <strong>{{ invitationBudget(invitation) }}</strong>
           <div class="invitation-actions">
-            <el-button type="primary" link :disabled="invitation.projectAvailable === false" @click.stop="openProject(invitation)">
-              {{ invitation.projectAvailable === false ? '企划已删除' : '企划详情' }}
-            </el-button>
+            <span v-if="invitation.projectAvailable === false" class="unavailable-text">企划已删除</span>
             <el-button
               type="danger"
               link
@@ -204,8 +208,13 @@ onBeforeUnmount(() => activeRequestController?.abort())
 .status-filters button { flex: 0 0 auto; border: 1px solid var(--artiv-border); border-radius: 18px; background: #fff; padding: 7px 18px; color: var(--artiv-text-secondary); cursor: pointer; }
 .status-filters button.active { border-color: var(--artiv-primary); background: var(--artiv-primary); color: #fff; }
 .invitation-cards { min-width: 0; min-height: 360px; padding-top: 16px; }
-.invitation-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(220px, 240px); align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
-.invitation-card:hover { background: #fbfdff; }
+.invitation-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(220px, 240px); align-items: center; gap: 18px; padding: 16px 8px; border-bottom: 1px solid var(--artiv-border); border-radius: 6px; outline: none; cursor: pointer; transition: background-color .18s ease, box-shadow .18s ease; }
+.invitation-card:hover,
+.invitation-card:focus-visible { background: #f8fcfe; box-shadow: inset 3px 0 0 color-mix(in srgb, var(--artiv-primary) 55%, transparent); }
+.invitation-card:hover .invitation-title-row h3 { color: var(--artiv-primary); }
+.invitation-card.is-unavailable { cursor: default; }
+.invitation-card.is-unavailable:hover,
+.invitation-card.is-unavailable:focus-visible { background: #fafafa; box-shadow: inset 3px 0 0 var(--artiv-border); }
 .invitation-card img,
 .invitation-cover { width: 92px; height: 72px; border-radius: 7px; object-fit: cover; }
 .invitation-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); }
@@ -220,6 +229,7 @@ onBeforeUnmount(() => activeRequestController?.abort())
 .invitation-budget strong { color: var(--artiv-accent); font-size: 18px; }
 .invitation-actions { display: flex; width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; }
 .invitation-actions :deep(.el-button + .el-button) { margin-left: 0; }
+.unavailable-text { color: var(--artiv-text-secondary); font-size: 13px; }
 @media (max-width: 720px) {
   .invitation-card { grid-template-columns: 70px minmax(0, 1fr); }
   .invitation-card img,

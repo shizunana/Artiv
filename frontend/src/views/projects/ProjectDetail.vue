@@ -39,7 +39,7 @@
           <el-button v-else-if="acceptedInvitation && currentApplication" class="apply-button" type="primary" plain @click="openQuoteDialog(currentApplication)">更改报价</el-button>
           <el-button v-else-if="acceptedInvitation" class="apply-button" disabled>已接受邀请</el-button>
           <el-button v-else-if="rejectedInvitation" class="apply-button" disabled>已婉拒邀请</el-button>
-          <el-button v-if="isOwner" class="manage-button" @click="manageDialogVisible = true">变更企划</el-button>
+          <el-button v-if="isOwner" class="manage-button" type="primary" plain @click="openProjectPanel">进入企划面板</el-button>
           <el-button class="back-button" @click="goBack">{{ backButtonText }}</el-button>
         </section>
       </aside>
@@ -101,64 +101,12 @@
             <span>共 {{ applicantTotal }} 名画师应征</span>
           </header>
 
-          <div v-if="applicants.length" class="applicant-list">
-            <article
-              v-for="item in applicants"
-              :id="applicationCardId(item)"
-              :key="item.application?.id || `invitation-${item.invitationId}`"
-              class="applicant-card"
-              :class="{ 'applicant-card--target': isTargetApplication(item) }"
-            >
-              <div v-if="showOwnerActions(item)" class="applicant-actions">
-                <el-button size="small" :loading="startingChatId === item.painter.id" @click="openChat(item)">私信</el-button>
-                <el-button
-                  size="small"
-                  type="primary"
-                  :loading="orderingPainterId === item.painter.id"
-                  @click="hasActiveProjectOrder(item) ? openProjectOrderDetail(item) : openOrderConfirm(item)"
-                >
-                  {{ hasActiveProjectOrder(item) ? '订单详情' : '发送企划订单' }}
-                </el-button>
-              </div>
-
-              <button class="applicant-identity" type="button" @click="openPainterProfile(item.painter?.id)">
-                <el-avatar class="applicant-avatar" :size="66" :src="item.painter?.avatar">{{ painterName(item).slice(0, 1) }}</el-avatar>
-                <div class="applicant-copy">
-                  <h3>{{ painterName(item) }}</h3>
-                  <RatingSummary :average-score="item.painter?.averageScore" :review-count="item.painter?.reviewCount" compact />
-                  <p>{{ painterBio(item) }}</p>
-                  <div v-if="painterTags(item).length" class="painter-tags">
-                    <el-tag v-for="tag in painterTags(item)" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
-                  </div>
-                </div>
-              </button>
-
-              <div v-if="item.application" class="quote-block">
-                <span>应征报价</span>
-                <strong>￥ {{ item.application.quote }}</strong>
-              </div>
-              <div v-else class="quote-block invitation-waiting">
-                <span>邀请状态</span>
-                <strong>等待回应</strong>
-              </div>
-
-              <div class="applicant-works">
-                <template v-for="index in 4" :key="`${item.application?.id || item.invitationId}-${index}`">
-                  <el-image
-                    v-if="item.works?.[index - 1]?.image"
-                    class="work-thumbnail"
-                    :src="item.works[index - 1].image"
-                    :preview-src-list="item.works.map((entry) => entry.image).filter(Boolean)"
-                    :initial-index="index - 1"
-                    fit="cover"
-                    lazy
-                  />
-                  <div v-else class="work-thumbnail work-placeholder">作品</div>
-                </template>
-              </div>
-            </article>
-          </div>
-          <el-empty v-else-if="!loadingApplicants" description="暂无画师应征" />
+          <ProjectApplicantList
+            v-if="!loadingApplicants"
+            :items="applicants"
+            :target-application-id="Number(route.query.applicationId || 0)"
+            @open-painter="openPainterProfile"
+          />
         </section>
       </main>
     </div>
@@ -222,34 +170,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="orderConfirmVisible" title="确认企划订单" width="540px">
-      <div v-if="orderingApplication" class="confirm-order">
-        <el-image v-if="projectImages[0]" class="confirm-cover" :src="projectImages[0]" fit="cover" />
-        <div class="confirm-copy">
-          <h3>{{ project?.title }}</h3>
-          <p>接单画师：{{ painterName(orderingApplication) }}</p>
-          <p>订单来源：该画师对本企划的有效应征</p>
-          <p>创作阶段：{{ phaseSummary }}</p>
-        </div>
-      </div>
-      <div class="confirm-amount">
-        <span>按应征报价托管</span>
-        <strong>¥{{ Number(orderingApplication?.application?.quote || project?.budgetMax || project?.budget || 0).toFixed(2) }}</strong>
-      </div>
-      <p class="confirm-tip">确认后将从账户余额托管订单金额。此订单独立流转，不影响本企划向其他应征画师继续发单。</p>
-      <template #footer>
-        <el-button @click="orderConfirmVisible = false">再想想</el-button>
-        <el-button type="primary" :loading="creatingOrder" @click="confirmProjectOrder">确认发送订单</el-button>
-      </template>
-    </el-dialog>
-
-    <ProjectManageDialog
-      v-if="project"
-      v-model="manageDialogVisible"
-      :project="project"
-      @changed="handleProjectChanged"
-      @deleted="handleProjectDeleted"
-    />
   </div>
 </template>
 
@@ -259,20 +179,17 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   applyProject,
-  createProjectOrder,
   deleteApplication,
   getApplications,
   getProject,
   updateApplicationQuote,
 } from '@/api/project'
-import { startProjectConversation } from '@/api/message'
 import { acceptInvitation, getInvitationByProject, rejectInvitation } from '@/api/invitation'
 import { useUserStore } from '@/stores/user'
-import RatingSummary from '@/components/reviews/RatingSummary.vue'
+import ProjectApplicantList from '@/components/projects/ProjectApplicantList.vue'
 import { formatDateTime } from '@/utils/date'
 import { formatProjectBudget } from '@/utils/budget'
 import { isProjectExpired } from '@/utils/projectDeadline'
-import ProjectManageDialog from '@/components/projects/ProjectManageDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -283,12 +200,6 @@ const loading = ref(true)
 const applicants = ref([])
 const applicantTotal = ref(0)
 const loadingApplicants = ref(false)
-const startingChatId = ref(null)
-const orderingPainterId = ref(null)
-const orderingApplication = ref(null)
-const orderConfirmVisible = ref(false)
-const creatingOrder = ref(false)
-const manageDialogVisible = ref(false)
 const withdrawingApplicationId = ref(null)
 const applicationDialogVisible = ref(false)
 const applicationFormRef = ref()
@@ -368,7 +279,6 @@ const projectPhases = computed(() => {
   } catch { /* 使用默认阶段 */ }
   return [{ name: '初稿' }, { name: '修改' }, { name: '终稿' }]
 })
-const phaseSummary = computed(() => projectPhases.value.map((phase) => phase.name).join(' → '))
 const projectExpired = computed(() => isProjectExpired(project.value?.deadline))
 const deadlineStatus = computed(() => {
   if (projectExpired.value) return '已超出截稿日期'
@@ -387,22 +297,6 @@ const requirementItems = computed(() => [
   { label: '发布权限', value: requirements.value.publishPermission || '需与画师商议' },
 ])
 
-const painterName = (item) => item.painter?.nickname || `画师 #${item.application?.painterId || item.painter?.id || ''}`
-const painterBio = (item) => {
-  const bio = String(item.painter?.bio || '这位画师还没有填写个人简介。').trim()
-  const characters = Array.from(bio)
-  return characters.length > 20 ? `${characters.slice(0, 20).join('')}...` : bio
-}
-const painterTags = (item) => String(item.painter?.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean)
-const showOwnerActions = (item) => isOwner.value && Boolean(item?.application)
-const hasActiveProjectOrder = (item) => item?.hasActiveOrder === true
-const isTargetApplication = (item) => {
-  const targetApplicationId = Number(route.query.applicationId || 0)
-  return targetApplicationId > 0
-    && Number(item?.application?.id || 0) === targetApplicationId
-}
-const applicationCardId = (item) => item?.application?.id ? `application-${item.application.id}` : undefined
-
 function handleApplyButton() {
   if (currentApplication.value) {
     openQuoteDialog(currentApplication.value)
@@ -417,6 +311,10 @@ function goBack() {
     return
   }
   router.push({ name: 'Projects' })
+}
+
+function openProjectPanel() {
+  router.push({ name: 'ProjectPanel', params: { id: project.value.id } })
 }
 
 function resetApplicationForm() {
@@ -567,53 +465,6 @@ async function submitQuoteUpdate() {
   }
 }
 
-async function openChat(item) {
-  startingChatId.value = item.painter.id
-  try {
-    await startProjectConversation(project.value.id, item.painter.id)
-    await router.push({ name: 'Messages', query: { withUserId: item.painter.id, projectId: project.value.id } })
-  } catch (error) {
-    ElMessage.error(error.message || '发起私信失败')
-  } finally {
-    startingChatId.value = null
-  }
-}
-
-function openOrderConfirm(item) {
-  if (hasActiveProjectOrder(item)) return
-  orderingApplication.value = item
-  orderConfirmVisible.value = true
-}
-
-function openProjectOrderDetail(item) {
-  const orderId = Number(item?.activeOrderId || 0)
-  if (!orderId) {
-    ElMessage.warning('暂未找到对应的企划订单')
-    return
-  }
-  router.push({ name: 'DashboardOrderDetail', params: { id: orderId } })
-}
-
-async function confirmProjectOrder() {
-  const item = orderingApplication.value
-  if (!item) return
-  orderingPainterId.value = item.painter.id
-  creatingOrder.value = true
-  try {
-    const order = await createProjectOrder(project.value.id, item.application.id)
-    orderConfirmVisible.value = false
-    await userStore.fetchMe()
-    ElMessage.success('企划订单已发送，金额已托管并通知画师接单')
-    await router.push({ name: 'DashboardOrderDetail', params: { id: order.id } })
-  } catch (error) {
-    ElMessage.error(error.message || '发送企划订单失败')
-  } finally {
-    if (orderConfirmVisible.value) orderConfirmVisible.value = false
-    orderingPainterId.value = null
-    creatingOrder.value = false
-  }
-}
-
 async function loadProject() {
   loading.value = true
   try {
@@ -636,14 +487,6 @@ async function handleApplicationEntry() {
     const target = applicants.value.find((item) => Number(item.application?.id) === applicationId)
     openQuoteDialog(target || currentApplication.value)
   }
-}
-
-function handleProjectChanged(updated) {
-  project.value = { ...project.value, ...updated, employer: employer.value }
-}
-
-function handleProjectDeleted() {
-  router.push({ name: 'DashboardProjects' })
 }
 
 onMounted(async () => {
@@ -700,14 +543,6 @@ onMounted(async () => {
 .phase-tip { margin: -4px 0 22px; color: #7f8994; font-size: 13px; line-height: 1.7; }
 .phase-steps { padding: 18px 10px 6px; border-radius: 6px; background: #f7fafc; }
 .applicant-panel { margin-top: 20px; }
-.confirm-order { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: center; }
-.confirm-cover { width: 104px; height: 104px; overflow: hidden; border-radius: 8px; background: #f2f4f6; }
-.confirm-copy h3 { margin: 0 0 10px; font-size: 18px; }
-.confirm-copy p { margin: 5px 0; color: #7e8790; font-size: 13px; }
-.confirm-amount { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 14px 16px; border-radius: 7px; background: #f5f9fc; }
-.confirm-amount span { color: #6e7882; }
-.confirm-amount strong { color: #f39a19; font-size: 22px; }
-.confirm-tip { margin: 13px 0 0; color: #8b939b; font-size: 13px; line-height: 1.7; }
 .applicant-heading { display: flex; justify-content: space-between; align-items: baseline; padding: 20px 28px; border-bottom: 1px solid #edf0f3; }
 .applicant-heading h2 { margin: 0; color: #555; font-size: 16px; }
 .applicant-heading span { color: #999; font-size: 13px; }

@@ -11,14 +11,29 @@
       </div>
     </header>
 
-    <el-tabs v-model="modeTab" class="mode-tabs" @tab-change="changeMode">
-      <el-tab-pane label="公开企划" name="0" />
-      <el-tab-pane label="定向邀请" name="1" />
-    </el-tabs>
+    <div class="mode-row">
+      <el-tabs v-model="modeTab" class="mode-tabs" @tab-change="changeMode">
+        <el-tab-pane label="公开企划" name="0" />
+        <el-tab-pane label="定向邀请" name="1" />
+      </el-tabs>
+      <el-button class="delete-project-entry" type="danger" plain @click="deleteVisible = true">
+        删除企划
+      </el-button>
+    </div>
 
     <div v-loading="loading" class="project-cards">
       <el-empty v-if="!projects.length" :description="emptyDescription" />
-      <article v-for="project in projects" :key="project.id" class="project-card" @click="goDetail(project.id)">
+      <article
+        v-for="project in projects"
+        :key="project.id"
+        class="project-card"
+        role="link"
+        tabindex="0"
+        :aria-label="`查看企划 ${project.title}`"
+        @click="goDetail(project.id)"
+        @keydown.enter.self="goDetail(project.id)"
+        @keydown.space.self.prevent="goDetail(project.id)"
+      >
         <img v-if="firstImage(project.images)" :src="firstImage(project.images)" :alt="`${project.title}封面`" />
         <div v-else class="project-cover">企划</div>
 
@@ -29,16 +44,17 @@
           </div>
           <p>类型：{{ project.category || '未分类' }} · 发布时间：{{ formatDateTime(project.createdAt) }}</p>
           <p class="project-description" :title="project.description || ''">
-            企划详情：{{ truncate(project.description || '暂无详情', 15) }}
+            企划简介：{{ truncate(project.description || '暂无简介', 15) }}
           </p>
         </div>
 
-        <div class="project-budget">
-          <small>预算区间</small>
-          <strong>{{ formatProjectBudget(project) }}</strong>
-          <div class="project-actions">
-            <el-button type="primary" link @click.stop="goDetail(project.id)">企划详情</el-button>
-            <el-button type="primary" link @click.stop="openManage(project)">编辑</el-button>
+        <div class="project-side">
+          <el-button class="project-panel-button" type="primary" round @click.stop="goPanel(project.id)">
+            企划面板
+          </el-button>
+          <div class="project-budget">
+            <small>预算区间</small>
+            <strong>{{ formatProjectBudget(project) }}</strong>
           </div>
         </div>
       </article>
@@ -48,11 +64,10 @@
       <Pagination v-model:page="page" v-model:size="size" :total="total" @change="load" />
     </div>
 
-    <ProjectManageDialog
-      v-model="manageVisible"
-      :project="managingProject"
-      @changed="handleProjectChanged"
-      @deleted="load"
+    <ProjectDeleteDialog
+      v-model="deleteVisible"
+      :mode="Number(modeTab)"
+      @deleted="handleDeletedProjects"
     />
   </div>
 </template>
@@ -65,18 +80,17 @@ import { formatProjectBudget } from '@/utils/budget'
 import { formatDateTime } from '@/utils/date'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import Pagination from '@/components/common/Pagination.vue'
-import ProjectManageDialog from '@/components/projects/ProjectManageDialog.vue'
+import ProjectDeleteDialog from '@/components/projects/ProjectDeleteDialog.vue'
 import { isProjectExpired } from '@/utils/projectDeadline'
 
 const router = useRouter()
 const projects = ref([])
 const loading = ref(false)
+const deleteVisible = ref(false)
 const modeTab = ref('0')
 const page = ref(1)
 const size = ref(10)
 const total = ref(0)
-const manageVisible = ref(false)
-const managingProject = ref(null)
 const emptyDescription = computed(() => modeTab.value === '0' ? '还没有发布公开企划' : '还没有发布定向邀请')
 
 function firstImage(images) {
@@ -119,9 +133,9 @@ function goDetail(id) {
   router.push({ name: 'ProjectDetail', params: { id } })
 }
 
-function openManage(project) {
-  managingProject.value = project
-  manageVisible.value = true
+function goPanel(id) {
+  const target = router.resolve({ name: 'ProjectPanel', params: { id } })
+  window.open(target.href, '_blank', 'noopener,noreferrer')
 }
 
 function changeMode() {
@@ -129,11 +143,7 @@ function changeMode() {
   load()
 }
 
-async function handleProjectChanged(updated) {
-  if (modeTab.value === '1' && Number(updated?.mode) === 0) {
-    modeTab.value = '0'
-    page.value = 1
-  }
+async function handleDeletedProjects() {
   await load()
 }
 
@@ -163,11 +173,15 @@ onMounted(load)
 .project-header p { margin: 0; color: var(--artiv-text-secondary); }
 .header-actions { display: flex; align-items: center; gap: 10px; }
 .header-actions :deep(.el-button + .el-button) { margin-left: 0; }
-.mode-tabs { margin-top: 18px; }
+.mode-row { display: flex; align-items: flex-end; gap: 18px; margin-top: 18px; border-bottom: 1px solid var(--artiv-border); }
+.mode-tabs { min-width: 0; flex: 1; }
 .mode-tabs :deep(.el-tabs__header) { margin-bottom: 0; }
+.mode-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
+.delete-project-entry { margin-bottom: 7px; }
 .project-cards { min-width: 0; min-height: 360px; padding-top: 16px; }
-.project-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(220px, 260px); align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
-.project-card:hover { background: #fbfdff; }
+.project-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(220px, 260px); align-items: center; gap: 18px; padding: 16px 8px; border-bottom: 1px solid var(--artiv-border); border-radius: 6px; outline: none; cursor: pointer; transition: background-color .18s ease, box-shadow .18s ease; }
+.project-card:hover, .project-card:focus-visible { background: #f8fcfe; box-shadow: inset 3px 0 0 color-mix(in srgb, var(--artiv-primary) 55%, transparent); }
+.project-card:hover .project-title-row h3 { color: var(--artiv-primary); }
 .project-card img, .project-cover { width: 92px; height: 72px; border-radius: 7px; object-fit: cover; }
 .project-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); }
 .project-main { min-width: 0; }
@@ -175,17 +189,20 @@ onMounted(load)
 .project-title-row h3 { min-width: 0; margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
 .project-main p { margin: 8px 0 0; overflow: hidden; color: var(--artiv-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .project-main .project-description { color: var(--artiv-text); }
-.project-budget { display: grid; min-width: 0; justify-items: end; gap: 7px; }
+.project-side { display: grid; min-width: 0; grid-template-columns: auto minmax(82px, auto); align-items: center; justify-content: end; gap: 16px; }
+.project-panel-button { min-width: 96px; border: 0; font-weight: 600; box-shadow: 0 5px 14px rgb(0 169 232 / 18%); }
+.project-panel-button:hover { transform: translateY(-1px); box-shadow: 0 7px 18px rgb(0 169 232 / 25%); }
+.project-budget { display: grid; min-width: 0; justify-items: end; gap: 5px; }
 .project-budget small { color: var(--artiv-text-secondary); }
 .project-budget strong { color: var(--artiv-accent); font-size: 18px; white-space: nowrap; }
-.project-actions { display: flex; width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; }
-.project-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .pager { display: flex; justify-content: flex-end; margin-top: 16px; }
 @media (max-width: 720px) {
   .project-header { flex-direction: column; }
+  .mode-row { align-items: stretch; flex-direction: column; gap: 8px; }
+  .delete-project-entry { align-self: flex-end; margin-bottom: 8px; }
   .project-card { grid-template-columns: 70px minmax(0, 1fr); }
   .project-card img, .project-cover { width: 70px; }
-  .project-budget { grid-column: 2; justify-items: start; }
-  .project-actions { justify-content: flex-start; }
+  .project-side { grid-column: 2; justify-content: start; }
+  .project-budget { justify-items: start; }
 }
 </style>

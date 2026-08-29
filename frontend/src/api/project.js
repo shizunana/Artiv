@@ -12,6 +12,10 @@ export function getProject(id) {
   return request.get(`/projects/${id}`)
 }
 
+export function getProjectPanel(id) {
+  return request.get(`/projects/${id}/panel`)
+}
+
 export function getProjectEmployer(id) {
   return request.get(`/users/${id}`)
 }
@@ -20,8 +24,8 @@ export function createProject(data) {
   return request.post('/projects', data)
 }
 
-export function updateProject(id, data) {
-  return request.put(`/projects/${id}`, data)
+export function updateProjectContent(id, data) {
+  return request.put(`/projects/${id}/content`, data)
 }
 
 export function updateProjectDeadline(id, deadline) {

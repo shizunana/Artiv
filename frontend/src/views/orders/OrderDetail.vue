@@ -45,7 +45,7 @@
         </div>
       </section>
 
-      <section class="wb-card phase-card">
+      <section id="delivery-phase" ref="phaseSection" class="wb-card phase-card">
         <h3>创作阶段</h3>
         <el-steps :active="stepActive" finish-status="success" align-center>
           <el-step v-for="(phase,index) in phases" :key="index" :title="phase.name" />
@@ -96,7 +96,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { acceptOrder, addDisputeEvidence, cancelOrder, createOrderDispute, getCurrentOrderDispute, getOrder, rejectOrder, reviewOrderStage, submitOrderStage } from '@/api/order'
@@ -108,6 +108,7 @@ import ReviewDialog from '@/components/reviews/ReviewDialog.vue'
 
 const route=useRoute(), router=useRouter(), userStore=useUserStore()
 const detail=ref(null), loading=ref(false), acting=ref(false), submitVisible=ref(false)
+const phaseSection=ref(null)
 const reviewVisible=ref(false)
 const submitForm=reactive({content:''})
 const deliveryUploadRef=ref(null), deliveryFiles=ref([]), deliveryUploading=ref(0)
@@ -124,7 +125,7 @@ const finalStage=computed(()=>(order.value.currentStage||0)>=phases.value.length
 const projectSnapshot=computed(()=>{try{return JSON.parse(order.value.projectSnapshot||'{}')}catch{return {}}})
 const hasSubmittedEvidence=computed(()=>(dispute.value.evidence||[]).some(item=>item.submittedBy===userStore.user?.id))
 
-async function load(){loading.value=true;try{detail.value=await getOrder(route.params.id);dispute.value=await getCurrentOrderDispute(route.params.id)}finally{loading.value=false}}
+async function load(){loading.value=true;try{detail.value=await getOrder(route.params.id);dispute.value=await getCurrentOrderDispute(route.params.id);if(route.query.action==='deliver'){await nextTick();phaseSection.value?.scrollIntoView({behavior:'smooth',block:'start'})}}finally{loading.value=false}}
 async function run(action,message){acting.value=true;try{await action();ElMessage.success(message);await userStore.fetchMe();await load()}finally{acting.value=false}}
 function accept(){run(()=>acceptOrder(order.value.id),'已确认接单')}
 async function reasonAction(type){try{const {value}=await ElMessageBox.prompt('可填写原因','确认操作',{inputType:'textarea'});if(type==='reject')await run(()=>rejectOrder(order.value.id,value),'已拒绝订单');if(type==='cancel')await run(()=>cancelOrder(order.value.id,value),'订单已取消')}catch{}}

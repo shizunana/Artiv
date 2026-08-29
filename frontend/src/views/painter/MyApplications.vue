@@ -11,7 +11,17 @@
 
       <div v-loading="loading" class="application-cards">
         <el-empty v-if="!applications.length" description="暂无当前应征，去企划大厅看看吧" />
-        <article v-for="item in applications" :key="item.id" class="application-card" @click="openProject(item.projectId)">
+        <article
+          v-for="item in applications"
+          :key="item.id"
+          class="application-card"
+          role="link"
+          tabindex="0"
+          :aria-label="`查看企划 ${item.projectTitle}`"
+          @click="openProject(item.projectId)"
+          @keydown.enter.self="openProject(item.projectId)"
+          @keydown.space.self.prevent="openProject(item.projectId)"
+        >
           <img v-if="firstImage(item.projectImages)" :src="firstImage(item.projectImages)" :alt="`${item.projectTitle}企划图片`" />
           <div v-else class="application-cover">企划</div>
 
@@ -19,7 +29,7 @@
             <h3 :title="item.projectTitle">{{ truncate(item.projectTitle) }}</h3>
             <p>企划类型：{{ item.projectCategory || '未分类' }} · 应征时间：{{ formatDateTime(item.createdAt) }}</p>
             <p class="project-summary" :title="item.projectDescription || ''">
-              企划详情：{{ truncate(item.projectDescription || '暂无详情', 15) }}
+              企划简介：{{ truncate(item.projectDescription || '暂无简介', 15) }}
             </p>
           </div>
 
@@ -27,7 +37,6 @@
             <small>我的报价</small>
             <strong>¥{{ formatAmount(item.quote) }}</strong>
             <div class="application-actions">
-              <el-button type="primary" link @click.stop="openProject(item.projectId)">企划详情</el-button>
               <el-button type="primary" link @click.stop="editApplication(item)">
                 {{ Number(item.quoteSource) === 1 ? '查看应征' : '更改应征' }}
               </el-button>
@@ -110,8 +119,9 @@ onMounted(load)
 .application-header h2 { margin: 0 0 7px; font-size: 21px; }
 .application-header p { margin: 0; color: var(--artiv-text-secondary); }
 .application-cards { min-width: 0; min-height: 240px; padding-top: 16px; }
-.application-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(260px, 300px); align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--artiv-border); cursor: pointer; }
-.application-card:hover { background: #fbfdff; }
+.application-card { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 92px minmax(0, 1fr) minmax(260px, 300px); align-items: center; gap: 18px; padding: 16px 8px; border-bottom: 1px solid var(--artiv-border); border-radius: 6px; outline: none; cursor: pointer; transition: background-color .18s ease, box-shadow .18s ease; }
+.application-card:hover, .application-card:focus-visible { background: #f8fcfe; box-shadow: inset 3px 0 0 color-mix(in srgb, var(--artiv-primary) 55%, transparent); }
+.application-card:hover .application-main h3 { color: var(--artiv-primary); }
 .application-card img, .application-cover { width: 92px; height: 72px; border-radius: 7px; object-fit: cover; }
 .application-cover { display: grid; place-items: center; background: var(--artiv-section-alt); color: var(--artiv-text-secondary); }
 .application-main { min-width: 0; }

@@ -2,6 +2,7 @@ package com.artiv.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.dto.ProjectRequest;
+import com.artiv.dto.ProjectContentUpdateRequest;
 import com.artiv.entity.Project;
 
 import java.math.BigDecimal;
@@ -19,6 +20,10 @@ public interface ProjectService {
     Project create(ProjectRequest request, Long employerId);
 
     Project getById(Long id, Long viewerId);
+
+    Project getPanel(Long id, Long employerId);
+
+    Project updateContent(Long id, ProjectContentUpdateRequest request, Long employerId);
 
     Project updateDeadline(Long id, LocalDate deadline, Long employerId);
 

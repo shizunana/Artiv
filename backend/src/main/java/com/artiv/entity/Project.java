@@ -62,6 +62,18 @@ public class Project {
     @TableField(exist = false)
     private Integer invitationStatus;
 
+    /** 当前发布者是否仍可完整编辑企划内容，仅面板接口返回。 */
+    @TableField(exist = false)
+    private Boolean contentEditable;
+
+    /** 当前企划是否允许删除，仅在企划方列表接口中动态计算。 */
+    @TableField(exist = false)
+    private Boolean deletable;
+
+    /** 无法删除时的业务原因，仅用于前端展示。 */
+    @TableField(exist = false)
+    private String deleteBlockReason;
+
     /** 状态：0 招募中、1 已选定、2 进行中、3 已完成、4 已下架 */
     private Integer status;
 

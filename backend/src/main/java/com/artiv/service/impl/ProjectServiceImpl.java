@@ -9,6 +9,7 @@ import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.PublisherSummary;
 import com.artiv.dto.ProjectRequest;
+import com.artiv.dto.ProjectContentUpdateRequest;
 import com.artiv.entity.Project;
 import com.artiv.entity.Invitation;
 import com.artiv.entity.OrderInfo;
@@ -34,6 +35,7 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -101,6 +103,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .orderByDesc(Project::getCreatedAt);
         Page<Project> result = projectMapper.selectPage(new Page<>(page, size), wrapper);
         attachInvitationStatuses(result.getRecords());
+        attachDeleteEligibility(result.getRecords());
         return result;
     }
 
@@ -224,12 +227,68 @@ public class ProjectServiceImpl implements ProjectService {
         return project;
     }
 
+    @Override
+    public Project getPanel(Long id, Long employerId) {
+        Project project = requireOwned(id, employerId);
+        project.setEmployer(toPublisherSummary(userMapper.selectById(project.getEmployerId())));
+        Invitation invitation = findInvitation(project.getId());
+        project.setInvitationStatus(invitation == null ? null : invitation.getStatus());
+        project.setContentEditable(canEditContent(id));
+        return project;
+    }
+
+    @Override
+    @Transactional
+    public Project updateContent(Long id, ProjectContentUpdateRequest request, Long employerId) {
+        accountRestrictionService.requireAvailable(employerId, "编辑企划内容");
+        Project project = requireOwned(id, employerId);
+        if (!canEditContent(id)) {
+            throw new BusinessException(ResultCode.STATUS_FLOW_INVALID.getCode(),
+                    "企划已存在应征、有效邀请或历史订单，不能修改完整内容；仍可使用变更企划调整截稿日期或上下架");
+        }
+        BigDecimal[] budgetRange = resolveBudgetRange(request.getBudgetMin(), request.getBudgetMax(), null);
+        project.setTitle(request.getTitle().trim());
+        project.setDescription(request.getDescription().trim());
+        project.setBudgetMin(budgetRange[0]);
+        project.setBudgetMax(budgetRange[1]);
+        project.setBudget(budgetRange[1]);
+        project.setTags(join(request.getTags()));
+        project.setCategory(trimToNull(request.getCategory()));
+        project.setSubject(join(request.getSubject()));
+        project.setImages(trimToNull(request.getImages()));
+        project.setRequirements(serializeRequirements(request.getRequirements()));
+        project.setPhases(normalizePhases(request.getPhases()));
+        project.setUpdatedAt(LocalDateTime.now());
+        projectMapper.updateById(project);
+        return project;
+    }
+
+    private boolean canEditContent(Long projectId) {
+        long activeApplications = applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
+                .eq(Application::getProjectId, projectId)
+                .eq(Application::getActive, 1)
+                .eq(Application::getDeleted, 0));
+        long activeInvitations = invitationMapper.selectCount(new LambdaQueryWrapper<Invitation>()
+                .eq(Invitation::getProjectId, projectId)
+                .in(Invitation::getStatus, 0, 1)
+                .eq(Invitation::getDeleted, 0));
+        long relatedOrders = orderInfoMapper.selectCount(new LambdaQueryWrapper<OrderInfo>()
+                .eq(OrderInfo::getProjectId, projectId)
+                .eq(OrderInfo::getDeleted, 0));
+        return activeApplications == 0 && activeInvitations == 0 && relatedOrders == 0;
+    }
+
     private BigDecimal[] resolveBudgetRange(ProjectRequest request) {
-        BigDecimal min = request.getBudgetMin();
-        BigDecimal max = request.getBudgetMax();
-        if (min == null && max == null && request.getBudget() != null) {
-            min = request.getBudget();
-            max = request.getBudget();
+        return resolveBudgetRange(request.getBudgetMin(), request.getBudgetMax(), request.getBudget());
+    }
+
+    private BigDecimal[] resolveBudgetRange(BigDecimal requestedMin, BigDecimal requestedMax,
+                                            BigDecimal legacyBudget) {
+        BigDecimal min = requestedMin;
+        BigDecimal max = requestedMax;
+        if (min == null && max == null && legacyBudget != null) {
+            min = legacyBudget;
+            max = legacyBudget;
         }
         if (min == null || max == null) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "请填写完整的预算区间");
@@ -238,6 +297,26 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "预算区间不合法");
         }
         return new BigDecimal[]{min, max};
+    }
+
+    private String serializeRequirements(com.artiv.dto.ProjectRequirements requirements) {
+        if (requirements == null) return null;
+        try {
+            return OBJECT_MAPPER.writeValueAsString(requirements);
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "稿件要求格式错误");
+        }
+    }
+
+    private String join(List<String> values) {
+        if (values == null || values.isEmpty()) return null;
+        String value = values.stream().filter(StringUtils::hasText).map(String::trim)
+                .collect(Collectors.joining(","));
+        return StringUtils.hasText(value) ? value : null;
+    }
+
+    private String trimToNull(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 
     private User requireCertifiedPainter(Long painterId, Long employerId) {
@@ -382,6 +461,36 @@ public class ProjectServiceImpl implements ProjectService {
         projects.forEach(project -> {
             Invitation invitation = invitationByProject.get(project.getId());
             project.setInvitationStatus(invitation == null ? null : invitation.getStatus());
+        });
+    }
+
+    private void attachDeleteEligibility(List<Project> projects) {
+        if (projects.isEmpty()) {
+            return;
+        }
+        List<Long> projectIds = projects.stream().map(Project::getId).toList();
+        Set<Long> projectsWithOrders = orderInfoMapper.selectList(
+                        new LambdaQueryWrapper<OrderInfo>()
+                                .select(OrderInfo::getProjectId)
+                                .in(OrderInfo::getProjectId, projectIds))
+                .stream()
+                .map(OrderInfo::getProjectId)
+                .collect(Collectors.toSet());
+
+        projects.forEach(project -> {
+            boolean pendingDirectedInvitation = Integer.valueOf(1).equals(project.getMode())
+                    && Integer.valueOf(0).equals(project.getInvitationStatus());
+            boolean hasRelatedOrder = projectsWithOrders.contains(project.getId());
+            project.setDeletable(!pendingDirectedInvitation && !hasRelatedOrder);
+            if (pendingDirectedInvitation && hasRelatedOrder) {
+                project.setDeleteBlockReason("存在关联订单和待回应定向邀请，无法删除");
+            } else if (hasRelatedOrder) {
+                project.setDeleteBlockReason("存在关联订单，无法删除");
+            } else if (pendingDirectedInvitation) {
+                project.setDeleteBlockReason("存在待回应定向邀请，无法删除");
+            } else {
+                project.setDeleteBlockReason(null);
+            }
         });
     }
 

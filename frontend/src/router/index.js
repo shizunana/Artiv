@@ -29,6 +29,7 @@ const routes = [
       { path: 'stalls/:id', name: 'StallDetail', component: () => import('@/views/stalls/StallDetail.vue'), meta: { title: '服务板详情' } },
       { path: 'guides/employer', name: 'EmployerGuide', component: () => import('@/views/guides/EmployerGuide.vue'), meta: { title: '企划方指南' } },
       { path: 'guides/painter-certification', name: 'PainterCertificationGuide', component: () => import('@/views/guides/PainterCertificationGuide.vue'), meta: { title: '画师认证指南' } },
+      { path: 'dashboard/projects/:id/panel', name: 'ProjectPanel', component: () => import('@/views/dashboard/ProjectPanel.vue'), meta: { title: '企划面板', requiresAuth: true } },
       { path: 'messages', name: 'Messages', component: () => import('@/views/messages/MessageList.vue'), meta: { title: '消息中心', requiresAuth: true } },
       { path: 'settings', name: 'AccountSettings', component: () => import('@/views/account/AccountSettings.vue'), meta: { title: '账户设置', requiresAuth: true } },
     ],
@@ -42,6 +43,7 @@ const routes = [
       { path: '', name: 'DashboardHome', component: () => import('@/views/dashboard/DashboardHome.vue'), meta: { title: '工作台主页' } },
       { path: 'projects', name: 'DashboardProjects', component: () => import('@/views/dashboard/MyProjects.vue'), meta: { title: '我的企划' } },
       { path: 'projects/new', name: 'ProjectNew', component: () => import('@/views/dashboard/ProjectNew.vue'), meta: { title: '发布企划' } },
+      { path: 'projects/:id/edit', name: 'ProjectEdit', component: () => import('@/views/dashboard/ProjectEdit.vue'), meta: { title: '编辑企划' } },
       {
         path: 'projects/:id/applications',
         redirect: to => ({ name: 'ProjectDetail', params: { id: to.params.id } }),

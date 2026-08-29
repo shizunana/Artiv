@@ -3,6 +3,7 @@ package com.artiv.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.common.BusinessException;
 import com.artiv.dto.OrderStageReviewRequest;
@@ -517,10 +518,36 @@ class OrderServiceTest {
     void listMineCanSeparateBoughtOrdersFromAcceptedOrders() {
         when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        orderService.listMine(1, 10, 2L, "stall", "all", "employer");
-        orderService.listMine(1, 10, 2L, "stall", "all", "painter");
+        orderService.listMine(1, 10, 2L, "stall", "all", "employer", null);
+        orderService.listMine(1, 10, 2L, "stall", "all", "painter", null);
 
         verify(orderInfoMapper, org.mockito.Mockito.times(2)).selectPage(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void listMineCanFilterOneProjectAndAttachPainterSummaryForPanel() {
+        OrderInfo order = activeOrder(1);
+        order.setProjectId(8L);
+        Page<OrderInfo> selected = new Page<>(1, 200);
+        selected.setRecords(List.of(order));
+        selected.setTotal(1);
+        when(orderInfoMapper.selectPage(any(), any())).thenReturn(selected);
+        User painter = activeUser(2L, BigDecimal.ZERO);
+        painter.setNickname("Enana");
+        painter.setAvatar("/uploads/enana.png");
+        when(userMapper.selectBatchIds(List.of(2L))).thenReturn(List.of(painter));
+
+        Page<OrderInfo> result = orderService.listMine(1, 200, 15L, "project", "all", "employer", 8L);
+
+        ArgumentCaptor<LambdaQueryWrapper> wrapperCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(orderInfoMapper).selectPage(any(), wrapperCaptor.capture());
+        LambdaQueryWrapper<OrderInfo> wrapper = wrapperCaptor.getValue();
+        sqlSegment(wrapper);
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(8L));
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(15L));
+        assertEquals("Enana", result.getRecords().get(0).getPainter().getNickname());
+        assertEquals("/uploads/enana.png", result.getRecords().get(0).getPainter().getAvatar());
     }
 
     @Test
@@ -528,7 +555,7 @@ class OrderServiceTest {
     void listMineSortsActiveThenPendingThenTerminalAndNewestInsideEachGroup() {
         when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        orderService.listMine(1, 10, 2L, "stall", "all", "employer");
+        orderService.listMine(1, 10, 2L, "stall", "all", "employer", null);
 
         ArgumentCaptor<LambdaQueryWrapper> wrapperCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(orderInfoMapper).selectPage(any(), wrapperCaptor.capture());
@@ -544,7 +571,7 @@ class OrderServiceTest {
     void listMineReviewFilterKeepsOnlyUnreviewedOrdersInsideSevenDays() {
         when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        orderService.listMine(1, 10, 2L, "stall", "review", "painter");
+        orderService.listMine(1, 10, 2L, "stall", "review", "painter", null);
 
         ArgumentCaptor<LambdaQueryWrapper> wrapperCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(orderInfoMapper).selectPage(any(), wrapperCaptor.capture());
@@ -560,7 +587,7 @@ class OrderServiceTest {
     void listMineAfterSaleFilterOnlyKeepsActiveDisputes() {
         when(orderInfoMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        orderService.listMine(1, 10, 2L, "stall", "afterSale", "painter");
+        orderService.listMine(1, 10, 2L, "stall", "afterSale", "painter", null);
 
         ArgumentCaptor<LambdaQueryWrapper> wrapperCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(orderInfoMapper).selectPage(any(), wrapperCaptor.capture());

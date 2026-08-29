@@ -91,10 +91,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .map(Application::getPainterId)
                 .distinct()
                 .toList());
-        boolean showPendingInvitation = directedInvitation != null
-                && Integer.valueOf(0).equals(directedInvitation.getStatus())
-                && applications.getRecords().isEmpty();
-        if (showPendingInvitation && !painterIds.contains(directedInvitation.getPainterId())) {
+        boolean showInvitationOnly = directedInvitation != null && applications.getRecords().isEmpty();
+        if (showInvitationOnly && !painterIds.contains(directedInvitation.getPainterId())) {
             painterIds.add(directedInvitation.getPainterId());
         }
         Map<Long, ReviewStatistics> reviewStatistics = java.util.Optional.ofNullable(reviewService.getStatistics(
@@ -104,10 +102,10 @@ public class ApplicationServiceImpl implements ApplicationService {
         List<ApplicationDetail> records = new ArrayList<>(applications.getRecords().stream()
                 .map(application -> toApplicationDetail(application, directedStatus, reviewStatistics))
                 .toList());
-        if (showPendingInvitation && page == 1 && size > 0) {
+        if (showInvitationOnly && page == 1 && size > 0) {
             records.add(toPendingInvitationDetail(directedInvitation, reviewStatistics));
         }
-        long total = showPendingInvitation ? 1 : applications.getTotal();
+        long total = showInvitationOnly ? 1 : applications.getTotal();
         Page<ApplicationDetail> result = new Page<>(page, size, total);
         result.setRecords(records);
         return result;

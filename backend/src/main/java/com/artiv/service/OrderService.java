@@ -8,7 +8,8 @@ import com.artiv.entity.OrderInfo;
 
 public interface OrderService {
 
-    Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup, String participantRole);
+    Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup,
+                             String participantRole, Long projectId);
 
     OrderDetailResponse getDetail(Long id, Long userId);
 

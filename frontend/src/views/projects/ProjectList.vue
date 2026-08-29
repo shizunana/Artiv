@@ -49,7 +49,17 @@
       </div>
 
       <div class="project-grid" v-loading="loading">
-        <div v-for="project in projects" :key="project.id" class="project-card" @click="goDetail(project.id)">
+        <article
+          v-for="project in projects"
+          :key="project.id"
+          class="project-card"
+          role="link"
+          tabindex="0"
+          :aria-label="`查看企划 ${project.title}`"
+          @click="goDetail(project.id)"
+          @keydown.enter.self="goDetail(project.id)"
+          @keydown.space.self.prevent="goDetail(project.id)"
+        >
           <div class="project-card__top">
             <div class="project-card__main">
               <div class="project-card__header">
@@ -64,15 +74,12 @@
                 <span v-for="item in subjectList(project.subject)" :key="item" class="tag tag-subject">{{ item }}</span>
               </div>
             </div>
-            <div class="project-card__thumb" @click.stop>
-              <el-image
+            <div class="project-card__thumb">
+              <img
                 v-if="firstImage(project.images)"
                 :src="firstImage(project.images)"
-                :preview-src-list="imageList(project.images)"
-                preview-teleported
-                fit="cover"
+                :alt="`${project.title}封面`"
                 class="project-img"
-                :initial-index="0"
               />
               <div v-else class="thumb-placeholder"></div>
             </div>
@@ -86,7 +93,7 @@
             <span class="info-item"><span class="applicant-pawn" aria-hidden="true">♟︎</span>{{ project.applicationCount }} 人应征</span>
             <span class="info-item info-budget">{{ formatProjectBudget(project) }}</span>
           </div>
-        </div>
+        </article>
       </div>
 
       <EmptyState v-if="!loading && projects.length === 0" description="暂无符合条件的企划" />
@@ -132,11 +139,6 @@ function firstImage(images) {
   if (!images) return ''
   const arr = String(images).split(',').filter(Boolean)
   return arr[0] || ''
-}
-
-function imageList(images) {
-  if (!images) return []
-  return String(images).split(',').filter(Boolean)
 }
 
 function subjectList(subjects) {
@@ -291,13 +293,18 @@ onMounted(load)
   border: 1px solid var(--artiv-border);
   padding: 18px 24px;
   cursor: pointer;
-  transition: box-shadow 0.3s, transform 0.3s;
+  outline: none;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
 }
 
-.project-card:hover {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
+.project-card:hover,
+.project-card:focus-visible {
+  border-color: color-mix(in srgb, var(--artiv-primary) 36%, var(--artiv-border));
+  background: #fbfdff;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.06);
 }
+
+.project-card:hover .project-card__title { color: var(--artiv-primary); }
 
 .project-card__top {
   display: flex;
@@ -376,8 +383,12 @@ onMounted(load)
   width: 100%;
   height: 100%;
   display: block;
-  cursor: zoom-in;
+  object-fit: cover;
+  cursor: pointer;
+  transition: opacity .18s ease;
 }
+
+.project-card__thumb:hover .project-img { opacity: .88; }
 
 .thumb-placeholder {
   width: 100%;

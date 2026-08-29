@@ -1,8 +1,10 @@
 package com.artiv.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.artiv.dto.OrderParticipantSummary;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -28,6 +30,10 @@ public class OrderInfo {
     private Long employerId;
 
     private Long painterId;
+
+    /** 企划方订单列表按画师分组时使用，不落库。 */
+    @TableField(exist = false)
+    private OrderParticipantSummary painter;
 
     private BigDecimal amount;
 

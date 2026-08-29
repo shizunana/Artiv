@@ -3,6 +3,7 @@ package com.artiv.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.dto.ProjectRequest;
+import com.artiv.dto.ProjectContentUpdateRequest;
 import com.artiv.dto.ProjectRequirements;
 import com.artiv.entity.Project;
 import com.artiv.entity.User;
@@ -186,6 +187,61 @@ class ProjectServiceTest {
 
         assertTrue(response.has("employer"));
         assertTrue(response.path("employer").isNull());
+    }
+
+    @Test
+    void getPanelMarksUntouchedProjectAsContentEditable() {
+        Project project = ownedProject();
+        when(projectMapper.selectById(9L)).thenReturn(project);
+
+        Project result = projectService.getPanel(9L, 12L);
+
+        assertTrue(result.getContentEditable());
+    }
+
+    @Test
+    void updateContentPersistsAllEditableProjectFieldsWhenNoBusinessRelationExists() {
+        Project project = ownedProject();
+        when(projectMapper.selectById(9L)).thenReturn(project);
+        ProjectContentUpdateRequest request = new ProjectContentUpdateRequest();
+        request.setTitle("新的角色立绘企划");
+        request.setDescription("更新后的完整需求说明");
+        request.setBudgetMin(new BigDecimal("300.00"));
+        request.setBudgetMax(new BigDecimal("800.00"));
+        request.setTags(List.of("商用", "长期"));
+        request.setCategory("立绘");
+        request.setSubject(List.of("幻想", "女性"));
+        request.setImages("/uploads/a.png,/uploads/b.png");
+        request.setRequirements(new ProjectRequirements("3000×4000 px", "RGB", List.of("PNG", "PSD"), "需经委托方同意发布"));
+        request.setPhases("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]");
+
+        Project result = projectService.updateContent(9L, request, 12L);
+
+        assertEquals("新的角色立绘企划", result.getTitle());
+        assertEquals(new BigDecimal("300.00"), result.getBudgetMin());
+        assertEquals(new BigDecimal("800.00"), result.getBudgetMax());
+        assertEquals(new BigDecimal("800.00"), result.getBudget());
+        assertEquals("商用,长期", result.getTags());
+        assertEquals("幻想,女性", result.getSubject());
+        assertEquals("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]", result.getPhases());
+        verify(projectMapper).updateById(project);
+    }
+
+    @Test
+    void updateContentRejectsProjectWithActiveApplication() {
+        Project project = ownedProject();
+        when(projectMapper.selectById(9L)).thenReturn(project);
+        when(applicationMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(1L);
+        ProjectContentUpdateRequest request = new ProjectContentUpdateRequest();
+        request.setTitle("不能保存的修改");
+        request.setDescription("企划已经产生有效应征关系");
+        request.setBudgetMin(new BigDecimal("300.00"));
+        request.setBudgetMax(new BigDecimal("500.00"));
+
+        assertThrows(com.artiv.common.BusinessException.class,
+                () -> projectService.updateContent(9L, request, 12L));
+
+        verify(projectMapper, never()).updateById(project);
     }
 
     @Test
@@ -377,5 +433,15 @@ class ProjectServiceTest {
         request.setDeadline(LocalDate.now().plusDays(7));
         request.setPhases("[{\"name\":\"初稿\"},{\"name\":\"终稿\"}]");
         return request;
+    }
+
+    private Project ownedProject() {
+        Project project = new Project();
+        project.setId(9L);
+        project.setEmployerId(12L);
+        project.setDeleted(0);
+        project.setStatus(0);
+        project.setModerationStatus(0);
+        return project;
     }
 }

@@ -35,8 +35,10 @@ public class OrderController {
                                         @RequestParam(defaultValue = "10") long size,
                                         @RequestParam(required = false) String source,
                                         @RequestParam(required = false) String statusGroup,
-                                        @RequestParam(required = false) String participantRole) {
-        return Result.ok(orderService.listMine(page, size, UserContext.getUserId(), source, statusGroup, participantRole));
+                                        @RequestParam(required = false) String participantRole,
+                                        @RequestParam(required = false) Long projectId) {
+        return Result.ok(orderService.listMine(page, size, UserContext.getUserId(), source, statusGroup,
+                participantRole, projectId));
     }
 
     @GetMapping("/{id}")

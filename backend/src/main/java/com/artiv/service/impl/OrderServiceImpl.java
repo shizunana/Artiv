@@ -10,6 +10,7 @@ import com.artiv.dto.OrderDetailResponse;
 import com.artiv.dto.OrderStageReviewRequest;
 import com.artiv.dto.OrderStageSubmitRequest;
 import com.artiv.dto.OrderReviewContext;
+import com.artiv.dto.OrderParticipantSummary;
 import com.artiv.entity.OrderEvent;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.OrderStage;
@@ -44,6 +45,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.artiv.common.SystemMessageText.mark;
 import static com.artiv.common.SystemMessageText.markTitle;
@@ -77,7 +80,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Page<OrderInfo> listMine(long page, long size, Long userId, String source, String statusGroup,
-                                    String participantRole) {
+                                    String participantRole, Long projectId) {
         LambdaQueryWrapper<OrderInfo> wrapper = new LambdaQueryWrapper<OrderInfo>()
                 .eq(OrderInfo::getDeleted, 0);
         if ("employer".equalsIgnoreCase(participantRole)) {
@@ -92,6 +95,12 @@ public class OrderServiceImpl implements OrderService {
         } else if ("project".equalsIgnoreCase(source)) {
             wrapper.isNotNull(OrderInfo::getProjectId);
         }
+        if (projectId != null) {
+            if (projectId <= 0) {
+                throw new BusinessException(ResultCode.PARAM_INVALID);
+            }
+            wrapper.eq(OrderInfo::getProjectId, projectId);
+        }
         if ("delivery".equalsIgnoreCase(statusGroup)) {
             wrapper.in(OrderInfo::getStatus, PENDING, IN_PROGRESS, PENDING_REVIEW);
         } else if ("review".equalsIgnoreCase(statusGroup)) {
@@ -100,12 +109,41 @@ public class OrderServiceImpl implements OrderService {
                     .notExists("SELECT 1 FROM review r WHERE r.order_id = order_info.id AND r.from_id = " + userId);
         } else if ("afterSale".equalsIgnoreCase(statusGroup)) {
             wrapper.eq(OrderInfo::getStatus, AFTER_SALE);
+        } else if ("pending".equalsIgnoreCase(statusGroup)) {
+            wrapper.eq(OrderInfo::getStatus, PENDING);
+        } else if ("inProgress".equalsIgnoreCase(statusGroup)) {
+            wrapper.eq(OrderInfo::getStatus, IN_PROGRESS);
+        } else if ("pendingReview".equalsIgnoreCase(statusGroup)) {
+            wrapper.eq(OrderInfo::getStatus, PENDING_REVIEW);
+        } else if ("completed".equalsIgnoreCase(statusGroup)) {
+            wrapper.eq(OrderInfo::getStatus, COMPLETED);
+        } else if ("cancelled".equalsIgnoreCase(statusGroup)) {
+            wrapper.eq(OrderInfo::getStatus, CANCELLED);
         }
         wrapper.last("ORDER BY CASE "
                 + "WHEN status IN (1, 2, 5) THEN 1 "
                 + "WHEN status = 0 THEN 2 "
                 + "ELSE 3 END ASC, created_at DESC, id DESC");
-        return orderInfoMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 50)), wrapper);
+        long maxSize = projectId == null ? 50 : 200;
+        Page<OrderInfo> result = orderInfoMapper.selectPage(
+                new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), maxSize)), wrapper);
+        attachPainterSummaries(result.getRecords());
+        return result;
+    }
+
+    private void attachPainterSummaries(List<OrderInfo> orders) {
+        List<Long> painterIds = orders.stream().map(OrderInfo::getPainterId).filter(java.util.Objects::nonNull)
+                .distinct().toList();
+        if (painterIds.isEmpty()) return;
+        Map<Long, User> painters = userMapper.selectBatchIds(painterIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+        orders.forEach(order -> {
+            User painter = painters.get(order.getPainterId());
+            if (painter != null) {
+                order.setPainter(new OrderParticipantSummary(
+                        painter.getId(), displayName(painter), painter.getAvatar()));
+            }
+        });
     }
 
     @Override
