@@ -41,19 +41,19 @@ SET `password` = '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e',
     `deleted` = 0;
 
 UPDATE `user`
-SET `role` = 1, `cert_status` = 0, `nickname` = '企划方演示账号'
+SET `role` = 1, `cert_status` = 0, `nickname` = '东云绘名'
 WHERE `username` = 'planner';
 
 UPDATE `user`
 SET `role` = 2,
     `cert_status` = 2,
-    `nickname` = '画师演示账号',
-    `artist_name` = '画师演示账号',
+    `nickname` = '静名御折木',
+    `artist_name` = '静名御折木',
     `artist_site` = NULL
 WHERE `username` = 'artist';
 
 UPDATE `user`
-SET `role` = 3, `cert_status` = 0, `nickname` = '管理员演示账号'
+SET `role` = 3, `cert_status` = 0, `nickname` = '管理员'
 WHERE `username` = 'admin';
 
 ALTER TABLE `user` AUTO_INCREMENT = 4;

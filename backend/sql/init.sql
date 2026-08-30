@@ -1,6 +1,7 @@
 -- =====================================================
--- 艺绘（Artiv）数据库初始化脚本（v2.0）
--- 依据当前运行数据库重新校准
+-- 艺绘（Artiv）数据库初始化脚本（结构基线：2026-08-30）
+-- 已对照当前 24 张表、现有迁移结果和后端模型重新校准
+-- 默认只创建三个初始用户，不预置任何业务数据
 -- MySQL 8.0.41 ｜ 字符集 utf8mb4 ｜ 引擎 InnoDB
 -- 执行方式：mysql -u root -p < init.sql 或在 Workbench 中执行
 -- =====================================================
@@ -510,40 +511,13 @@ CREATE TABLE `admin_action_log` (
 ) ENGINE=InnoDB COMMENT='管理员操作审计日志';
 
 -- =====================================================
--- 演示数据（BCrypt 密码均为 123456）
+-- 初始用户（BCrypt 密码均为 123456）
+-- 除以下三个账号外，不初始化任何作品、橱窗、企划或交易数据。
 -- =====================================================
 
 INSERT INTO `user`
-  (`id`, `username`, `password`, `nickname`, `avatar`, `bio`, `employer_bio`, `tags`, `artist_name`, `artist_site`, `role`, `cert_status`, `status`)
+  (`id`, `username`, `password`, `nickname`, `artist_name`, `role`, `cert_status`, `status`)
 VALUES
-  (1, 'planner', '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '企划小张', NULL, NULL, '资深品牌企划，长期寻找合作画师。', NULL, NULL, NULL, 1, 0, 0),
-  (2, 'artist',  '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '画师阿绘', NULL, '国潮插画师，擅长人物与场景，接稿中。', NULL, '国潮,插画,人物', '画师阿绘', 'https://www.pixiv.net/users/2', 2, 2, 0),
-  (3, 'admin',   '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '平台管理员', NULL, NULL, NULL, NULL, NULL, NULL, 3, 0, 0);
-
-INSERT INTO `work` (`id`, `user_id`, `title`, `category`, `subject`, `description`, `visibility`) VALUES
-  (1, 2, '国潮·龙腾四海', '平面设计', '古风,有背景', '节日主题国潮插画，曾用于品牌海报宣传。', 1),
-  (2, 2, '少女与猫·立绘', '立绘', '女性,日系', '游戏角色立绘练习，半身像。', 1);
-
-INSERT INTO `stall` (`id`, `painter_id`, `title`, `category`, `price`, `description`, `status`) VALUES
-  (1, 2, '国潮插画约稿（单张）', '平面设计', 1200.00, '含初稿、2 次修改、终稿源文件，交付周期 2 周。', 1),
-  (2, 2, '角色立绘（半身）', '立绘', 800.00, '半身像立绘，含分层 PSD 源文件。', 1);
-
-INSERT INTO `project` (`id`, `employer_id`, `title`, `description`, `budget`, `deadline`, `tags`, `mode`, `status`) VALUES
-  (1, 1, '国潮风节日海报插画', '需要一张国潮风格的节日海报插画，用于品牌宣传，希望风格大气、细节丰富。', 1500.00, '2026-09-01', '国潮,插画,海报', 0, 0),
-  (2, 1, '角色立绘约稿（定向）', '游戏角色立绘，半身像，需要分层 PSD 源文件，定向邀请阿绘。', 800.00, '2026-08-25', '立绘,游戏', 1, 0);
-
-INSERT INTO `application` (`id`, `project_id`, `painter_id`, `intro`, `work_link`, `quote`, `status`) VALUES
-  (1, 1, 2, '擅长国潮插画，可提供初稿预览，两周内交付。', '/works/1', 1200.00, 0);
-
-INSERT INTO `invitation` (`id`, `project_id`, `painter_id`, `message`, `status`) VALUES
-  (1, 2, 2, '老朋友了，这个立绘想请你来画，报价可谈。', 0);
-
-INSERT INTO `order_info` (`id`, `project_id`, `stall_id`, `employer_id`, `painter_id`, `amount`, `status`, `current_stage`) VALUES
-  (1, 1, NULL, 1, 2, 1200.00, 1, 0);
-
-INSERT INTO `order_stage` (`id`, `order_id`, `name`, `percent`, `submitter`, `content`, `status`) VALUES
-  (1, 1, '初稿', 40, 1, '初稿：整体构图与配色预览', 0);
-
-INSERT INTO `message` (`id`, `from_id`, `to_id`, `type`, `content`, `read_at`) VALUES
-  (1, NULL, 1, 0, '欢迎使用艺绘，完善资料更容易接到订单哦！', NULL),
-  (2, 2, 1, 1, '画师「阿绘」应征了您的企划「国潮风节日海报插画」。', NULL);
+  (1, 'planner', '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '东云绘名', NULL, 1, 0, 0),
+  (2, 'artist',  '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '静名御折木', '静名御折木', 2, 2, 0),
+  (3, 'admin',   '$2a$10$RvkldycPzn6PoC2cFW/.GOWrpFtZL.RyuLaYdPZKrFEIv1GiJAY1e', '管理员', NULL, 3, 0, 0);
