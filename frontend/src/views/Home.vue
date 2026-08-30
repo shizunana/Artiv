@@ -242,11 +242,11 @@ import { getWorks } from '@/api/work'
 import { getArtists } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { formatProjectBudget } from '@/utils/budget'
-import heroShowcase01 from '@/assets/home/hero-showcase-01.png'
+import heroShowcase01 from '@/assets/home/hero-showcase-01-cropped.png'
 import heroShowcase02 from '@/assets/home/hero-showcase-02.png'
 import heroShowcase03 from '@/assets/home/hero-showcase-03.png'
 import heroShowcase04 from '@/assets/home/hero-showcase-04.jpg'
-import heroShowcase05 from '@/assets/home/hero-showcase-05.jpg'
+import heroShowcase05 from '@/assets/home/hero-showcase-05-cropped.jpg'
 
 const router = useRouter()
 const userStore = useUserStore()
