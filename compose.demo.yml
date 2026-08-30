@@ -1,0 +1,79 @@
+# Docker 备用演示方案（非正式项，尚未完成容器运行验证）。
+name: artiv-demo
+
+services:
+  db:
+    image: artiv-demo-db:latest
+    build:
+      context: .
+      dockerfile: docker/mysql/Dockerfile
+    environment:
+      MYSQL_DATABASE: artiv
+      MYSQL_USER: artiv_demo
+      MYSQL_PASSWORD: ${ARTIV_DEMO_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${ARTIV_DEMO_DB_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - artiv_demo_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - artiv_demo
+
+  backend:
+    image: artiv-demo-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/artiv?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: artiv_demo
+      SPRING_DATASOURCE_PASSWORD: ${ARTIV_DEMO_DB_PASSWORD}
+      ARTIV_JWT_SECRET: ${ARTIV_DEMO_JWT_SECRET}
+      ARTIV_JWT_EXPIRE_HOURS: 8
+      ARTIV_UPLOAD_DIR: /app/uploads
+      ARTIV_UPLOAD_URL_PREFIX: /uploads
+      MYBATIS_PLUS_CONFIGURATION_LOG_IMPL: org.apache.ibatis.logging.nologging.NoLoggingImpl
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - artiv_demo_uploads:/app/uploads
+    expose:
+      - "8080"
+    restart: unless-stopped
+    networks:
+      - artiv_demo
+
+  frontend:
+    image: artiv-demo-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "${ARTIV_DEMO_BIND:-127.0.0.1}:${ARTIV_DEMO_PORT:-8088}:80"
+    restart: unless-stopped
+    networks:
+      - artiv_demo
+
+volumes:
+  artiv_demo_mysql:
+    name: artiv-demo-mysql
+  artiv_demo_uploads:
+    name: artiv-demo-uploads
+
+networks:
+  artiv_demo:
+    name: artiv-demo-network

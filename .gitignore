@@ -39,6 +39,7 @@ backend/uploads/
 
 # ---- 环境配置（含密钥，不提交） ----
 .env
+.env.demo
 .env.production
 application-local.yml
 application-dev.yml

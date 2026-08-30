@@ -1,0 +1,5 @@
+target/
+uploads/
+.m2/
+*.log
+.env*

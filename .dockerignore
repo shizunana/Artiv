@@ -1,0 +1,8 @@
+**
+!backend/
+!backend/sql/
+!backend/sql/init.sql
+!docker/
+!docker/mysql/
+!docker/mysql/Dockerfile
+!docker/mysql/02-demo-accounts.sql
