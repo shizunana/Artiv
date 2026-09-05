@@ -7,7 +7,7 @@
           <p>统一查看和管理我发布的绘画服务。</p>
         </div>
         <div class="header-actions">
-          <el-button type="danger" plain @click="deleteVisible = true">删除橱窗</el-button>
+          <DeleteManageButton @click="deleteVisible = true">删除橱窗</DeleteManageButton>
           <el-button v-if="permissionReady && isCertifiedPainter" type="primary" round @click="openCreateDialog">+ 创建橱窗</el-button>
         </div>
       </header>
@@ -163,6 +163,7 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getMyStalls, createStall } from '@/api/stall'
 import StallDeleteDialog from '@/components/stalls/StallDeleteDialog.vue'
+import DeleteManageButton from '@/components/common/DeleteManageButton.vue'
 import { uploadFile } from '@/api/upload'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import { useUserStore } from '@/stores/user'
@@ -362,7 +363,7 @@ onMounted(async () => {
 .stall-header h2 { margin: 0 0 7px; font-size: 21px; }
 .stall-header p { margin: 0; color: var(--artiv-text-secondary); }
 .header-actions { display: flex; align-items: center; gap: 10px; }
-.header-actions :deep(.el-button + .el-button) { margin-left: 0; }
+.header-actions > .el-button { margin-left: 0; }
 
 .certification-alert {
   margin-top: 18px;

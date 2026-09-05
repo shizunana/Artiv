@@ -5,7 +5,7 @@
         <h2>收到的邀请</h2>
         <p>查看企划方发送给我的企划邀请提醒。</p>
       </div>
-      <el-button type="danger" plain @click="deleteVisible = true">删除邀请</el-button>
+      <DeleteManageButton @click="deleteVisible = true">删除邀请</DeleteManageButton>
     </header>
 
     <div class="filter-row">
@@ -135,6 +135,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { acceptInvitation, getInvitations, rejectInvitation } from '@/api/invitation'
 import InvitationDeleteDialog from '@/components/invitations/InvitationDeleteDialog.vue'
+import DeleteManageButton from '@/components/common/DeleteManageButton.vue'
 import { formatProjectBudget } from '@/utils/budget'
 import { formatDateTime } from '@/utils/date'
 

@@ -6,7 +6,10 @@
           <h3>我的作品</h3>
           <p>每页展示 12 件作品；设为公开后会出现在作品广场。</p>
         </div>
-        <el-button type="primary" round size="small" @click="openDialog">+ 上传作品</el-button>
+        <div class="header-actions">
+          <DeleteManageButton @click="deleteVisible = true">删除作品</DeleteManageButton>
+          <el-button type="primary" round @click="openDialog">+ 上传作品</el-button>
+        </div>
       </div>
 
       <div v-loading="loading" class="my-work-grid">
@@ -35,10 +38,12 @@
       </div>
     </div>
 
+    <WorkDeleteDialog v-model="deleteVisible" @deleted="handleBatchDeleted" />
+
     <el-dialog v-model="dialogVisible" title="上传作品" width="680px" top="5vh" append-to-body destroy-on-close class="work-dialog" @closed="resetForm">
       <el-form label-position="top">
         <el-form-item label="作品标题" required>
-          <el-input v-model="form.title" maxlength="100" show-word-limit placeholder="输入作品标题" />
+          <el-input v-model="form.title" maxlength="20" show-word-limit placeholder="给作品起一个便于展示和查找的名称" />
         </el-form-item>
         <div class="form-two-columns">
           <el-form-item label="类型" required>
@@ -67,7 +72,6 @@
             <div v-else class="work-upload-placeholder">
               <el-icon class="upload-icon"><Plus /></el-icon>
               <span>上传作品图</span>
-              <small>仅限 1 张，支持 PNG/JPG/GIF/WEBP</small>
             </div>
           </el-upload>
           <span v-if="!form.image" class="form-tip">* 请上传 1 张作品图片</span>
@@ -89,12 +93,15 @@ import { getMyWorks, createWork, changeWorkVisibility, deleteWork } from '@/api/
 import { uploadFile } from '@/api/upload'
 import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
 import EmptyState from '@/components/common/EmptyState.vue'
+import DeleteManageButton from '@/components/common/DeleteManageButton.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import WorkDeleteDialog from '@/components/works/WorkDeleteDialog.vue'
 
 const works = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
+const deleteVisible = ref(false)
 const page = ref(1)
 const size = ref(12)
 const total = ref(0)
@@ -156,11 +163,18 @@ async function save() {
 }
 
 async function remove(id) {
-  await ElMessageBox.confirm('确定删除该作品吗？删除后不可恢复。', '删除作品', { type: 'warning' })
+  const confirmed = await ElMessageBox.confirm('确定删除该作品吗？删除后会同时隐藏，不再公开展示，且无法恢复。', '删除作品', { type: 'warning' })
+    .then(() => true).catch(() => false)
+  if (!confirmed) return
   await deleteWork(id)
   ElMessage.success('已删除')
   if (works.value.length === 1 && page.value > 1) page.value -= 1
   await load()
+}
+
+function handleBatchDeleted() {
+  page.value = 1
+  load()
 }
 
 async function toggleVisibility(work) {
@@ -184,6 +198,8 @@ onMounted(load)
 .wb-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
 .wb-card__head h3 { margin: 0; font-size: 17px; }
 .wb-card__head p { margin: 7px 0 0; color: var(--artiv-text-secondary); font-size: 13px; }
+.header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.header-actions > .el-button { margin-left: 0; }
 .my-work-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; min-height: 120px; }
 .work-card { border: 1px solid var(--artiv-border); border-radius: 8px; overflow: hidden; background: #fff; }
 .work-cover { position: relative; aspect-ratio: 4 / 3; background: var(--artiv-section-alt); }
@@ -202,7 +218,6 @@ onMounted(load)
 .visibility-options { display: flex; flex-wrap: nowrap; }
 .work-upload-placeholder, .work-upload-preview { width: 180px; height: 135px; border-radius: 8px; }
 .work-upload-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--artiv-border); color: var(--artiv-text-secondary); }
-.work-upload-placeholder small { font-size: 11px; color: #a8abb2; }
 .upload-icon { font-size: 32px; }
 .form-tip { margin-left: 12px; color: var(--artiv-danger, #f56c6c); font-size: 12px; }
 @media (max-width: 820px) { .my-work-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .form-two-columns { grid-template-columns: 1fr; gap: 0; } }

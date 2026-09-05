@@ -24,6 +24,6 @@ export function changeWorkVisibility(id, visibility) {
   return request.put(`/works/${id}/visibility`, null, { params: { visibility } })
 }
 
-export function deleteWork(id) {
-  return request.delete(`/works/${id}`)
+export function deleteWork(id, { silentError = false } = {}) {
+  return request.delete(`/works/${id}`, { silentError })
 }

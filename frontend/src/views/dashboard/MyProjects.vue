@@ -6,7 +6,7 @@
         <p>统一查看公开企划与定向邀请。</p>
       </div>
       <div class="header-actions">
-        <el-button type="danger" plain @click="deleteVisible = true">删除企划</el-button>
+        <DeleteManageButton @click="deleteVisible = true">删除企划</DeleteManageButton>
         <el-button type="primary" round @click="router.push({ name: 'ProjectNew' })">+ 发布企划</el-button>
       </div>
     </header>
@@ -46,6 +46,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMyProjects } from '@/api/project'
 import Pagination from '@/components/common/Pagination.vue'
+import DeleteManageButton from '@/components/common/DeleteManageButton.vue'
 import ProjectDeleteDialog from '@/components/projects/ProjectDeleteDialog.vue'
 import ProjectListItem from '@/components/projects/ProjectListItem.vue'
 
@@ -102,7 +103,7 @@ onMounted(load)
 .project-header h2 { margin: 0 0 7px; font-size: 21px; }
 .project-header p { margin: 0; color: var(--artiv-text-secondary); }
 .header-actions { display: flex; align-items: center; gap: 10px; }
-.header-actions :deep(.el-button + .el-button) { margin-left: 0; }
+.header-actions > .el-button { margin-left: 0; }
 .mode-row { display: flex; align-items: flex-end; gap: 18px; margin-top: 18px; border-bottom: 1px solid var(--artiv-border); }
 .mode-tabs { min-width: 0; flex: 1; }
 .mode-tabs :deep(.el-tabs__header) { margin-bottom: 0; }

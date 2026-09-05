@@ -10,7 +10,7 @@ import lombok.Data;
 public class WorkRequest {
 
     @NotBlank(message = "作品标题不能为空")
-    @Size(max = 100, message = "作品标题最长 100 个字")
+    @Size(max = 20, message = "作品标题最长 20 个字")
     private String title;
 
     @NotBlank(message = "作品类型不能为空")
