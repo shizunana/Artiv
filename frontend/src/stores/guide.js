@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { reactive, ref } from 'vue'
-import { guideJson, sendGuideStream } from '@/api/guide'
+import { reactive, ref, shallowRef } from 'vue'
+import { guideJson, guideImage, sendGuideStream } from '@/api/guide'
 
 export const useGuideStore = defineStore('guide', () => {
   const sessionId = ref('')
@@ -9,6 +9,7 @@ export const useGuideStore = defineStore('guide', () => {
   const busy = ref(false)
   const stopping = ref(false)
   const error = ref('')
+  const pendingImage = shallowRef(null)
   let identity = null
   let epoch = 0
   let controller = null
@@ -18,11 +19,37 @@ export const useGuideStore = defineStore('guide', () => {
   const same = version => version === epoch && identity
   const errorMessage = e => e instanceof TypeError ? '连接向导服务失败，请检查网络或服务状态；不会自动重发' : e.message
 
+  function releasePreview() {
+    if (pendingImage.value) URL.revokeObjectURL(pendingImage.value.url)
+    pendingImage.value = null
+  }
+  // 选择文件只生成本地预览。只有明确点击“发送并分析”才上传并调用模型。
+  function selectImage(file) {
+    if (busy.value || stopping.value || !file) return false
+    if (!['image/png', 'image/jpeg'].includes(file.type) || !/\.(png|jpe?g)$/i.test(file.name) || !file.size || file.size > 5 * 1024 * 1024) {
+      error.value = '请选择 5 MB 以内的 PNG/JPG 图片'; return false
+    }
+    removeImage()
+    pendingImage.value = { file, url: URL.createObjectURL(file), uploadedId: null }
+    error.value = ''
+    return true
+  }
+  function removeImage() {
+    if (busy.value || stopping.value) return
+    const old = pendingImage.value
+    releasePreview()
+    if (old?.uploadedId && identity && sessionId.value) {
+      // 仅清理未被消息引用的附件；已接受的图片随会话清空，不单独破坏历史依据。
+      void guideJson(`/sessions/${sessionId.value}/images/${old.uploadedId}`, { token: identity.token, method: 'DELETE' }).catch(() => {})
+    }
+  }
+
   function reset() {
     const old = identity
     const oldId = sessionId.value
     epoch++
     controller?.abort()
+    releasePreview()
     controller = null
     identity = null
     clientMessageId = ''
@@ -61,8 +88,10 @@ export const useGuideStore = defineStore('guide', () => {
   }
 
   async function send() {
-    if (!identity || busy.value || stopping.value || !draft.value.trim()) return
+    if (!identity || busy.value || stopping.value || (!draft.value.trim() && !pendingImage.value)) return
     const text = draft.value.trim()
+    const originalDraft = draft.value
+    const attachment = pendingImage.value
     const version = epoch
     const token = identity.token
     const requestController = new AbortController()
@@ -70,6 +99,8 @@ export const useGuideStore = defineStore('guide', () => {
     busy.value = true
     error.value = ''
     let assistant
+    let accepted = false
+    let sentId = ''
     try {
       if (!sessionId.value) {
         const snapshot = await guideJson('/sessions', { token, method: 'POST', signal: controller.signal })
@@ -77,29 +108,44 @@ export const useGuideStore = defineStore('guide', () => {
         sessionId.value = snapshot.id
         saveId()
       }
+      if (attachment && !attachment.uploadedId) {
+        const form = new FormData(); form.append('file', attachment.file)
+        const uploaded = await guideJson(`/sessions/${sessionId.value}/images`, { token, method: 'POST', body: form, signal: requestController.signal })
+        if (!same(version)) return
+        attachment.uploadedId = uploaded.id
+      }
+      if (requestController.signal.aborted) return
       clientMessageId = crypto.randomUUID()
+      sentId = clientMessageId
       assistant = reactive({ id: `pending-${clientMessageId}`, role: 'assistant', text: '', status: 'generating', error: null, usage: null, references: [], toolStatus: '' })
-      messages.value.push({ id: clientMessageId, role: 'user', text, status: 'complete' }, assistant)
-      draft.value = ''
-      await sendGuideStream(sessionId.value, { clientMessageId, text }, {
+      messages.value.push({ id: clientMessageId, role: 'user', text, imageId: attachment?.uploadedId || null, status: 'complete' }, assistant)
+      await sendGuideStream(sessionId.value, { clientMessageId, text, ...(attachment ? { imageId: attachment.uploadedId, imageConsent: true } : {}) }, {
         token, signal: requestController.signal,
         onEvent(name, data) {
           if (!same(version)) return
-          if (name === 'meta') assistant.id = data.messageId
+          if (name === 'meta') {
+            accepted = true; assistant.id = data.messageId
+            if (draft.value === originalDraft) draft.value = ''
+            if (pendingImage.value === attachment) releasePreview()
+          }
           if (name === 'delta') assistant.text += data.text
           if (name === 'usage') assistant.usage = data
           if (name === 'references') assistant.references = data
-          if (name === 'tool_status') assistant.toolStatus = data.message
+          if (name === 'tool_status' || name === 'status') assistant.toolStatus = data.message
           if (name === 'done') assistant.status = data.status
           if (name === 'error') { assistant.status = data.status || 'error'; assistant.error = data.message; error.value = data.message }
         },
       })
     } catch (e) {
       if (!same(version)) return
+      if (!accepted && sentId) messages.value = messages.value.filter(m => m.id !== sentId && m !== assistant)
       if (assistant) { assistant.status = requestController.signal.aborted ? 'cancelled' : 'error'; assistant.error = requestController.signal.aborted ? null : errorMessage(e) }
       if (!requestController.signal.aborted) error.value = errorMessage(e)
       // 过期会话只提示并重置 ID，不自动重放可能已经收费的消息。
-      if (e.code === 404) { sessionId.value = ''; sessionStorage.removeItem(storageKey(identity.owner)) }
+      if (e.code === 404) {
+        sessionId.value = ''; messages.value = []; sessionStorage.removeItem(storageKey(identity.owner))
+        if (attachment) attachment.uploadedId = null
+      }
     } finally {
       if (same(version)) { busy.value = false; controller = null; clientMessageId = '' }
     }
@@ -126,6 +172,7 @@ export const useGuideStore = defineStore('guide', () => {
       if (id) await guideJson(`/sessions/${id}`, { token, method: 'DELETE' })
       if (!same(version)) return
       sessionId.value = ''; messages.value = []; draft.value = ''; error.value = ''
+      releasePreview()
       sessionStorage.removeItem(storageKey(identity.owner))
     } catch (e) {
       if (same(version)) {
@@ -143,5 +190,12 @@ export const useGuideStore = defineStore('guide', () => {
       return same(version) ? result : null
     } catch (e) { if (same(version)) error.value = errorMessage(e); return null }
   }
-  return { sessionId, messages, draft, busy, stopping, error, activate, reset, send, stop, clear, resolveReference }
+  async function referenceBlob(id, signal) {
+    if (!identity || !sessionId.value) return null
+    const version = epoch
+    const blob = await guideImage(`/sessions/${sessionId.value}/images/${encodeURIComponent(id)}`, { token: identity.token, signal })
+    return same(version) ? blob : null
+  }
+  return { sessionId, messages, draft, busy, stopping, error, activate, reset, send, stop, clear, resolveReference,
+    pendingImage, selectImage, removeImage, referenceBlob }
 })

@@ -263,6 +263,16 @@ public class ProjectServiceImpl implements ProjectService {
         return project;
     }
 
+    @Override
+    public Project getGuideSummary(Long id, Long employerId) {
+        Project project = requireOwned(id, employerId);
+        Invitation invitation = findInvitation(id);
+        project.setInvitationStatus(invitation == null ? null : invitation.getStatus());
+        project.setContentEditable(canEditContent(id));
+        attachDeleteEligibility(List.of(project));
+        return project;
+    }
+
     private boolean canEditContent(Long projectId) {
         long activeApplications = applicationMapper.selectCount(new LambdaQueryWrapper<Application>()
                 .eq(Application::getProjectId, projectId)

@@ -49,7 +49,7 @@ class AdminGuideControllerTest {
         config.setApiKey("test-secret-not-returned");
         mvc.perform(get("/api/v1/admin/guide/capabilities").header("Authorization", "Bearer test-token"))
                 .andExpect(jsonPath("$.data.modelConfigured").value(true))
-                .andExpect(jsonPath("$.data.imageUploadEnabled").value(false))
+                .andExpect(jsonPath("$.data.imageUploadEnabled").value(true))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("test-secret"))));
     }
 

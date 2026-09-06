@@ -39,6 +39,17 @@ class GuideSessionStoreTest {
         var next = begin(id, "what number?");
         assertEquals(java.util.List.of("trusted system", "remember 731", "remembered", "what number?"), next.context().stream().map(m -> m.text()).toList());
     }
+    @Test void oldBusinessAnswersAreNotReplayedAfterResourceAccessChanges() {
+        var id = store.create(1).id(); var run = begin(id, "查看订单21");
+        store.append(run, "PRIVATE_OLD_DATA");
+        store.references(run, java.util.List.of(new com.artiv.guide.tool.GuideReference("private_query", "orders", "本人订单", "查询", "now")));
+        store.finish(run, "complete", null, null);
+        var next = begin(id, "然后呢");
+        assertFalse(next.context().stream().anyMatch(m -> m.text().contains("PRIVATE_OLD_DATA")));
+        assertTrue(next.context().stream().anyMatch(m -> m.text().contains("重新读取")));
+        assertEquals(java.util.List.of("system", "user", "assistant", "user"),
+                next.context().stream().map(m -> m.role()).toList());
+    }
     @Test void cancellationAndClearingPreventLateDeltas() {
         var id = store.create(1).id();
         var run = begin(id, "hi");

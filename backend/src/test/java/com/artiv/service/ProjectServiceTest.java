@@ -84,6 +84,24 @@ class ProjectServiceTest {
     }
 
     @Test
+    void guideSummaryReusesEligibilityWithoutBusinessWritesOrAccountLookup() {
+        var p = new Project(); p.setId(88L); p.setEmployerId(1L); p.setDeleted(0); p.setMode(1);
+        var invite = new com.artiv.entity.Invitation(); invite.setStatus(0); invite.setProjectId(88L);
+        var order = new com.artiv.entity.OrderInfo(); order.setProjectId(88L); order.setStatus(3);
+        when(projectMapper.selectById(88L)).thenReturn(p);
+        when(invitationMapper.selectOne(org.mockito.ArgumentMatchers.any())).thenReturn(invite);
+        when(orderInfoMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(order));
+        when(orderInfoMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(1L);
+        var summary = projectService.getGuideSummary(88L, 1L);
+        assertFalse(summary.getContentEditable()); assertFalse(summary.getDeletable());
+        assertTrue(summary.getDeleteBlockReason().contains("关联订单和待回应"));
+        assertThrows(com.artiv.common.BusinessException.class, () -> projectService.getGuideSummary(88L, 9L));
+        org.mockito.Mockito.verifyNoInteractions(userMapper, messageService, accountRestrictionService, userBlockService);
+        for (Object mapper : List.of(projectMapper, invitationMapper, orderInfoMapper, applicationMapper))
+            assertTrue(org.mockito.Mockito.mockingDetails(mapper).getInvocations().stream().allMatch(i -> i.getMethod().getName().startsWith("select")));
+    }
+
+    @Test
     void createPersistsBudgetRangeAndKeepsLegacyBudgetAsMaximum() {
         ProjectRequest request = validProjectRequest();
         request.setBudget(null);

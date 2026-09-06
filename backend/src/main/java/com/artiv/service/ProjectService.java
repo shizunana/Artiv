@@ -23,6 +23,9 @@ public interface ProjectService {
 
     Project getPanel(Long id, Long employerId);
 
+    /** 发布者专属只读状态投影；沿用原有编辑/删除资格计算，不加载发布者账户。 */
+    Project getGuideSummary(Long id, Long employerId);
+
     Project updateContent(Long id, ProjectContentUpdateRequest request, Long employerId);
 
     Project updateDeadline(Long id, LocalDate deadline, Long employerId);

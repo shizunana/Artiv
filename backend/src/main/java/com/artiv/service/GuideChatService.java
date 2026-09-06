@@ -21,14 +21,21 @@ public class GuideChatService {
     private final GuideModelRouter router;
     private final GuideSessionStore store;
     private final GuideAnswerRunner answers;
+    private final com.artiv.guide.workspace.GuideImageStore images;
     // 无等待队列：最多四个真实运行；会话存储另限制每个管理员同时一个运行。
     private final ExecutorService workers = new ThreadPoolExecutor(4, 4, 0L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), Thread.ofPlatform().daemon().name("guide-run-", 0).factory(), new ThreadPoolExecutor.AbortPolicy());
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().name("guide-timer").factory());
 
     public GuideChatService(GuideConfig config, GuideModelRouter router, GuideSessionStore store, GuideAnswerRunner answers) {
+        this(config, router, store, answers, null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public GuideChatService(GuideConfig config, GuideModelRouter router, GuideSessionStore store, GuideAnswerRunner answers,
+                            com.artiv.guide.workspace.GuideImageStore images) {
         this.config = config; this.router = router; this.store = store;
         this.answers = answers;
+        this.images = images;
         timer.scheduleWithFixedDelay(store::cleanup, 1, 1, TimeUnit.MINUTES);
     }
     public void requireReady() {
@@ -40,7 +47,12 @@ public class GuideChatService {
         requireReady();
         // 在返回 SSE 前完成参数、归属、去重和并发检查，失败仍返回原 JSON 错误协议。
         var model = router.selected();
-        var run = store.begin(owner, sessionId, request.clientMessageId(), request.text(), GuideAnswerRunner.SYSTEM);
+        if (!request.isValidContent()) throw new BusinessException(400, "请填写文字或添加参考图，并同意图片分析");
+        if (request.imageId() != null) {
+            if (images == null) throw new BusinessException(503, "图片分析尚未开启");
+            images.validate(owner, sessionId, request.imageId());
+        }
+        var run = store.begin(owner, sessionId, request.clientMessageId(), request.text(), GuideAnswerRunner.SYSTEM, request.imageId());
         var emitter = new SseEmitter((long) Math.max(1, Math.min(300, config.getTimeoutSeconds())) * 1000 + 10000);
         var terminal = new AtomicBoolean();
         class Lifecycle {
@@ -80,21 +92,28 @@ public class GuideChatService {
                 GuideModelClient.Usage usage = null;
                 try {
                     run.cancellation().check();
-                    var reply = answers.answer(model, run.context(), delta -> {
+                    var context = run.context();
+                    if (request.imageId() != null) {
+                        lifecycle.send("status", Map.of("message", "正在理解参考图，再结合你的文字整理需求…"));
+                        var observation = images.observe(owner, sessionId, request.imageId(), model, run.cancellation());
+                        usage = observation.usage();
+                        context = store.attachObservation(run, observation.text());
+                    }
+                    var reply = answers.answer(model, context, delta -> {
                         run.cancellation().check();
                         if (store.append(run, delta)) lifecycle.send("delta", Map.of("text", delta));
-                    }, lifecycle::send, refs -> store.references(run, refs), run.cancellation());
+                    }, lifecycle::send, refs -> store.references(run, refs), run.cancellation(), run.ownerId());
                     run.cancellation().check();
                     status = "length".equals(reply.finishReason()) ? "truncated" : "complete";
-                    usage = reply.usage();
+                    usage = sum(usage, reply.usage());
                     lifecycle.finish(status, null, usage);
                 } catch (Exception e) {
                     status = run.cancellation().cancelled() ? "cancelled" : "error";
-                    lifecycle.finish(status, e instanceof GuideModelException ? e.getMessage() : "回答中断，请手动重试；不会自动重发", null);
+                    lifecycle.finish(status, e instanceof GuideModelException ? e.getMessage() : "回答中断，请手动重试；不会自动重发", usage);
                 } finally {
                     heartbeat.cancel(false); deadline.cancel(false);
-                    log.info("guide_run owner={} session={} run={} provider={} model={} status={} durationMs={} inputTokens={} outputTokens={}",
-                            owner, sessionId, request.clientMessageId(), config.getProvider(), config.getTextModel(), status,
+                    log.info("guide_run owner={} session={} run={} provider={} model={} promptVersion={} status={} durationMs={} inputTokens={} outputTokens={}",
+                            owner, sessionId, request.clientMessageId(), config.getProvider(), config.getTextModel(), com.artiv.guide.GuidePrompts.VERSION, status,
                             TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started), usage == null ? null : usage.inputTokens(), usage == null ? null : usage.outputTokens());
                 }
             });
@@ -104,6 +123,13 @@ public class GuideChatService {
             heartbeat.cancel(false); deadline.cancel(false);
         }
         return emitter;
+    }
+
+    private static GuideModelClient.Usage sum(GuideModelClient.Usage a, GuideModelClient.Usage b) {
+        if (a == null) return b;
+        if (b == null) return new GuideModelClient.Usage(null, null);
+        return new GuideModelClient.Usage(a.inputTokens() == null || b.inputTokens() == null ? null : a.inputTokens() + b.inputTokens(),
+                a.outputTokens() == null || b.outputTokens() == null ? null : a.outputTokens() + b.outputTokens());
     }
 
     @PreDestroy public void close() { store.shutdown(); workers.shutdownNow(); timer.shutdownNow(); }

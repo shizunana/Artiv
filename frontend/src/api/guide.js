@@ -8,15 +8,22 @@ export const getGuideCapabilities = (signal) => request.get('/admin/guide/capabi
 
 const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
 
-export async function guideJson(path, { token, signal, method = 'GET' } = {}) {
+export async function guideJson(path, { token, signal, method = 'GET', body } = {}) {
   const timeout = AbortSignal.timeout(15000)
   const response = await fetch(`${base}/admin/guide${path}`, {
     method, signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}) },
+    body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
   })
   const result = await response.json()
   if (!response.ok || result.code !== 200) throw guideError(result.message || '向导请求失败', result.code || response.status)
   return result.data
+}
+
+export async function guideImage(path, { token, signal }) {
+  const response = await fetch(`${base}/admin/guide${path}`, { signal, headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
+  if (!response.ok || !response.headers.get('content-type')?.startsWith('image/jpeg')) throw guideError('参考图已过期或没有访问权限', 404)
+  return response.blob()
 }
 
 export function guideError(message, code) { return Object.assign(new Error(message), { code }) }

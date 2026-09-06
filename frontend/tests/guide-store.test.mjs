@@ -10,7 +10,7 @@ const server = await createServer({ configFile: false, root,
   resolve: { alias: { '@': `${root}src` } },
   plugins: [{ name: 'isolated-guide-api', enforce: 'pre',
     resolveId(id) { if (/\/api\/guide(?:\.js)?$/.test(id)) return '\0guide-test-api' },
-    load(id) { if (id === '\0guide-test-api') return 'export const guideJson = (...args) => globalThis.guideFakeApi.json(...args); export const sendGuideStream = (...args) => globalThis.guideFakeApi.stream(...args)' },
+    load(id) { if (id === '\0guide-test-api') return 'export const guideJson = (...args) => globalThis.guideFakeApi.json(...args); export const sendGuideStream = (...args) => globalThis.guideFakeApi.stream(...args); export const guideImage = (...args) => globalThis.guideFakeApi.image(...args)' },
   }],
 })
 after(() => server.close())
@@ -23,10 +23,62 @@ function setup(api) {
   return useGuideStore()
 }
 
+test('selecting and removing an image is local only; no upload or analysis', async () => {
+  const requests = []
+  const guide = setup({ json: async path => { requests.push(path); return { id: 'private' } } })
+  await guide.activate(1, 'fake-a')
+  assert.equal(guide.selectImage(new File(['fake'], 'fixture.png', { type: 'image/png' })), true)
+  assert.ok(guide.pendingImage.url.startsWith('blob:')); assert.equal(requests.length, 0)
+  guide.removeImage(); assert.equal(guide.pendingImage, null); assert.equal(requests.length, 0); guide.reset()
+})
+
+test('late image uploads are discarded after account switch and preview is cleared', async () => {
+  let release
+  const guide = setup({ json: async path => path === '/sessions' ? { id: 'private' } : path.endsWith('/images') ? new Promise(resolve => { release = resolve }) : null,
+    stream: async () => assert.fail('late upload must not start model') })
+  await guide.activate(1, 'fake-a'); guide.selectImage(new File(['x'], 'fixture.png', { type: 'image/png' }))
+  const pending = guide.send(); await new Promise(resolve => setImmediate(resolve))
+  guide.reset(); await guide.activate(2, 'fake-b'); release({ id: 'old-image' }); await pending
+  assert.equal(guide.pendingImage, null); assert.equal(guide.busy, false); assert.equal(guide.messages.length, 0)
+})
+
+test('image and text are sent together with consent; followups do not resend image', async () => {
+  const uploads = [], payloads = []
+  const guide = setup({ json: async (path, options) => {
+    if (path.endsWith('/images')) { uploads.push(options.body); return { id: 'image-1' } }
+    return { id: 'session-1' }
+  }, stream: async (id, payload, options) => {
+    payloads.push(payload); options.onEvent('meta', { messageId: 'reply-' + payloads.length }); options.onEvent('done', { status: 'complete' })
+  } })
+  await guide.activate(1, 'fake-a'); guide.selectImage(new File(['x'], 'fixture.jpg', { type: 'image/jpeg' })); guide.draft = '只参考发型'
+  await guide.send(); assert.equal(uploads.length, 1); assert.ok(uploads[0] instanceof FormData)
+  assert.equal(payloads[0].imageConsent, true); assert.equal(payloads[0].imageId, 'image-1'); assert.equal(payloads[0].text, '只参考发型')
+  assert.equal(guide.pendingImage, null); assert.equal(guide.draft, ''); assert.equal(guide.messages[0].imageId, 'image-1')
+  guide.draft = '改成头像'; await guide.send(); assert.equal(payloads[1].imageId, undefined); assert.equal(uploads.length, 1)
+})
+
+test('image-only send is allowed; rejected send retains input without automatic retry', async () => {
+  let attempts = 0
+  const guide = setup({ json: async path => ({ id: path.endsWith('/images') ? 'image-1' : 'session-1' }), stream: async (id, payload) => {
+    attempts++; assert.equal(payload.text, ''); assert.equal(payload.imageConsent, true); throw new Error('拒绝发送')
+  } })
+  await guide.activate(1, 'fake-a'); guide.selectImage(new File(['x'], 'fixture.png', { type: 'image/png' })); await guide.send()
+  assert.equal(attempts, 1); assert.ok(guide.pendingImage); assert.equal(guide.messages.length, 0); assert.equal(guide.busy, false)
+  guide.reset(); assert.equal(guide.pendingImage, null)
+})
+
+test('unsupported and oversized attachments never enter pending state', async () => {
+  const guide = setup({})
+  assert.equal(guide.selectImage(new File(['x'], 'bad.svg', { type: 'image/svg+xml' })), false)
+  assert.equal(guide.selectImage(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'big.png', { type: 'image/png' })), false)
+  assert.equal(guide.pendingImage, null)
+})
+
 test('send streams deltas, preserves next draft and stores only session ID', async () => {
   const guide = setup({ json: async () => ({ id: 'session-1', messages: [] }), stream: async (id, payload, options) => {
     assert.equal(id, 'session-1'); assert.equal(payload.text, 'hello')
     assert.equal(options.token, 'fake-a')
+    options.onEvent('meta', { messageId: 'reply-1' })
     options.onEvent('delta', { text: '你好' })
     guide.draft = '下一条草稿'
     options.onEvent('done', { status: 'complete' })
@@ -49,6 +101,7 @@ test('account reset aborts old stream and ignores late callbacks', async () => {
 test('stop aborts stream, explicitly cancels on server and does not auto-retry', async () => {
   const calls = []
   const guide = setup({ json: async (path, options) => { calls.push(path); return { id: 'session-1', messages: [] } }, stream: async (id, payload, options) => {
+    options.onEvent('meta', { messageId: 'reply-1' })
     await new Promise((resolve, reject) => options.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))))
   } })
   await guide.activate(1, 'fake-a'); guide.draft = 'hello'; const pending = guide.send()

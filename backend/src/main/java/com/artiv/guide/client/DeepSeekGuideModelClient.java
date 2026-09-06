@@ -44,7 +44,7 @@ public class DeepSeekGuideModelClient implements GuideModelClient {
         long start = System.nanoTime();
         try {
             byte[] body = json.writeValueAsBytes(payload(request));
-            if (body.length > 131072) throw new GuideModelException("模型请求超过 128 KiB 限制");
+            if (body.length > (request.vision() ? 2 * 1024 * 1024 : 131072)) throw new GuideModelException("模型请求超过容量限制");
             var http = HttpRequest.newBuilder(URI.create("https://api.deepseek.com/chat/completions"))
                     .timeout(Duration.ofSeconds(config.getTimeoutSeconds()))
                     .header("Authorization", "Bearer " + config.getApiKey())
@@ -174,8 +174,9 @@ public class DeepSeekGuideModelClient implements GuideModelClient {
             item.put("content", message.text() == null ? "" : message.text());
             if (message.imageDataUrl() != null) {
                 if (++images > 1 || !request.vision() || !"user".equals(message.role())
-                        || !message.imageDataUrl().matches("data:image/png;base64,[A-Za-z0-9+/]+={0,2}")) {
-                    throw new GuideModelException("02 阶段只接受单张内联 PNG 测试图");
+                        || message.imageDataUrl().length() > 1500000
+                        || !message.imageDataUrl().matches("data:image/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}")) {
+                    throw new GuideModelException("仅接受单张受控内联 PNG/JPEG 参考图");
                 }
                 var parts = item.putArray("content");
                 parts.addObject().put("type", "text").put("text", message.text());
