@@ -1,5 +1,6 @@
 <template>
   <router-view />
+  <GuideHost />
 </template>
 
 <script setup>
@@ -7,6 +8,7 @@ import { onBeforeUnmount, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useMessageStore } from '@/stores/message'
 import { startMessageSocket, stopMessageSocket } from '@/utils/ws'
+import GuideHost from '@/components/guide/GuideHost.vue'
 
 const userStore = useUserStore()
 const messageStore = useMessageStore()

@@ -27,6 +27,21 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 artiv:
+  guide:
+    enabled: ${ARTIV_GUIDE_ENABLED:false}
+    provider: ${ARTIV_GUIDE_PROVIDER:deepseek}
+    api-key: ${ARTIV_GUIDE_API_KEY:}
+    text-model: ${ARTIV_GUIDE_TEXT_MODEL:deepseek-v4-flash-vision-exp}
+    vision-model: ${ARTIV_GUIDE_VISION_MODEL:deepseek-v4-flash-vision-exp}
+    # glm 的适配接口已预留，提供对应 Key 并完成适配验证后再启用；不复用 DeepSeek Key。
+    timeout-seconds: ${ARTIV_GUIDE_REQUEST_TIMEOUT_SECONDS:90}
+    max-output-tokens: ${ARTIV_GUIDE_MAX_OUTPUT_TOKENS:2048}
+    max-input-chars: 4000
+    max-context-chars: 24000
+    max-turns: 50
+    max-sessions: 100
+    max-sessions-per-user: 5
+    session-ttl-minutes: 1440
   jwt:
     # 生产环境务必通过环境变量 / application-local.yml 覆盖
     secret: "artiv-graduation-project-jwt-secret-key-change-me-2026"
