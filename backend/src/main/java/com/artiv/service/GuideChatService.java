@@ -48,11 +48,12 @@ public class GuideChatService {
         // 在返回 SSE 前完成参数、归属、去重和并发检查，失败仍返回原 JSON 错误协议。
         var model = router.selected();
         if (!request.isValidContent()) throw new BusinessException(400, "请填写文字或添加参考图，并同意图片分析");
-        if (request.imageId() != null) {
+        var attachmentIds = List.copyOf(request.attachmentIds());
+        if (!attachmentIds.isEmpty()) {
             if (images == null) throw new BusinessException(503, "图片分析尚未开启");
-            images.validate(owner, sessionId, request.imageId());
+            for (var id : attachmentIds) images.validate(owner, sessionId, id);
         }
-        var run = store.begin(owner, sessionId, request.clientMessageId(), request.text(), GuideAnswerRunner.SYSTEM, request.imageId());
+        var run = store.beginWithImages(owner, sessionId, request.clientMessageId(), request.text(), GuideAnswerRunner.SYSTEM, attachmentIds);
         var emitter = new SseEmitter((long) Math.max(1, Math.min(300, config.getTimeoutSeconds())) * 1000 + 10000);
         var terminal = new AtomicBoolean();
         class Lifecycle {
@@ -93,9 +94,9 @@ public class GuideChatService {
                 try {
                     run.cancellation().check();
                     var context = run.context();
-                    if (request.imageId() != null) {
-                        lifecycle.send("status", Map.of("message", "正在理解参考图，再结合你的文字整理需求…"));
-                        var observation = images.observe(owner, sessionId, request.imageId(), model, run.cancellation());
+                    if (!attachmentIds.isEmpty()) {
+                        lifecycle.send("status", Map.of("message", "正在理解 " + attachmentIds.size() + " 张参考图，再结合你的文字整理需求…"));
+                        var observation = images.observeMany(owner, sessionId, attachmentIds, model, run.cancellation());
                         usage = observation.usage();
                         context = store.attachObservation(run, observation.text());
                     }

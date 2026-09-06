@@ -44,7 +44,7 @@ public class DeepSeekGuideModelClient implements GuideModelClient {
         long start = System.nanoTime();
         try {
             byte[] body = json.writeValueAsBytes(payload(request));
-            if (body.length > (request.vision() ? 2 * 1024 * 1024 : 131072)) throw new GuideModelException("模型请求超过容量限制");
+            if (body.length > (request.vision() ? 6 * 1024 * 1024 : 131072)) throw new GuideModelException("模型请求超过容量限制");
             var http = HttpRequest.newBuilder(URI.create("https://api.deepseek.com/chat/completions"))
                     .timeout(Duration.ofSeconds(config.getTimeoutSeconds()))
                     .header("Authorization", "Bearer " + config.getApiKey())
@@ -172,15 +172,16 @@ public class DeepSeekGuideModelClient implements GuideModelClient {
             }
             var item = messages.addObject().put("role", message.role());
             item.put("content", message.text() == null ? "" : message.text());
-            if (message.imageDataUrl() != null) {
-                if (++images > 1 || !request.vision() || !"user".equals(message.role())
-                        || message.imageDataUrl().length() > 1500000
-                        || !message.imageDataUrl().matches("data:image/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}")) {
-                    throw new GuideModelException("仅接受单张受控内联 PNG/JPEG 参考图");
-                }
+            if (!message.imageDataUrls().isEmpty()) {
                 var parts = item.putArray("content");
                 parts.addObject().put("type", "text").put("text", message.text());
-                parts.addObject().put("type", "image_url").putObject("image_url").put("url", message.imageDataUrl());
+                for (var url : message.imageDataUrls()) {
+                    if (++images > 4 || !request.vision() || !"user".equals(message.role())
+                            || url.length() > 1500000 || !url.matches("data:image/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}"))
+                        throw new GuideModelException("每次最多接受 4 张受控内联 PNG/JPEG 参考图");
+                    if (message.imageDataUrls().size() > 1) parts.addObject().put("type", "text").put("text", "图 " + images + "：");
+                    parts.addObject().put("type", "image_url").putObject("image_url").put("url", url);
+                }
             }
             if ("tool".equals(message.role())) item.put("tool_call_id", message.toolCallId());
             if (message.toolCalls() != null && !message.toolCalls().isEmpty()) {

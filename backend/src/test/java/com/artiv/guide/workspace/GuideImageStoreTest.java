@@ -36,7 +36,7 @@ class GuideImageStoreTest {
     @Test void enforcesSessionBoundAndReusesIdenticalUploadWithoutConsumingSlot() throws Exception {
         var id = sessions.create(1).id(); var first = images.upload(1, id, fixture(0)).id();
         assertEquals(first, images.upload(1, id, fixture(0)).id());
-        images.upload(1, id, fixture(0xff0000)); images.upload(1, id, fixture(0x0000ff));
+        for (int n = 1; n < 12; n++) images.upload(1, id, fixture(n * 0x101010));
         assertThrows(BusinessException.class, () -> images.upload(1, id, fixture(0x00ff00)));
         assertThrows(BusinessException.class, () -> images.read(2, id, first));
         var other = sessions.create(1).id(); assertThrows(BusinessException.class, () -> images.validate(1, other, first));
@@ -85,5 +85,29 @@ class GuideImageStoreTest {
         assertTrue(GuidePrompts.SYSTEM.contains("不发布企划"));
         assertTrue(GuidePrompts.SYSTEM.contains("不要要求用户去"));
         assertTrue(GuidePrompts.SYSTEM.contains("预算、日期、尺寸、格式等不是强制必答项"));
+    }
+    @Test void jointObservationIsOrderedAndCacheDoesNotMixImageSetsOrOwners() throws Exception {
+        var session = sessions.create(1).id();
+        var first = images.upload(1, session, fixture(0xff0000)).id();
+        var second = images.upload(1, session, fixture(0x0000ff)).id();
+        var calls = new AtomicInteger();
+        GuideModelClient model = request -> {
+            calls.incrementAndGet();
+            assertEquals(2, request.messages().getLast().imageDataUrls().size());
+            return new GuideModelClient.Reply("图 1：红色。图 2：蓝色。", List.of(), new GuideModelClient.Usage(3L, 2L), "stop", 1);
+        };
+        images.observeMany(1, session, List.of(first, second), model, new GuideCancellation());
+        assertEquals(0L, images.observeMany(1, session, List.of(first, second), model, new GuideCancellation()).usage().inputTokens());
+        assertEquals(1, calls.get());
+        images.observeMany(1, session, List.of(second, first), model, new GuideCancellation());
+        assertEquals(2, calls.get(), "顺序改变会改变图号，必须重新观察");
+        assertThrows(BusinessException.class, () -> images.observeMany(2, session, List.of(first, second), model, new GuideCancellation()));
+        assertEquals(2, calls.get());
+        var run = sessions.beginWithImages(1, session, UUID.randomUUID().toString(), "图 1 OC，图 2 动作", GuidePrompts.SYSTEM, List.of(first, second));
+        for (var image : List.of(first, second)) assertThrows(BusinessException.class, () -> images.delete(1, session, image));
+        sessions.attachObservation(run, "图 1 红色；图 2 蓝色"); sessions.finish(run, "complete", null, null);
+        var followup = sessions.begin(1, session, UUID.randomUUID().toString(), "总结", GuidePrompts.SYSTEM);
+        assertTrue(followup.context().stream().anyMatch(m -> m.text().contains("图 2 蓝色")));
+        assertTrue(followup.context().stream().allMatch(m -> m.imageDataUrls().isEmpty()));
     }
 }

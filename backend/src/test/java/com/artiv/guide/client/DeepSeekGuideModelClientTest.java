@@ -157,4 +157,24 @@ class DeepSeekGuideModelClientTest {
         assertEquals(1, cancelled.get());
         assertTrue(body.getBody().toCompletableFuture().isCompletedExceptionally());
     }
+    @Test void fourImagesAreSentTogetherInOrderAndFifthOrExternalImageIsRejected() {
+        var urls = List.of("data:image/jpeg;base64,AA==", "data:image/jpeg;base64,AQ==", "data:image/jpeg;base64,Ag==", "data:image/jpeg;base64,Aw==");
+        var calls = new AtomicInteger();
+        var client = client(config(), (http, timeout) -> {
+            calls.incrementAndGet();
+            var content = readBody(http).path("messages").path(0).path("content");
+            for (int n = 0; n < 4; n++) {
+                assertEquals("图 " + (n + 1) + "：", content.path(n * 2 + 1).path("text").asText());
+                assertEquals(urls.get(n), content.path(n * 2 + 2).path("image_url").path("url").asText());
+            }
+            return response(200, OK);
+        });
+        client.complete(new GuideModelClient.Request(List.of(GuideModelClient.Message.images("观察参考", urls)), true, List.of(), false));
+        var five = new java.util.ArrayList<>(urls); five.add(urls.getFirst());
+        assertThrows(GuideModelException.class, () -> client.complete(new GuideModelClient.Request(List.of(GuideModelClient.Message.images("x", five)), true, List.of(), false)));
+        var external = new java.util.ArrayList<>(urls); external.set(3, "https://example.com/private.png");
+        assertThrows(GuideModelException.class, () -> client.complete(new GuideModelClient.Request(List.of(GuideModelClient.Message.images("x", external)), true, List.of(), false)));
+        assertThrows(GuideModelException.class, () -> client.complete(new GuideModelClient.Request(List.of(GuideModelClient.Message.images("x", urls)), false, List.of(), false)));
+        assertEquals(1, calls.get());
+    }
 }

@@ -1,8 +1,8 @@
-<template><img v-if="url" :src="url" alt="当前会话的私有参考图" class="private-image" /><span v-else>{{ failed ? '预览不可用' : '加载预览…' }}</span></template>
+<template><img v-if="url" :src="url" :alt="label" class="private-image" /><span v-else>{{ failed ? '预览不可用' : '加载预览…' }}</span></template>
 <script setup>
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useGuideStore } from '@/stores/guide'
-const props = defineProps({ id: { type: String, required: true } })
+const props = defineProps({ id: { type: String, required: true }, label: { type: String, default: '当前会话的私有参考图' } })
 const guide = useGuideStore(), url = ref(''), failed = ref(false)
 let controller, version = 0
 function release() { version++; controller?.abort(); if (url.value) URL.revokeObjectURL(url.value); url.value = '' }

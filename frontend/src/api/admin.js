@@ -8,6 +8,8 @@ export const getAdminPriceDistribution = (params) => request.get('/admin/stats/p
 export const getAdminUsers = (params) => request.get('/admin/users', { params })
 export const getAdminUser = (id) => request.get(`/admin/users/${id}`)
 export const changeAdminUserStatus = (id, data) => request.put(`/admin/users/${id}/status`, data)
+export const creditAdminUserBalance = (id, data) => request.post(`/admin/users/${id}/balance/credit`, data)
+export const adjustAdminUserBalance = (id, data) => request.post(`/admin/users/${id}/balance/adjust`, data)
 
 export const getAdminCertifications = (params) => request.get('/admin/certifications', { params })
 export const getAdminCertification = (id) => request.get(`/admin/certifications/${id}`)

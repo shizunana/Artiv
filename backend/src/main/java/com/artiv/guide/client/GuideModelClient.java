@@ -11,9 +11,13 @@ public interface GuideModelClient {
         throw new GuideModelException("该供应商尚未实现流式适配");
     }
 
-    record Message(String role, String text, String imageDataUrl, String toolCallId, List<ToolCall> toolCalls) {
+    record Message(String role, String text, List<String> imageDataUrls, String toolCallId, List<ToolCall> toolCalls) {
+        public Message { imageDataUrls = imageDataUrls == null ? List.of() : List.copyOf(imageDataUrls); }
+        /** 兼容单图探针；新的视觉请求通过 imageDataUrls 保留全部图片顺序。 */
+        public String imageDataUrl() { return imageDataUrls.isEmpty() ? null : imageDataUrls.getFirst(); }
         public static Message user(String text) { return new Message("user", text, null, null, List.of()); }
-        public static Message image(String text, String dataUrl) { return new Message("user", text, dataUrl, null, List.of()); }
+        public static Message image(String text, String dataUrl) { return images(text, List.of(dataUrl)); }
+        public static Message images(String text, List<String> dataUrls) { return new Message("user", text, dataUrls, null, List.of()); }
         public static Message assistant(Reply reply) { return new Message("assistant", reply.text(), null, null, reply.toolCalls()); }
         public static Message tool(String id, String result) { return new Message("tool", result, null, id, List.of()); }
     }

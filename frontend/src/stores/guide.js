@@ -9,7 +9,7 @@ export const useGuideStore = defineStore('guide', () => {
   const busy = ref(false)
   const stopping = ref(false)
   const error = ref('')
-  const pendingImage = shallowRef(null)
+  const pendingImages = shallowRef([])
   let identity = null
   let epoch = 0
   let controller = null
@@ -20,25 +20,30 @@ export const useGuideStore = defineStore('guide', () => {
   const errorMessage = e => e instanceof TypeError ? '连接向导服务失败，请检查网络或服务状态；不会自动重发' : e.message
 
   function releasePreview() {
-    if (pendingImage.value) URL.revokeObjectURL(pendingImage.value.url)
-    pendingImage.value = null
+    pendingImages.value.forEach(image => URL.revokeObjectURL(image.url))
+    pendingImages.value = []
   }
   // 选择文件只生成本地预览。只有明确点击“发送并分析”才上传并调用模型。
-  function selectImage(file) {
-    if (busy.value || stopping.value || !file) return false
-    if (!['image/png', 'image/jpeg'].includes(file.type) || !/\.(png|jpe?g)$/i.test(file.name) || !file.size || file.size > 5 * 1024 * 1024) {
+  function selectImages(files) {
+    const selected = Array.from(files || [])
+    if (busy.value || stopping.value || !selected.length) return false
+    if (pendingImages.value.length + selected.length > 4) {
+      error.value = '每条消息最多 4 张参考图，请减少选择或先移除已有图片'; return false
+    }
+    if (selected.some(file => !['image/png', 'image/jpeg'].includes(file.type) || !/\.(png|jpe?g)$/i.test(file.name) || !file.size || file.size > 5 * 1024 * 1024)) {
       error.value = '请选择 5 MB 以内的 PNG/JPG 图片'; return false
     }
-    removeImage()
-    pendingImage.value = { file, url: URL.createObjectURL(file), uploadedId: null }
+    pendingImages.value = [...pendingImages.value, ...selected.map(file => ({ key: crypto.randomUUID(), file, url: URL.createObjectURL(file), uploadedId: null }))]
     error.value = ''
     return true
   }
-  function removeImage() {
+  function removeImage(key) {
     if (busy.value || stopping.value) return
-    const old = pendingImage.value
-    releasePreview()
-    if (old?.uploadedId && identity && sessionId.value) {
+    const old = pendingImages.value.find(image => image.key === key)
+    if (!old) return
+    pendingImages.value = pendingImages.value.filter(image => image !== old)
+    URL.revokeObjectURL(old.url)
+    if (old.uploadedId && !pendingImages.value.some(image => image.uploadedId === old.uploadedId) && identity && sessionId.value) {
       // 仅清理未被消息引用的附件；已接受的图片随会话清空，不单独破坏历史依据。
       void guideJson(`/sessions/${sessionId.value}/images/${old.uploadedId}`, { token: identity.token, method: 'DELETE' }).catch(() => {})
     }
@@ -88,10 +93,10 @@ export const useGuideStore = defineStore('guide', () => {
   }
 
   async function send() {
-    if (!identity || busy.value || stopping.value || (!draft.value.trim() && !pendingImage.value)) return
+    if (!identity || busy.value || stopping.value || (!draft.value.trim() && !pendingImages.value.length)) return
     const text = draft.value.trim()
     const originalDraft = draft.value
-    const attachment = pendingImage.value
+    const attachments = pendingImages.value
     const version = epoch
     const token = identity.token
     const requestController = new AbortController()
@@ -108,25 +113,30 @@ export const useGuideStore = defineStore('guide', () => {
         sessionId.value = snapshot.id
         saveId()
       }
-      if (attachment && !attachment.uploadedId) {
+      // 顺序上传以保持编号，并兼容后端串行图片解码；部分失败时保留已上传 ID 供用户手动重试。
+      for (const attachment of attachments) {
+        if (requestController.signal.aborted || !same(version)) return
+        if (attachment.uploadedId) continue
         const form = new FormData(); form.append('file', attachment.file)
         const uploaded = await guideJson(`/sessions/${sessionId.value}/images`, { token, method: 'POST', body: form, signal: requestController.signal })
         if (!same(version)) return
         attachment.uploadedId = uploaded.id
       }
       if (requestController.signal.aborted) return
+      const imageIds = attachments.map(image => image.uploadedId)
+      if (new Set(imageIds).size !== imageIds.length) throw new Error('同一条消息中有重复图片，请移除重复项后再发送')
       clientMessageId = crypto.randomUUID()
       sentId = clientMessageId
       assistant = reactive({ id: `pending-${clientMessageId}`, role: 'assistant', text: '', status: 'generating', error: null, usage: null, references: [], toolStatus: '' })
-      messages.value.push({ id: clientMessageId, role: 'user', text, imageId: attachment?.uploadedId || null, status: 'complete' }, assistant)
-      await sendGuideStream(sessionId.value, { clientMessageId, text, ...(attachment ? { imageId: attachment.uploadedId, imageConsent: true } : {}) }, {
+      messages.value.push({ id: clientMessageId, role: 'user', text, imageIds, status: 'complete' }, assistant)
+      await sendGuideStream(sessionId.value, { clientMessageId, text, ...(imageIds.length ? { imageIds, imageConsent: true } : {}) }, {
         token, signal: requestController.signal,
         onEvent(name, data) {
           if (!same(version)) return
           if (name === 'meta') {
             accepted = true; assistant.id = data.messageId
             if (draft.value === originalDraft) draft.value = ''
-            if (pendingImage.value === attachment) releasePreview()
+            if (pendingImages.value === attachments) releasePreview()
           }
           if (name === 'delta') assistant.text += data.text
           if (name === 'usage') assistant.usage = data
@@ -144,7 +154,7 @@ export const useGuideStore = defineStore('guide', () => {
       // 过期会话只提示并重置 ID，不自动重放可能已经收费的消息。
       if (e.code === 404) {
         sessionId.value = ''; messages.value = []; sessionStorage.removeItem(storageKey(identity.owner))
-        if (attachment) attachment.uploadedId = null
+        attachments.forEach(image => { image.uploadedId = null })
       }
     } finally {
       if (same(version)) { busy.value = false; controller = null; clientMessageId = '' }
@@ -197,5 +207,5 @@ export const useGuideStore = defineStore('guide', () => {
     return same(version) ? blob : null
   }
   return { sessionId, messages, draft, busy, stopping, error, activate, reset, send, stop, clear, resolveReference,
-    pendingImage, selectImage, removeImage, referenceBlob }
+    pendingImages, selectImages, removeImage, referenceBlob }
 })

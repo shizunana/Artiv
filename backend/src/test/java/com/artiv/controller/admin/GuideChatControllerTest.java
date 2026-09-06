@@ -170,4 +170,42 @@ class GuideChatControllerTest {
                 .andExpect(jsonPath("$.code").value(2001));
         verify(client, never()).stream(any(), any(), any());
     }
+    @Test void fourImagesAreOneVisionRequestAndHistoryPreservesAllIds() throws Exception {
+        var session = sessions.create(1).id(); var ids = new ArrayList<String>();
+        for (int n = 0; n < 4; n++) {
+            var bitmap = new java.awt.image.BufferedImage(24 + n, 24, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            var bytes = new java.io.ByteArrayOutputStream(); javax.imageio.ImageIO.write(bitmap, "png", bytes);
+            ids.add(images.upload(1, session, new org.springframework.mock.web.MockMultipartFile("file", "role.png", "image/png", bytes.toByteArray())).id());
+        }
+        when(client.complete(any())).thenAnswer(i -> {
+            var request = i.<GuideModelClient.Request>getArgument(0);
+            assertTrue(request.vision()); assertEquals(4, request.messages().getLast().imageDataUrls().size());
+            return new GuideModelClient.Reply("图 1：OC；图 2：举手动作；图 3：服装；图 4：构图。", List.of(), new GuideModelClient.Usage(20L, 10L), "stop", 1);
+        });
+        immediateReply();
+        var body = json.writeValueAsString(Map.of("clientMessageId", UUID.randomUUID().toString(), "text", "", "imageIds", ids, "imageConsent", true));
+        var first = mvc.perform(post(endpoint(session)).header("Authorization", "Bearer a").contentType("application/json").content(body)).andExpect(request().asyncStarted()).andReturn();
+        first.getAsyncResult(3000); mvc.perform(asyncDispatch(first)).andExpect(status().isOk());
+        assertEquals(ids, sessions.get(1, session).messages().getFirst().imageIds());
+        assertEquals(30L, sessions.get(1, session).messages().getLast().usage().inputTokens());
+        for (var id : ids) assertThrows(com.artiv.common.BusinessException.class, () -> images.delete(1, session, id));
+        var next = mvc.perform(post(endpoint(session)).header("Authorization", "Bearer a").contentType("application/json").content(payload(UUID.randomUUID().toString()))).andReturn();
+        next.getAsyncResult(3000); mvc.perform(asyncDispatch(next));
+        verify(client, times(1)).complete(any());
+        verify(client, times(2)).stream(argThat(r -> r.messages().stream().allMatch(m -> m.imageDataUrls().isEmpty())), any(), any());
+    }
+    @Test void invalidBatchOrOneForeignImageRejectsWholeMessageBeforeModelCall() throws Exception {
+        var session = sessions.create(1).id(); var own = images.upload(1, session, fixture()).id();
+        var foreignSession = sessions.create(2).id(); var foreign = images.upload(2, foreignSession, fixture()).id();
+        for (var ids : List.of(List.of(own, own), java.util.stream.IntStream.range(0, 5).mapToObj(n -> UUID.randomUUID().toString()).toList(), List.of("not-an-id"))) {
+            var body = json.writeValueAsString(Map.of("clientMessageId", UUID.randomUUID().toString(), "text", "test", "imageIds", ids, "imageConsent", true));
+            mvc.perform(post(endpoint(session)).header("Authorization", "Bearer a").contentType("application/json").content(body)).andExpect(jsonPath("$.code").value(2001));
+        }
+        var body = json.writeValueAsString(Map.of("clientMessageId", UUID.randomUUID().toString(), "text", "test", "imageIds", List.of(own, foreign), "imageConsent", true));
+        mvc.perform(post(endpoint(session)).header("Authorization", "Bearer a").contentType("application/json").content(body)).andExpect(jsonPath("$.code").value(404));
+        var missingConsent = json.writeValueAsString(Map.of("clientMessageId", UUID.randomUUID().toString(), "text", "test", "imageIds", List.of(own)));
+        mvc.perform(post(endpoint(session)).header("Authorization", "Bearer a").contentType("application/json").content(missingConsent)).andExpect(jsonPath("$.code").value(2001));
+        assertTrue(sessions.get(1, session).messages().isEmpty());
+        verify(client, never()).complete(any()); verify(client, never()).stream(any(), any(), any());
+    }
 }

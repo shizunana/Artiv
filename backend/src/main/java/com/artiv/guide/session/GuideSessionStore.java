@@ -12,9 +12,10 @@ import java.util.*;
 /** 单机测试阶段的有界内存存储；只保存向导数据，重启后清空。 */
 @Component
 public class GuideSessionStore {
-    public record Message(String id, String role, String text, String status, String error, GuideModelClient.Usage usage, List<GuideReference> references, String imageId) {
+    public record Message(String id, String role, String text, String status, String error, GuideModelClient.Usage usage, List<GuideReference> references, String imageId, List<String> imageIds) {
+        public Message { imageIds = imageIds == null ? List.of() : List.copyOf(imageIds); }
         public Message(String id, String role, String text, String status, String error, GuideModelClient.Usage usage, List<GuideReference> references) {
-            this(id, role, text, status, error, usage, references, null);
+            this(id, role, text, status, error, usage, references, null, List.of());
         }
     }
     public record Snapshot(String id, List<Message> messages, String activeMessageId, long expiresAt) { }
@@ -71,15 +72,20 @@ public class GuideSessionStore {
         return begin(owner, id, clientId, text, systemPrompt, null);
     }
     public synchronized Run begin(long owner, String id, String clientId, String text, String systemPrompt, String imageId) {
+        return beginWithImages(owner, id, clientId, text, systemPrompt, imageId == null ? List.of() : List.of(imageId));
+    }
+    public synchronized Run beginWithImages(long owner, String id, String clientId, String text, String systemPrompt, List<String> imageIds) {
         var session = owned(owner, id);
+        if (imageIds == null || imageIds.size() > 4 || imageIds.stream().anyMatch(i -> i == null || i.isBlank())
+                || new HashSet<>(imageIds).size() != imageIds.size()) throw new BusinessException(400, "每条消息最多 4 张不重复的参考图");
         text = text == null ? "" : text.strip();
-        if ((text.isBlank() && imageId == null) || text.length() > Math.min(4000, config.getMaxInputChars())) throw new BusinessException(400, "消息为空或过长");
+        if ((text.isBlank() && imageIds.isEmpty()) || text.length() > Math.min(4000, config.getMaxInputChars())) throw new BusinessException(400, "消息为空或过长");
         if (session.usedIds.contains(clientId)) throw new BusinessException(409, "该消息已处理，请读取会话历史；不会重复调用模型");
         if (sessions.values().stream().anyMatch(s -> s.owner == owner && s.active != null)) throw new BusinessException(409, "上一项向导任务仍在运行，请先停止或等待完成");
         if (session.usedIds.size() >= Math.min(50, config.getMaxTurns())) throw new BusinessException(429, "当前会话已达 50 轮，请清空后开始新会话");
         var context = new ArrayList<GuideModelClient.Message>();
         // 为本轮尚未识别的图片观察预留空间，观察内容也计入历史预算。
-        int size = text.length() + systemPrompt.length() + (imageId == null ? 0 : 6200);
+        int size = text.length() + systemPrompt.length() + (imageIds.isEmpty() ? 0 : 6200);
         // 只选完整问答对；取消、失败和截断的输出不进入可信对话上下文。
         for (int i = session.messages.size() - 2; i >= 0 && context.size() < 28; i -= 2) {
             var user = session.messages.get(i);
@@ -107,7 +113,7 @@ public class GuideSessionStore {
         String assistantId = UUID.randomUUID().toString();
         var run = new Run(owner, id, clientId, assistantId, List.copyOf(context), new GuideCancellation());
         session.usedIds.add(clientId);
-        session.messages.add(new Message(clientId, "user", text, "complete", null, null, List.of(), imageId));
+        session.messages.add(new Message(clientId, "user", text, "complete", null, null, List.of(), imageIds.size() == 1 ? imageIds.getFirst() : null, imageIds));
         session.messages.add(new Message(assistantId, "assistant", "", "generating", null, null, List.of()));
         session.active = run;
         return run;

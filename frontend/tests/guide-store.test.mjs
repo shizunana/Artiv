@@ -27,19 +27,19 @@ test('selecting and removing an image is local only; no upload or analysis', asy
   const requests = []
   const guide = setup({ json: async path => { requests.push(path); return { id: 'private' } } })
   await guide.activate(1, 'fake-a')
-  assert.equal(guide.selectImage(new File(['fake'], 'fixture.png', { type: 'image/png' })), true)
-  assert.ok(guide.pendingImage.url.startsWith('blob:')); assert.equal(requests.length, 0)
-  guide.removeImage(); assert.equal(guide.pendingImage, null); assert.equal(requests.length, 0); guide.reset()
+  assert.equal(guide.selectImages([new File(['fake'], 'fixture.png', { type: 'image/png' })]), true)
+  assert.ok(guide.pendingImages[0].url.startsWith('blob:')); assert.equal(requests.length, 0)
+  guide.removeImage(guide.pendingImages[0].key); assert.equal(guide.pendingImages.length, 0); assert.equal(requests.length, 0); guide.reset()
 })
 
 test('late image uploads are discarded after account switch and preview is cleared', async () => {
   let release
   const guide = setup({ json: async path => path === '/sessions' ? { id: 'private' } : path.endsWith('/images') ? new Promise(resolve => { release = resolve }) : null,
     stream: async () => assert.fail('late upload must not start model') })
-  await guide.activate(1, 'fake-a'); guide.selectImage(new File(['x'], 'fixture.png', { type: 'image/png' }))
+  await guide.activate(1, 'fake-a'); guide.selectImages([new File(['x'], 'fixture.png', { type: 'image/png' })])
   const pending = guide.send(); await new Promise(resolve => setImmediate(resolve))
   guide.reset(); await guide.activate(2, 'fake-b'); release({ id: 'old-image' }); await pending
-  assert.equal(guide.pendingImage, null); assert.equal(guide.busy, false); assert.equal(guide.messages.length, 0)
+  assert.equal(guide.pendingImages.length, 0); assert.equal(guide.busy, false); assert.equal(guide.messages.length, 0)
 })
 
 test('image and text are sent together with consent; followups do not resend image', async () => {
@@ -50,11 +50,11 @@ test('image and text are sent together with consent; followups do not resend ima
   }, stream: async (id, payload, options) => {
     payloads.push(payload); options.onEvent('meta', { messageId: 'reply-' + payloads.length }); options.onEvent('done', { status: 'complete' })
   } })
-  await guide.activate(1, 'fake-a'); guide.selectImage(new File(['x'], 'fixture.jpg', { type: 'image/jpeg' })); guide.draft = '只参考发型'
+  await guide.activate(1, 'fake-a'); guide.selectImages([new File(['x'], 'fixture.jpg', { type: 'image/jpeg' })]); guide.draft = '只参考发型'
   await guide.send(); assert.equal(uploads.length, 1); assert.ok(uploads[0] instanceof FormData)
-  assert.equal(payloads[0].imageConsent, true); assert.equal(payloads[0].imageId, 'image-1'); assert.equal(payloads[0].text, '只参考发型')
-  assert.equal(guide.pendingImage, null); assert.equal(guide.draft, ''); assert.equal(guide.messages[0].imageId, 'image-1')
-  guide.draft = '改成头像'; await guide.send(); assert.equal(payloads[1].imageId, undefined); assert.equal(uploads.length, 1)
+  assert.equal(payloads[0].imageConsent, true); assert.deepEqual(payloads[0].imageIds, ['image-1']); assert.equal(payloads[0].text, '只参考发型')
+  assert.equal(guide.pendingImages.length, 0); assert.equal(guide.draft, ''); assert.deepEqual(guide.messages[0].imageIds, ['image-1'])
+  guide.draft = '改成头像'; await guide.send(); assert.equal(payloads[1].imageIds, undefined); assert.equal(uploads.length, 1)
 })
 
 test('image-only send is allowed; rejected send retains input without automatic retry', async () => {
@@ -62,16 +62,16 @@ test('image-only send is allowed; rejected send retains input without automatic 
   const guide = setup({ json: async path => ({ id: path.endsWith('/images') ? 'image-1' : 'session-1' }), stream: async (id, payload) => {
     attempts++; assert.equal(payload.text, ''); assert.equal(payload.imageConsent, true); throw new Error('拒绝发送')
   } })
-  await guide.activate(1, 'fake-a'); guide.selectImage(new File(['x'], 'fixture.png', { type: 'image/png' })); await guide.send()
-  assert.equal(attempts, 1); assert.ok(guide.pendingImage); assert.equal(guide.messages.length, 0); assert.equal(guide.busy, false)
-  guide.reset(); assert.equal(guide.pendingImage, null)
+  await guide.activate(1, 'fake-a'); guide.selectImages([new File(['x'], 'fixture.png', { type: 'image/png' })]); await guide.send()
+  assert.equal(attempts, 1); assert.equal(guide.pendingImages.length, 1); assert.equal(guide.messages.length, 0); assert.equal(guide.busy, false)
+  guide.reset(); assert.equal(guide.pendingImages.length, 0)
 })
 
 test('unsupported and oversized attachments never enter pending state', async () => {
   const guide = setup({})
-  assert.equal(guide.selectImage(new File(['x'], 'bad.svg', { type: 'image/svg+xml' })), false)
-  assert.equal(guide.selectImage(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'big.png', { type: 'image/png' })), false)
-  assert.equal(guide.pendingImage, null)
+  assert.equal(guide.selectImages([new File(['x'], 'bad.svg', { type: 'image/svg+xml' })]), false)
+  assert.equal(guide.selectImages([new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'big.png', { type: 'image/png' })]), false)
+  assert.equal(guide.pendingImages.length, 0)
 })
 
 test('send streams deltas, preserves next draft and stores only session ID', async () => {
@@ -141,4 +141,52 @@ test('connection errors show a Chinese message and never retry automatically', a
   const guide = setup({ json: async () => { calls++; throw new TypeError('Failed to fetch') } })
   await guide.activate(1, 'fake-a'); guide.draft = 'hello'; await guide.send()
   assert.match(guide.error, /连接向导服务失败/); assert.equal(calls, 1); assert.equal(guide.busy, false)
+})
+
+test('four images preserve order, reject a fifth and keep numbers contiguous after removal', async () => {
+  const payloads = [], uploads = []
+  const file = n => new File([String(n)], n + '.png', { type: 'image/png' })
+  const guide = setup({ json: async (path, options) => {
+    if (path.endsWith('/images')) { uploads.push(options.body.get('file').name); return { id: 'image-' + uploads.length } }
+    return { id: 'session-1' }
+  }, stream: async (id, payload, options) => { payloads.push(payload); options.onEvent('meta', { messageId: 'reply' }); options.onEvent('done', { status: 'complete' }) } })
+  await guide.activate(1, 'fake-a')
+  assert.equal(guide.selectImages([file(1), file(2), file(3), file(4), file(5)]), false)
+  assert.equal(guide.pendingImages.length, 0)
+  guide.selectImages([file(1), file(2)]); guide.selectImages([file(3), file(4)])
+  assert.equal(guide.selectImages([file(5)]), false); assert.equal(guide.pendingImages.length, 4)
+  guide.removeImage(guide.pendingImages[1].key); guide.selectImages([file(5)])
+  guide.draft = '图 1 是 OC，图 2 只参考动作'
+  await guide.send()
+  assert.deepEqual(uploads, ['1.png', '3.png', '4.png', '5.png'])
+  assert.deepEqual(payloads[0].imageIds, ['image-1', 'image-2', 'image-3', 'image-4'])
+  assert.equal(payloads[0].imageConsent, true); assert.equal(guide.pendingImages.length, 0)
+  assert.deepEqual(guide.messages[0].imageIds, payloads[0].imageIds)
+})
+
+test('partial upload failure retains every attachment and manual retry reuses completed uploads', async () => {
+  const uploads = []; let fail = true, sends = 0
+  const guide = setup({ json: async (path, options) => {
+    if (!path.endsWith('/images')) return { id: 'session-1' }
+    const name = options.body.get('file').name; uploads.push(name)
+    if (name === '2.png' && fail) { fail = false; throw new Error('upload failed') }
+    return { id: name }
+  }, stream: async (id, payload, options) => { sends++; assert.deepEqual(payload.imageIds, ['1.png', '2.png']); options.onEvent('meta', { messageId: 'reply' }); options.onEvent('done', { status: 'complete' }) } })
+  await guide.activate(1, 'fake-a')
+  guide.selectImages([1,2].map(n => new File([String(n)], n + '.png', { type: 'image/png' })))
+  guide.draft = '图 1 OC，图 2 动作'
+  await guide.send()
+  assert.equal(sends, 0); assert.equal(guide.pendingImages.length, 2); assert.equal(guide.draft, '图 1 OC，图 2 动作')
+  await guide.send()
+  assert.deepEqual(uploads, ['1.png', '2.png', '2.png']); assert.equal(sends, 1)
+})
+
+test('duplicate uploaded content is not silently renumbered or sent to the model', async () => {
+  let sends = 0
+  const guide = setup({ json: async path => ({ id: path.endsWith('/images') ? 'same-image' : 'session-1' }), stream: async () => { sends++ } })
+  await guide.activate(1, 'fake-a')
+  guide.selectImages([1,2].map(n => new File(['same'], n + '.png', { type: 'image/png' })))
+  await guide.send()
+  assert.equal(sends, 0); assert.equal(guide.pendingImages.length, 2); assert.match(guide.error, /重复图片/)
+  guide.reset()
 })

@@ -3,6 +3,8 @@ package com.artiv.service.impl;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
 import com.artiv.dto.admin.AdminUserStatusRequest;
+import com.artiv.dto.admin.AdminBalanceAdjustmentRequest;
+import com.artiv.dto.admin.AdminBalanceSetRequest;
 import com.artiv.entity.ArtistCertification;
 import com.artiv.entity.OrderInfo;
 import com.artiv.entity.OrderDispute;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,6 +33,8 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AdminUserServiceImpl implements AdminUserService {
+    private static final BigDecimal MAX_ADJUSTMENT = new BigDecimal("10000000.00");
+    private static final BigDecimal MAX_BALANCE = new BigDecimal("9999999999.99");
     private final UserMapper userMapper;
     private final OrderInfoMapper orderInfoMapper;
     private final ArtistCertificationMapper certificationMapper;
@@ -131,6 +136,73 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setPassword(null);
         response.put("user", user);
         response.put("cancelledOrders", cancelledOrders);
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> creditBalance(Long adminId, Long id, AdminBalanceAdjustmentRequest request) {
+        if (adminId == null || id == null || request == null || request.getAmount() == null) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        BigDecimal amount = request.getAmount();
+        String reason = request.getReason() == null ? "" : request.getReason().trim();
+        if (amount.signum() <= 0 || amount.scale() > 2 || amount.compareTo(MAX_ADJUSTMENT) > 0 || reason.isBlank() || reason.length() > 500) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "请输入 0.01～10000000.00 的金额并填写调整原因");
+        }
+        amount = amount.setScale(2);
+        User user = userMapper.selectByIdForUpdate(id);
+        if (user == null || Integer.valueOf(1).equals(user.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        BigDecimal before = user.getBalance() == null ? BigDecimal.ZERO.setScale(2) : user.getBalance();
+        BigDecimal after = before.add(amount);
+        if (after.compareTo(MAX_BALANCE) > 0) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "调整后余额超过账户上限");
+        }
+        if (userMapper.incrementBalance(id, amount) != 1) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        user.setBalance(after);
+        auditService.record(adminId, "CREDIT_USER_BALANCE", "USER", id,
+                Map.of("balance", before), Map.of("balance", after, "amount", amount), reason);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("userId", id);
+        response.put("balance", after);
+        response.put("amount", amount);
+        response.put("type", "CREDIT");
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> adjustBalance(Long adminId, Long id, AdminBalanceSetRequest request) {
+        if (adminId == null || id == null || request == null || request.getBalance() == null) {
+            throw new BusinessException(ResultCode.PARAM_INVALID);
+        }
+        BigDecimal target = request.getBalance();
+        String reason = request.getReason() == null ? "" : request.getReason().trim();
+        if (target.signum() < 0 || target.scale() > 2 || target.compareTo(MAX_BALANCE) > 0 || reason.isBlank() || reason.length() > 500) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "请输入 0.00～9999999999.99 的调整后余额并填写调整原因");
+        }
+        target = target.setScale(2);
+        User user = userMapper.selectByIdForUpdate(id);
+        if (user == null || Integer.valueOf(1).equals(user.getDeleted())) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        BigDecimal before = user.getBalance() == null ? BigDecimal.ZERO.setScale(2) : user.getBalance();
+        BigDecimal delta = target.subtract(before);
+        if (userMapper.incrementBalance(id, delta) != 1) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        user.setBalance(target);
+        auditService.record(adminId, "ADJUST_USER_BALANCE", "USER", id,
+                Map.of("balance", before), Map.of("balance", target, "delta", delta), reason);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("userId", id);
+        response.put("balance", target);
+        response.put("delta", delta);
+        response.put("type", "ADJUST");
         return response;
     }
 
