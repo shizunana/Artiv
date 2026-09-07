@@ -5,7 +5,7 @@
       <div class="filters"><el-input v-model="query.keyword" clearable placeholder="企划标题" @keyup.enter="search"/><el-select v-model="query.moderationStatus" clearable placeholder="治理状态"><el-option label="正常展示" :value="0"/><el-option label="违规下架" :value="1"/></el-select><el-select v-model="query.status" clearable placeholder="业务状态"><el-option label="招募中" :value="0"/><el-option label="已选定" :value="1"/><el-option label="进行中" :value="2"/><el-option label="已完成" :value="3"/><el-option label="已关闭" :value="4"/></el-select><el-button type="primary" @click="search">查询</el-button></div>
       <el-table v-loading="loading" :data="records">
         <el-table-column label="企划" min-width="230"><template #default="{row}"><strong>{{ row.project.title }}</strong><div class="muted">#{{ row.project.id }} · {{ row.employer?.nickname || '-' }}</div></template></el-table-column>
-        <el-table-column label="类型" width="110"><template #default="{row}">{{ row.project.category || '-' }}</template></el-table-column>
+        <el-table-column label="类型" width="110"><template #default="{row}">{{ row.project.projectCategory || '-' }}</template></el-table-column>
         <el-table-column label="预算" width="160"><template #default="{row}">{{ formatProjectBudget(row.project) }}</template></el-table-column>
         <el-table-column label="应征" width="80"><template #default="{row}">{{ row.applicationCount }}</template></el-table-column>
         <el-table-column label="治理状态" width="115"><template #default="{row}"><el-tag :type="row.project.moderationStatus===1?'danger':'success'">{{ row.project.moderationStatus===1?'违规下架':'正常' }}</el-tag></template></el-table-column>

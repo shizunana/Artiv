@@ -41,8 +41,8 @@ export const SUBJECT_OPTIONS = [
 ]
 
 /**
- * 类型（分类）选项：橱窗与企划共用
- * 对应 stall.category / project.category
+ * 类型（分类）选项：橱窗与作品使用，企划使用独立 projectCategories.js
+ * 对应 stall.category / work.category
  */
 export const CATEGORY_OPTIONS = [
   '头像',

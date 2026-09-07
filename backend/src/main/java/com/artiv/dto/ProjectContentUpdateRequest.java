@@ -15,7 +15,7 @@ import java.util.List;
  * “变更企划”的既有状态规则。</p>
  */
 @Data
-public class ProjectContentUpdateRequest {
+public class ProjectContentUpdateRequest extends ProjectCategoryInput {
 
     @NotBlank(message = "企划标题不能为空")
     @Size(max = 20, message = "企划标题最长 20 个字")
@@ -33,7 +33,9 @@ public class ProjectContentUpdateRequest {
 
     private List<String> tags;
 
-    private String category;
+    @NotBlank(message = "请选择企划类型")
+    @Size(max = 50, message = "企划类型最长 50 字")
+    private String projectCategory;
 
     private List<String> subject;
 

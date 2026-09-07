@@ -1,29 +1,13 @@
 <template>
   <div class="list-page">
     <div class="page-container">
-      <!-- 分类 Tab：类型 -->
-      <div class="category-bar type-bar">
-        <span
-          v-for="c in categoryTabs"
-          :key="c"
-          class="category-tab"
-          :class="{ 'is-active': activeCategory === c }"
-          @click="activeCategory = c; page = 1; load()"
-        >
-          {{ c }}
-        </span>
-      </div>
-
       <!-- 筛选行：下拉靠左 + 搜索框靠右 -->
       <div class="filter-row">
+        <ProjectFilterPopover :model-value="appliedFilter" @apply="applyFilter" />
         <el-select v-model="sort" class="filter-select" @change="load">
           <el-option label="最新发布" value="newest" />
           <el-option label="稿酬最高" value="budget" />
           <el-option label="应征数少" value="applications" />
-        </el-select>
-        <el-select v-model="subject" class="filter-select" @change="page = 1; load()">
-          <el-option label="不限" value="all" />
-          <el-option v-for="s in subjectOptions" :key="s" :label="s" :value="s" />
         </el-select>
         <el-select v-model="budgetRange" class="filter-select" @change="load">
           <el-option label="稿酬区间不限" value="all" />
@@ -48,7 +32,10 @@
         </el-input>
       </div>
 
-      <div class="project-grid" v-loading="loading">
+      <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon>
+        <el-button link type="primary" @click="load">重试</el-button>
+      </el-alert>
+      <div v-else class="project-grid" v-loading="loading">
         <article
           v-for="project in projects"
           :key="project.id"
@@ -89,15 +76,15 @@
 
           <div class="project-card__info">
             <span class="info-item"><el-icon><Calendar /></el-icon>{{ project.deadline || '-' }} 截稿</span>
-            <span class="info-item"><el-icon><Postcard /></el-icon>{{ project.category || '-' }}</span>
+            <span class="info-item"><el-icon><Postcard /></el-icon>{{ project.projectCategory || '-' }}</span>
             <span class="info-item"><span class="applicant-pawn" aria-hidden="true">♟︎</span>{{ project.applicationCount }} 人应征</span>
             <span class="info-item info-budget">{{ formatProjectBudget(project) }}</span>
           </div>
         </article>
       </div>
 
-      <EmptyState v-if="!loading && projects.length === 0" description="暂无符合条件的企划" />
-      <div class="pager">
+      <EmptyState v-if="!loading && !loadError && projects.length === 0" description="暂无符合条件的企划" />
+      <div v-if="!loadError" class="pager">
         <Pagination v-model:page="page" v-model:size="size" :total="total" @change="load" />
       </div>
     </div>
@@ -105,11 +92,12 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Calendar, Postcard, Search } from '@element-plus/icons-vue'
 import { getApplications, getProjects } from '@/api/project'
-import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
+import ProjectFilterPopover from '@/components/projects/ProjectFilterPopover.vue'
+import { copyProjectFilter, projectFilterParams } from '@/utils/projectFilters'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import { formatProjectBudget } from '@/utils/budget'
 import Pagination from '@/components/common/Pagination.vue'
@@ -124,16 +112,19 @@ const total = ref(0)
 const keyword = ref('')
 
 // 筛选状态（参考站筛选区）
-const activeCategory = ref('全部')
+const appliedFilter = ref(copyProjectFilter())
+const loadError = ref('')
+let requestVersion = 0
 const sort = ref('newest')
-const subject = ref('all')
 const budgetRange = ref('all')
 const deadlineRange = ref('all')
 const unselectedOnly = ref(false)
 
-// 类型选项与橱窗分类同步
-const subjectOptions = SUBJECT_OPTIONS
-const categoryTabs = ['全部', ...CATEGORY_OPTIONS]
+function applyFilter(value) {
+  appliedFilter.value = copyProjectFilter(value)
+  page.value = 1
+  load()
+}
 
 function firstImage(images) {
   if (!images) return ''
@@ -147,21 +138,17 @@ function subjectList(subjects) {
 }
 
 async function load() {
+  const version = ++requestVersion
   loading.value = true
+  loadError.value = ''
   try {
-    const params = { page: page.value, size: size.value }
+    const params = { page: page.value, size: size.value, ...projectFilterParams(appliedFilter.value) }
     if (keyword.value) params.keyword = keyword.value
-    if (activeCategory.value !== '全部') {
-      params.category = activeCategory.value
-    }
     if (unselectedOnly.value) {
       params.status = 0
     }
     if (sort.value === 'budget') {
       params.sort = 'budget'
-    }
-    if (subject.value && subject.value !== 'all') {
-      params.subject = subject.value
     }
     if (budgetRange.value && budgetRange.value !== 'all') {
       const [min, max] = budgetRange.value.split('-')
@@ -176,8 +163,9 @@ async function load() {
       }
     }
     const data = await getProjects(params)
+    if (version !== requestVersion) return
     const records = data.records || []
-    projects.value = await Promise.all(records.map(async (project) => {
+    const enriched = await Promise.all(records.map(async (project) => {
       try {
         const applications = await getApplications(project.id, { page: 1, size: 1 })
         return { ...project, applicationCount: applications.total || 0 }
@@ -185,9 +173,13 @@ async function load() {
         return { ...project, applicationCount: 0 }
       }
     }))
+    if (version !== requestVersion) return
+    projects.value = enriched
     total.value = data.total || 0
+  } catch {
+    if (version === requestVersion) loadError.value = '企划加载失败，请重试'
   } finally {
-    loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 
@@ -196,6 +188,7 @@ function goDetail(id) {
 }
 
 onMounted(load)
+onBeforeUnmount(() => { requestVersion++ })
 </script>
 
 <style scoped>
@@ -245,16 +238,26 @@ onMounted(load)
 }
 
 .filter-row {
+  --project-filter-width: 148px;
+  --project-filter-height: 40px;
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 10px 0;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .filter-select {
-  width: 140px;
+  width: var(--project-filter-width);
   flex-shrink: 0;
+}
+
+.filter-select :deep(.el-select__wrapper) {
+  height: var(--project-filter-height);
+  min-height: var(--project-filter-height);
+  box-sizing: border-box;
+  padding: 0 14px;
+  border-radius: 6px;
 }
 
 .filter-switches {
@@ -295,6 +298,11 @@ onMounted(load)
   cursor: pointer;
   outline: none;
   transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+@media (max-width: 520px) {
+  .filter-row :deep(.filter-trigger), .filter-select { flex: 1 1 calc(50% - 9px); min-width: 0; }
+  .search-input { width: 100%; margin-left: 0; }
 }
 
 .project-card:hover,

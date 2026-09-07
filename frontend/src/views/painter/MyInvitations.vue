@@ -48,7 +48,7 @@
               {{ invitationType(invitation.invitationType) }}
             </el-tag>
           </div>
-          <p>类型：{{ invitation.category || '未分类' }} · 邀请时间：{{ formatDateTime(invitation.createdAt) }}</p>
+          <p>类型：{{ invitation.projectCategory || '未分类' }} · 邀请时间：{{ formatDateTime(invitation.createdAt) }}</p>
           <p class="invitation-description" :title="invitation.projectDescription || ''">
             企划简介：{{ truncate(invitation.projectDescription || '暂无简介', 15) }}
           </p>

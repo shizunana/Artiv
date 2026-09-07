@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
+import com.artiv.common.ProjectCategoryRules;
 import com.artiv.dto.PublisherSummary;
 import com.artiv.dto.ProjectRequest;
 import com.artiv.dto.ProjectContentUpdateRequest;
@@ -63,7 +64,19 @@ public class ProjectServiceImpl implements ProjectService {
     public Page<Project> listProjects(long page, long size, String keyword, Integer status,
                                       String sort, BigDecimal budgetMin, BigDecimal budgetMax,
                                       Integer deadlineWithin, Integer deadlineAfter, String tag,
-                                      String category, String subject) {
+                                      String projectCategory, String subject) {
+        projectCategory = ProjectCategoryRules.optional(projectCategory);
+        return listProjectsByCategories(page, size, keyword, status, sort, budgetMin, budgetMax,
+                deadlineWithin, deadlineAfter, tag, projectCategory == null ? java.util.List.of() : java.util.List.of(projectCategory), subject);
+    }
+
+    @Override
+    public Page<Project> listProjectsByCategories(long page, long size, String keyword, Integer status,
+                                      String sort, BigDecimal budgetMin, BigDecimal budgetMax,
+                                      Integer deadlineWithin, Integer deadlineAfter, String tag,
+                                      java.util.List<String> projectCategories, String subject) {
+        var categories = com.artiv.common.ProjectSubjectRules.categories(projectCategories);
+        subject = com.artiv.common.ProjectSubjectRules.query(categories, subject);
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
                 .eq(Project::getDeleted, 0)
                 .eq(Project::getMode, 0)
@@ -73,8 +86,8 @@ public class ProjectServiceImpl implements ProjectService {
                 .ge(Project::getDeadline, LocalDate.now())
                 .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
                 .like(StringUtils.hasText(tag), Project::getTags, tag)
-                .eq(StringUtils.hasText(category), Project::getCategory, category)
-                .like(StringUtils.hasText(subject), Project::getSubject, subject)
+                .in(!categories.isEmpty(), Project::getProjectCategory, categories)
+                .apply(StringUtils.hasText(subject), "FIND_IN_SET({0}, subject) > 0", subject)
                 .ge(budgetMin != null, Project::getBudgetMax, budgetMin)
                 .le(budgetMax != null, Project::getBudgetMin, budgetMax);
         if (deadlineWithin != null) {
@@ -88,6 +101,7 @@ public class ProjectServiceImpl implements ProjectService {
         } else {
             wrapper.orderByDesc(Project::getCreatedAt);
         }
+        wrapper.orderByDesc(Project::getId); // 相同时间/预算时保持多类型分页稳定。
         return projectMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
@@ -135,9 +149,8 @@ public class ProjectServiceImpl implements ProjectService {
         project.setDeadline(request.getDeadline());
         project.setTags(request.getTags() == null || request.getTags().isEmpty()
                 ? null : String.join(",", request.getTags()));
-        project.setCategory(request.getCategory());
-        project.setSubject(request.getSubject() == null || request.getSubject().isEmpty()
-                ? null : String.join(",", request.getSubject()));
+        project.setProjectCategory(ProjectCategoryRules.require(request.getProjectCategory()));
+        project.setSubject(join(com.artiv.common.ProjectSubjectRules.normalize(project.getProjectCategory(), request.getSubject())));
         project.setImages(request.getImages());
         project.setRequirements(serializeRequirements(request));
         project.setPhases(normalizePhases(request.getPhases()));
@@ -253,13 +266,19 @@ public class ProjectServiceImpl implements ProjectService {
         project.setBudgetMax(budgetRange[1]);
         project.setBudget(budgetRange[1]);
         project.setTags(join(request.getTags()));
-        project.setCategory(trimToNull(request.getCategory()));
-        project.setSubject(join(request.getSubject()));
+        project.setProjectCategory(ProjectCategoryRules.require(request.getProjectCategory()));
+        project.setSubject(join(com.artiv.common.ProjectSubjectRules.normalize(project.getProjectCategory(), request.getSubject())));
         project.setImages(trimToNull(request.getImages()));
         project.setRequirements(serializeRequirements(request.getRequirements()));
         project.setPhases(normalizePhases(request.getPhases()));
         project.setUpdatedAt(LocalDateTime.now());
-        projectMapper.updateById(project);
+        // updateById 默认忽略 null；仅内容编辑明确清空题材，不改变其他更新的空值策略。
+        if (project.getSubject() == null) {
+            projectMapper.update(project, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Project>()
+                    .eq(Project::getId, id).set(Project::getSubject, null));
+        } else {
+            projectMapper.updateById(project);
+        }
         return project;
     }
 

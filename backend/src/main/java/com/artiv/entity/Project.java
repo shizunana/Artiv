@@ -39,8 +39,8 @@ public class Project {
 
     private String tags;
 
-    /** 类型（同橱窗分类） */
-    private String category;
+    /** 企划类型（独立六类） */
+    private String projectCategory;
 
     /** 题材风格，逗号分隔 */
     private String subject;

@@ -16,7 +16,7 @@ class GuideRulesTest {
     GuideModelClient.ToolCall call(String arguments) { return new GuideModelClient.ToolCall("call-1", "read_artiv", arguments); }
     @Test void rulesAreVersionedAndDoNotExposeInternalPaths() throws Exception {
         var result = registry().execute(call("{\"operation\":\"rules\"}"), new GuideCancellation());
-        assertEquals(7, result.references().size());
+        assertEquals(8, result.references().size());
         assertTrue(result.content().contains("已完成或已取消订单也属于关联订单"));
         assertTrue(result.content().contains("已完成、已取消订单不阻止删除橱窗"));
         assertTrue(result.content().contains("隐藏不等于拒绝或撤回邀请"));
@@ -36,6 +36,38 @@ class GuideRulesTest {
         var registry = registry();
         assertThrows(CancellationException.class, () -> registry.execute(call("{\"operation\":\"rules\"}"), cancellation));
     }
+    @Test void projectAndArtistSearchUseSeparateCategoryContracts() throws Exception {
+        var reader = mock(GuidePublicReader.class);
+        when(reader.projects(1,null,"角色设计",null,null,null)).thenReturn(new GuidePublicReader.ReadResult(List.of(),List.of()));
+        when(reader.artists(1,null,"Live2d",null)).thenReturn(new GuidePublicReader.ReadResult(List.of(),List.of()));
+        var registry = new GuideToolRegistry(json,new GuideRuleBook(json),reader);
+        registry.execute(call("{\"operation\":\"search_projects\",\"projectCategory\":\"角色设计\"}"),new GuideCancellation());
+        registry.execute(call("{\"operation\":\"search_artists\",\"category\":\"Live2d\"}"),new GuideCancellation());
+        verify(reader).projects(1,null,"角色设计",null,null,null);
+        verify(reader).artists(1,null,"Live2d",null);
+        for (String invalid : List.of(
+                "{\"operation\":\"search_projects\",\"category\":\"头像\"}",
+                "{\"operation\":\"search_projects\",\"projectCategory\":\"Live2d\"}",
+                "{\"operation\":\"search_artists\",\"projectCategory\":\"头像\"}",
+                "{\"operation\":\"search_projects\",\"projectCategory\":\"头像\",\"category\":\"头像\"}")) {
+            assertThrows(GuideModelException.class,()->registry.execute(call(invalid),new GuideCancellation()));
+        }
+        verifyNoMoreInteractions(reader);
+    }
+    @Test void projectSubjectsAreRestrictedButArtistSubjectsStayOriginal() throws Exception {
+        var reader = mock(GuidePublicReader.class);
+        when(reader.projects(1,null,"头像","安头",null,null)).thenReturn(new GuidePublicReader.ReadResult(List.of(),List.of()));
+        when(reader.artists(1,null,null,"动图")).thenReturn(new GuidePublicReader.ReadResult(List.of(),List.of()));
+        var registry = new GuideToolRegistry(json,new GuideRuleBook(json),reader);
+        registry.execute(call("{\"operation\":\"search_projects\",\"projectCategory\":\"头像\",\"subject\":\"安头\"}"),new GuideCancellation());
+        registry.execute(call("{\"operation\":\"search_artists\",\"subject\":\"动图\"}"),new GuideCancellation());
+        for (String value: List.of("动图","场景")) {
+            assertThrows(GuideModelException.class, () -> registry.execute(call("{\"operation\":\"search_projects\",\"projectCategory\":\"头像\",\"subject\":\""+value+"\"}"),new GuideCancellation()));
+        }
+        verify(reader).projects(1,null,"头像","安头",null,null);
+        verify(reader).artists(1,null,null,"动图"); verifyNoMoreInteractions(reader);
+    }
+
     @Test void toolRoundTripSuppliesEvidenceAndSumsUsageBeforeStreaming() throws Exception {
         var model = mock(GuideModelClient.class);
         var usage = new GuideModelClient.Usage(10L, 2L);
@@ -53,7 +85,7 @@ class GuideRulesTest {
                 (name, data) -> events.add(name), refs::addAll, new GuideCancellation());
         assertEquals("根据平台规则", text.toString());
         assertEquals(30L, reply.usage().inputTokens());
-        assertEquals(7, refs.size()); assertTrue(events.contains("references"));
+        assertEquals(8, refs.size()); assertTrue(events.contains("references"));
     }
     @Test void duplicateReadCannotLoopAndNoStreamAfterCancellation() throws Exception {
         var model = mock(GuideModelClient.class);

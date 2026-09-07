@@ -2,6 +2,9 @@ package com.artiv.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.artiv.common.Result;
+import com.artiv.common.BusinessException;
+import com.artiv.common.ResultCode;
+import jakarta.servlet.http.HttpServletRequest;
 import com.artiv.dto.ProjectRequest;
 import com.artiv.dto.ProjectContentUpdateRequest;
 import com.artiv.entity.Project;
@@ -41,10 +44,24 @@ public class ProjectController {
                                       @RequestParam(required = false) Integer deadlineWithin,
                                       @RequestParam(required = false) Integer deadlineAfter,
                                       @RequestParam(required = false) String tag,
-                                      @RequestParam(required = false) String category,
-                                      @RequestParam(required = false) String subject) {
+                                      @RequestParam(required = false) String projectCategory,
+                                      @RequestParam(required = false) java.util.List<String> projectCategories,
+                                      @RequestParam(required = false) String subject,
+                                      HttpServletRequest httpRequest) {
+        if (httpRequest.getParameterMap().containsKey("category")) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "企划字段 category 已停用，请刷新页面后使用 projectCategory");
+        }
+        if (httpRequest.getParameterMap().containsKey("projectCategories")) {
+            if (httpRequest.getParameterMap().containsKey("projectCategory")) {
+                throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "projectCategory 与 projectCategories 不能同时传入");
+            }
+            var categories = com.artiv.common.ProjectSubjectRules.categories(projectCategories);
+            String checkedSubject = com.artiv.common.ProjectSubjectRules.query(categories, subject);
+            return Result.ok(projectService.listProjectsByCategories(page, size, keyword, status, sort,
+                    budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag, categories, checkedSubject));
+        }
         return Result.ok(projectService.listProjects(page, size, keyword, status, sort,
-                budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag, category, subject));
+                budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag, projectCategory, subject));
     }
 
     /** 我的企划（企划方工作台） */

@@ -64,7 +64,7 @@
               <div class="project-card__image">
                 <img v-if="firstImage(project.images)" :src="firstImage(project.images)" :alt="project.title" loading="lazy" />
                 <div v-else class="image-placeholder"><el-icon><Picture /></el-icon></div>
-                <span class="content-badge">{{ project.category || '未分类' }}</span>
+                <span class="content-badge">{{ project.projectCategory || '未分类' }}</span>
               </div>
               <div class="project-card__body">
                 <div class="project-card__topline">

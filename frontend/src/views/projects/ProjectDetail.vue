@@ -50,7 +50,7 @@
             <h1 class="project-title">{{ project.title }}</h1>
             <div class="project-meta">
               <span>发布于 {{ formatDateTime(project.createdAt) }}</span>
-              <span v-if="project.category">{{ project.category }}</span>
+              <span v-if="project.projectCategory">{{ project.projectCategory }}</span>
               <span v-for="subject in projectSubjects" :key="subject">{{ subject }}</span>
             </div>
           </header>

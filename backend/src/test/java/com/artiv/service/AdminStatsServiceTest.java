@@ -83,12 +83,48 @@ class AdminStatsServiceTest {
     }
 
     @Test
+    void newSnapshotKeyWinsAndUnknownTypesAreReportedWithoutRewriting() {
+        OrderInfo first = new OrderInfo(); first.setId(1L); first.setProjectId(1L); first.setAmount(new BigDecimal("150"));
+        first.setProjectSnapshot("{\"projectCategory\":\"角色设计\",\"category\":\"头像\"}");
+        OrderInfo second = new OrderInfo(); second.setId(2L); second.setProjectId(2L); second.setAmount(new BigDecimal("200"));
+        second.setProjectSnapshot("{\"projectCategory\":null,\"category\":\"头像\"}");
+        when(orderInfoMapper.selectList(any())).thenReturn(List.of(first,second));
+        var response = adminStatsService.priceDistribution(LocalDate.now(),LocalDate.now(),"角色设计");
+        assertEquals(1,response.get("sampleSize"));
+        assertEquals("角色设计",response.get("projectCategory"));
+        assertEquals(1L,response.get("unknownProjectCategoryCount"));
+        assertFalse(response.containsKey("category"));
+        assertEquals(0,adminStatsService.priceDistribution(LocalDate.now(),LocalDate.now(),"头像").get("sampleSize"));
+        assertEquals(2,adminStatsService.priceDistribution(LocalDate.now(),LocalDate.now(),null).get("sampleSize"));
+        org.mockito.Mockito.verifyNoInteractions(projectMapper);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void supplyMappingDeduplicatesPaintersButStallPieKeepsOriginalCategories() {
+        User painter = new User();painter.setId(8L);
+        com.artiv.entity.Work a=new com.artiv.entity.Work();a.setUserId(8L);a.setCategory("立绘");
+        com.artiv.entity.Work b=new com.artiv.entity.Work();b.setUserId(8L);b.setCategory("Q版全身");
+        com.artiv.entity.Stall stall=new com.artiv.entity.Stall();stall.setId(1L);stall.setCategory("立绘");
+        when(userMapper.selectList(any())).thenReturn(List.of(painter));
+        when(workMapper.selectList(any())).thenReturn(List.of(a,b));
+        when(stallMapper.selectList(any())).thenReturn(List.of(stall));
+        var response=adminStatsService.demand(LocalDate.now(),LocalDate.now());
+        var rows=(List<Map<String,Object>>)response.get("supplyDemandGap");
+        assertEquals(6,rows.size());
+        var standing=rows.stream().filter(r->"立绘".equals(r.get("name"))).findFirst().orElseThrow();
+        assertEquals(1L,standing.get("certifiedPainters"));assertEquals(1L,standing.get("activeStalls"));
+        var pie=(List<Map<String,Object>>)response.get("stallCategories");
+        assertEquals(1,pie.size());assertEquals("立绘",pie.getFirst().get("name"));assertEquals(1L,pie.getFirst().get("value"));
+    }
+
+    @Test
     void demandTrendCountsApplicationsByOwnCreatedAt() {
         LocalDate start = LocalDate.of(2026, 8, 10);
         LocalDate end = LocalDate.of(2026, 8, 27);
         Project project = new Project();
         project.setId(7L);
-        project.setCategory("头像");
+        project.setProjectCategory("头像");
         project.setCreatedAt(start.atTime(10, 0));
 
         Application applicationForOlderProject = new Application();
@@ -183,7 +219,7 @@ class AdminStatsServiceTest {
         order.setCompletedAt(LocalDateTime.now());
         Project project = new Project();
         project.setId(7L);
-        project.setCategory("立绘");
+        project.setProjectCategory("立绘");
         when(orderInfoMapper.selectList(any())).thenReturn(List.of(order));
         when(projectMapper.selectBatchIds(any())).thenReturn(List.of(project));
 

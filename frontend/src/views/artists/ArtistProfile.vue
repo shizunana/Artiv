@@ -100,7 +100,7 @@
                   <el-tag size="small" :type="publicProjectStatus(project).type">{{ publicProjectStatus(project).text }}</el-tag>
                 </div>
                 <p>{{ project.description || '暂无需求描述' }}</p>
-                <div class="project-card-meta"><span>{{ project.category || '未分类' }}</span><strong>{{ formatProjectBudget(project) }}</strong></div>
+                <div class="project-card-meta"><span>{{ project.projectCategory || '未分类' }}</span><strong>{{ formatProjectBudget(project) }}</strong></div>
               </div>
             </article>
           </div>

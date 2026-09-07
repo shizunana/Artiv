@@ -7,21 +7,23 @@
           <section class="metric-grid five span-2"><article v-for="item in demandBaseMetrics" :key="item.label"><strong>{{ item.value }}</strong><span>{{ item.label }}</span></article></section>
           <section class="metric-grid five span-2 demand-summary"><article v-for="item in demandMetrics" :key="item.label"><strong>{{ item.value }}</strong><span>{{ item.label }}</span></article></section>
           <section class="wb-card span-2"><div class="trend-card-head"><div><h3>{{ demandTrendTitle }}</h3><p>按发生时间统计新增企划与新增应征，鼠标移入可查看具体数值。</p></div><span>{{ trendGranularityLabel }}</span></div><TrendChart :data="data.trend || []" :title="demandTrendTitle" :granularity="data.granularity" primary-label="新增企划" secondary-label="新增应征"/></section>
-          <section class="wb-card"><h3>企划类型分布</h3><PieChart title="企划类型分布" :items="projectPieItems"/></section>
+          <section class="wb-card"><h3>企划类型分布</h3><small v-if="data.unknownProjectCategoryCount">有 {{ data.unknownProjectCategoryCount }} 条企划的类型无法识别，请核对历史数据。</small><PieChart title="企划类型分布" :items="projectPieItems"/></section>
           <section class="wb-card"><h3>在售橱窗类型分布</h3><PieChart title="在售橱窗类型分布" :items="stallPieItems"/></section>
           <section class="wb-card span-2 price-distribution-card">
             <div class="section-title price-distribution-head">
-              <h3>完成订单成交价格分层</h3>
+              <h3>企划订单成交价格分层</h3>
+              <small>仅统计所选时间内已完成的企划订单，不含橱窗订单。</small>
+              <small v-if="priceData.unknownProjectCategoryCount">有 {{ priceData.unknownProjectCategoryCount }} 笔订单的企划类型无法识别，请核对历史数据。</small>
               <div class="price-distribution-filter">
-                <el-select v-model="priceCategory" class="category-select" aria-label="选择企划类型" placeholder="全部类型" @change="loadPriceDistribution">
-                  <el-option label="全部类型" value=""/>
-                  <el-option v-for="item in CATEGORY_OPTIONS" :key="item" :label="item" :value="item"/>
+                <el-select v-model="priceCategory" class="category-select" aria-label="选择企划类型" placeholder="全部企划类型" @change="loadPriceDistribution">
+                  <el-option label="全部企划类型" value=""/>
+                  <el-option v-for="item in PROJECT_CATEGORY_OPTIONS" :key="item" :label="item" :value="item"/>
                 </el-select>
               </div>
             </div>
             <div v-loading="priceLoading" class="price-distribution-body">
               <template v-if="priceData.sufficient">
-                <div class="distribution-chart" aria-label="完成订单成交价格五档分层图">
+                <div class="distribution-chart" aria-label="企划订单成交价格五档分层图">
                   <article v-for="item in priceData.buckets" :key="item.key" class="distribution-column">
                     <strong>{{ item.targetRate }}%</strong>
                     <el-tooltip :content="bucketTooltip(item)" placement="top">
@@ -54,7 +56,7 @@
           <section class="wb-card"><h3>认证状态</h3><BarList :items="mapToItems(data.certificationStatus)"/></section>
           <section class="wb-card"><h3>订单状态</h3><BarList :items="mapToItems(data.orderStatus)"/></section>
           <section class="wb-card"><h3>订单来源</h3><BarList :items="mapToItems(data.orderSource)"/></section>
-          <section class="wb-card span-2"><h3>成交类型 Top 5</h3><el-table :data="data.topCategories || []"><el-table-column prop="name" label="类型"/><el-table-column prop="orders" label="完成订单"/><el-table-column label="成交额"><template #default="{row}">¥{{ row.gmv }}</template></el-table-column></el-table></section>
+          <section v-for="group in [{key:'projectTopCategories',title:'企划成交类型 Top 5'},{key:'stallTopCategories',title:'橱窗成交类型 Top 5'}]" :key="group.key" class="wb-card span-2"><h3>{{ group.title }}</h3><el-table :data="data[group.key] || []"><el-table-column prop="name" label="类型"/><el-table-column prop="orders" label="完成订单"/><el-table-column label="成交额"><template #default="{row}">¥{{ row.gmv }}</template></el-table-column></el-table></section>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -67,7 +69,7 @@ import { ElMessage } from 'element-plus'
 import { getAdminDemandStats, getAdminPriceDistribution, getAdminStats } from '@/api/admin'
 import PieChart from '@/components/admin/PieChart.vue'
 import TrendChart from '@/components/admin/TrendChart.vue'
-import { CATEGORY_OPTIONS } from '@/constants/subjects'
+import { PROJECT_CATEGORY_OPTIONS } from '@/constants/projectCategories'
 const PLATFORM_STATS_START='2026-08-10';const MAX_RANGE_DAYS=366
 const active=ref('demand');const loading=ref(false);const data=ref({});const priceLoading=ref(false);const priceData=ref({});const priceCategory=ref('');const today=new Date();const iso=d=>{const copy=new Date(d.getTime()-d.getTimezoneOffset()*60000);return copy.toISOString().slice(0,10)};const todayIso=iso(today);const dates=ref([]);const selectingStart=ref(null)
 const dayNumber=value=>Math.floor(new Date(`${value}T00:00:00`).getTime()/86400000)
@@ -79,13 +81,13 @@ function handleDateChange(){selectingStart.value=null}
 function disabledDate(time){const value=iso(time);if(value<PLATFORM_STATS_START||value>todayIso)return true;if(!selectingStart.value)return false;return Math.abs(dayNumber(value)-dayNumber(iso(selectingStart.value)))+1>MAX_RANGE_DAYS}
 function validateDates(){if(!dates.value?.length){ElMessage.warning('请选择统计日期范围');return false}if(dates.value[0]<PLATFORM_STATS_START){ElMessage.warning('统计起始日期不能早于 2026-08-10');return false}if(dates.value[1]>todayIso){ElMessage.warning('统计结束日期不能晚于今天');return false}const days=rangeDays(dates.value);if(days<1||days>MAX_RANGE_DAYS){ElMessage.warning('统计日期范围最长为 1 年');return false}return true}
 const params=()=>dates.value?.length?{startDate:dates.value[0],endDate:dates.value[1]}:{}
-async function loadPriceDistribution(){priceLoading.value=true;try{priceData.value=await getAdminPriceDistribution({...params(),...(priceCategory.value?{category:priceCategory.value}:{})})}finally{priceLoading.value=false}}
-async function load(){if(!validateDates())return;loading.value=true;try{if(active.value==='demand'){const [demand,distribution]=await Promise.all([getAdminDemandStats(params()),getAdminPriceDistribution({...params(),...(priceCategory.value?{category:priceCategory.value}:{})})]);data.value=demand;priceData.value=distribution}else{data.value=await getAdminStats(params())}}finally{loading.value=false}}
+async function loadPriceDistribution(){priceLoading.value=true;try{priceData.value=await getAdminPriceDistribution({...params(),...(priceCategory.value?{projectCategory:priceCategory.value}:{})})}finally{priceLoading.value=false}}
+async function load(){if(!validateDates())return;loading.value=true;try{if(active.value==='demand'){const [demand,distribution]=await Promise.all([getAdminDemandStats(params()),getAdminPriceDistribution({...params(),...(priceCategory.value?{projectCategory:priceCategory.value}:{})})]);data.value=demand;priceData.value=distribution}else{data.value=await getAdminStats(params())}}finally{loading.value=false}}
 const value=(v,suffix='')=>(v??0)+suffix;const demandMetrics=computed(()=>{const s=data.value.summary||{};return[{label:'新增企划数',value:value(s.publishedProjects)},{label:'生成订单企划',value:value(s.projectsWithOrders)},{label:'零应征企划',value:value(s.zeroApplicationProjects)},{label:'平均应征数',value:value(s.averageApplications)},{label:'平均首次应征',value:s.averageFirstResponseHours==null?'-':value(s.averageFirstResponseHours,' 小时')}]})
 const demandBaseMetrics=computed(()=>{const m=data.value.topMetrics||{};return[{label:'总用户数',value:value(m.totalUsers)},{label:'新增用户数',value:value(m.newUsers)},{label:'新增订单数',value:value(m.newOrders)},{label:'完成订单数',value:value(m.completedOrders)},{label:'成交总额',value:`¥${m.gmv??0}`}]})
 const operationMetrics=computed(()=>{const m=data.value.topMetrics||{};return[{label:'总用户数',value:value(m.totalUsers)},{label:'新增用户数',value:value(m.newUsers)},{label:'新增订单数',value:value(m.newOrders)},{label:'完成订单数',value:value(m.completedOrders)},{label:'成交总额',value:`¥${m.gmv??0}`}]})
 const projectPieItems=computed(()=>data.value.categories||[])
-const stallPieItems=computed(()=>(data.value.supplyDemandGap||[]).filter(item=>Number(item.activeStalls)>0).map(item=>({name:item.name,value:item.activeStalls})))
+const stallPieItems=computed(()=>data.value.stallCategories||[])
 const trendGranularityLabel=computed(()=>({DAY:'按日',WEEK:'按周',MONTH:'按月'}[data.value.granularity]||'按日'))
 const trendPeriodName=computed(()=>({DAY:'每日',WEEK:'每周',MONTH:'每月'}[data.value.granularity]||'每日'))
 const demandTrendTitle=computed(()=>`${trendPeriodName.value}新增企划与应征趋势`)

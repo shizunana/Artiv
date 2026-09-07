@@ -16,7 +16,7 @@ import java.util.*;
 @Component
 public class GuidePublicReader {
     public record ReadResult(Object data, List<GuideReference> references) { }
-    public record ProjectCard(String id, String title, String category, String subject, String description,
+    public record ProjectCard(String id, String title, String projectCategory, String subject, String description,
                               BigDecimal budgetMin, BigDecimal budgetMax, String deadline) { }
     public record WorkText(String title, String category, String subject, String description) { }
     public record ArtistCard(String id, String name, String bio, String tags, List<String> categories,
@@ -32,14 +32,14 @@ public class GuidePublicReader {
         this.projects = projects; this.artists = artists; this.projectMapper = projectMapper;
         this.userMapper = userMapper; this.reviewMapper = reviewMapper;
     }
-    public ReadResult projects(int page, String keyword, String category, String subject, BigDecimal minimum, BigDecimal maximum) {
-        var result = projects.listProjects(page, 5, keyword, null, "latest", minimum, maximum, null, null, null, category, subject);
+    public ReadResult projects(int page, String keyword, String projectCategory, String subject, BigDecimal minimum, BigDecimal maximum) {
+        var result = projects.listProjects(page, 5, keyword, null, "latest", minimum, maximum, null, null, null, projectCategory, subject);
         // 公共服务已筛选；再次检查可见性，避免未来复用方法扩权后向导意外泄露。
         var cards = result.getRecords().stream().filter(this::publicProject).limit(5).map(this::projectCard).toList();
         String now = Instant.now().toString();
         var refs = new ArrayList<>(cards.stream().map(c -> projectRef(c, now)).toList());
         refs.addFirst(new GuideReference("query", "projects-page-" + page, "公开企划查询", "第 " + page + " 页 · 每页最多5条 · 匹配总数 " + result.getTotal()
-                + " · 本页返回 " + cards.size() + " 条；类型=" + Objects.toString(category, "不限") + "，题材=" + Objects.toString(subject, "不限")
+                + " · 本页返回 " + cards.size() + " 条；类型=" + Objects.toString(projectCategory, "不限") + "，题材=" + Objects.toString(subject, "不限")
                 + "，标题关键词=" + Objects.toString(keyword, "不限") + "，预算=" + Objects.toString(minimum, "不限") + "～" + Objects.toString(maximum, "不限"), now));
         return new ReadResult(new SearchResult("公开招募中的企划；本页候选，非全库语义最佳排名；预算区间相交，关键词匹配标题", page, 5,
                 result.getTotal(), result.getTotal() > (long) page * 5, now, cards), List.copyOf(refs));
@@ -89,7 +89,7 @@ public class GuidePublicReader {
         return user != null && Integer.valueOf(0).equals(user.getDeleted()) && Integer.valueOf(0).equals(user.getStatus()) && Integer.valueOf(2).equals(user.getCertStatus());
     }
     private ProjectCard projectCard(Project p) {
-        return new ProjectCard(String.valueOf(p.getId()), clip(p.getTitle(), 80), clip(p.getCategory(), 30), clip(p.getSubject(), 120),
+        return new ProjectCard(String.valueOf(p.getId()), clip(p.getTitle(), 80), clip(p.getProjectCategory(), 30), clip(p.getSubject(), 120),
                 clip(p.getDescription(), 500), p.getBudgetMin(), p.getBudgetMax(), p.getDeadline().toString());
     }
     private ArtistCard artistCard(ArtistSummary a) {
@@ -101,7 +101,7 @@ public class GuidePublicReader {
                 works, a.getAverageScore(), a.getReviewCount());
     }
     private GuideReference projectRef(ProjectCard c, String now) {
-        return new GuideReference("project", c.id(), c.title(), "公开企划 · " + c.category() + " · 预算 " + c.budgetMin() + "～" + c.budgetMax() + " 元 · 截稿 " + c.deadline(), now);
+        return new GuideReference("project", c.id(), c.title(), "公开企划 · " + c.projectCategory() + " · 预算 " + c.budgetMin() + "～" + c.budgetMax() + " 元 · 截稿 " + c.deadline(), now);
     }
     private GuideReference artistRef(ArtistCard c, String now) {
         return new GuideReference("artist", c.id(), c.name(), "认证画师 · " + String.join("、", c.categories()) + " · 公开评价 " + c.reviewCount() + " 条；报价与档期需另行确认", now);

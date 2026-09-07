@@ -14,7 +14,7 @@ import java.util.List;
  * 发布企划入参
  */
 @Data
-public class ProjectRequest {
+public class ProjectRequest extends ProjectCategoryInput {
 
     @NotBlank(message = "企划标题不能为空")
     @Size(max = 20, message = "企划标题最长 20 个字")
@@ -37,8 +37,10 @@ public class ProjectRequest {
 
     private List<String> tags;
 
-    /** 类型（同橱窗分类） */
-    private String category;
+    /** 企划类型（独立六类） */
+    @NotBlank(message = "请选择企划类型")
+    @Size(max = 50, message = "企划类型最长 50 字")
+    private String projectCategory;
 
     /** 题材风格列表 */
     private List<String> subject;

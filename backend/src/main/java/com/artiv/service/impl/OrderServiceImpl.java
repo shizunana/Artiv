@@ -556,7 +556,7 @@ public class OrderServiceImpl implements OrderService {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("title", project.getTitle());
         snapshot.put("description", project.getDescription());
-        snapshot.put("category", project.getCategory());
+        snapshot.put("projectCategory", project.getProjectCategory());
         snapshot.put("subject", project.getSubject());
         snapshot.put("requirements", project.getRequirements());
         snapshot.put("phases", project.getPhases());

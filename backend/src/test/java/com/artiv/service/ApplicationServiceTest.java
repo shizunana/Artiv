@@ -215,7 +215,7 @@ class ApplicationServiceTest {
         project.setId(8L);
         project.setTitle("角色海报插画");
         project.setImages("/uploads/reference-1.png,/uploads/reference-2.png");
-        project.setCategory("头像");
+        project.setProjectCategory("头像");
         project.setDescription("需要设计角色头像");
         when(projectMapper.selectBatchIds(java.util.List.of(8L))).thenReturn(java.util.List.of(project));
 

@@ -2,6 +2,7 @@ package com.artiv.service.impl;
 
 import com.artiv.common.BusinessException;
 import com.artiv.common.ResultCode;
+import com.artiv.common.ProjectCategoryRules;
 import com.artiv.entity.AdminActionLog;
 import com.artiv.entity.Application;
 import com.artiv.entity.ArtistCertification;
@@ -53,9 +54,7 @@ import java.util.stream.Collectors;
 public class AdminStatsServiceImpl implements AdminStatsService {
     private static final LocalDate PLATFORM_STATS_START_DATE = LocalDate.of(2026, 8, 10);
     private static final long MAX_STATS_RANGE_DAYS = 366;
-    private static final List<String> PROJECT_CATEGORIES = List.of(
-            "头像", "Q版全身", "半身像", "立绘", "组合页",
-            "服设", "壁纸", "表情包", "Live2d", "平面设计");
+    private static final List<String> PROJECT_CATEGORIES = ProjectCategoryRules.OPTIONS;
 
     private final UserMapper userMapper;
     private final ProjectMapper projectMapper;
@@ -134,7 +133,8 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         }));
         response.put("orderStatus", countBy(allOrders, order -> orderStatus(order.getStatus())));
         response.put("orderSource", countBy(allOrders, order -> order.getProjectId() == null ? "橱窗" : "企划"));
-        response.put("topCategories", operationCategories(completed));
+        response.put("projectTopCategories", operationCategories(completed.stream().filter(o -> o.getProjectId() != null).toList()));
+        response.put("stallTopCategories", operationCategories(completed.stream().filter(o -> o.getProjectId() == null && o.getStallId() != null).toList()));
         return response;
     }
 
@@ -166,9 +166,9 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                 p -> p.getCreatedAt().toLocalDate(), Collectors.counting()));
         Map<LocalDate, Long> appTrend = trendApplications.stream().collect(Collectors.groupingBy(
                 a -> a.getCreatedAt().toLocalDate(), Collectors.counting()));
-        Map<String, Long> categoryCounts = countBy(projects, p -> blankAs(p.getCategory(), "未分类"));
+        Map<String, Long> categoryCounts = countBy(projects, p -> blankAs(p.getProjectCategory(), "未分类"));
         Map<String, Double> categoryZeroRates = new HashMap<>();
-        projects.stream().collect(Collectors.groupingBy(p -> blankAs(p.getCategory(), "未分类")))
+        projects.stream().collect(Collectors.groupingBy(p -> blankAs(p.getProjectCategory(), "未分类")))
                 .forEach((category, categoryProjects) -> categoryZeroRates.put(category,
                         round(categoryProjects.stream().filter(p -> !applicationsByProject.containsKey(p.getId())).count()
                                 * 100.0 / categoryProjects.size())));
@@ -199,19 +199,23 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         response.put("granularity", granularity(range));
         response.put("trend", timeline(range, projectTrend, appTrend));
         response.put("categories", sorted(categoryCounts, 20));
+        response.put("unknownProjectCategoryCount", projects.stream().filter(p -> !PROJECT_CATEGORIES.contains(p.getProjectCategory() == null ? "" : p.getProjectCategory())).count());
         response.put("funnel", List.of(
                 Map.of("name", "发布企划", "value", projects.size()),
                 Map.of("name", "收到应征", "value", withApplication),
                 Map.of("name", "生成订单", "value", withOrder),
                 Map.of("name", "完成交易", "value", completed)));
         response.put("supplyDemandGap", supplyDemandGap(categoryCounts, categoryZeroRates));
+        response.put("stallCategories", sorted(countBy(stallMapper.selectList(new LambdaQueryWrapper<Stall>()
+                .eq(Stall::getDeleted, 0).eq(Stall::getStatus, 1).gt(Stall::getStock, 0)),
+                s -> blankAs(s.getCategory(), "未分类")), 20));
         return response;
     }
 
     @Override
-    public Map<String, Object> priceDistribution(LocalDate startDate, LocalDate endDate, String category) {
+    public Map<String, Object> priceDistribution(LocalDate startDate, LocalDate endDate, String projectCategory) {
         Range range = resolve(startDate, endDate);
-        String normalizedCategory = normalizeCategory(category);
+        String normalizedCategory = ProjectCategoryRules.optional(projectCategory);
         List<OrderInfo> completedProjectOrders = orderInfoMapper.selectList(new LambdaQueryWrapper<OrderInfo>()
                 .eq(OrderInfo::getDeleted, 0)
                 .eq(OrderInfo::getStatus, 3)
@@ -240,7 +244,7 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                     String orderCategory = snapshotCategories.get(order.getId());
                     if (orderCategory == null) {
                         Project project = fallbackProjects.get(order.getProjectId());
-                        orderCategory = project == null ? "未分类" : blankAs(project.getCategory(), "未分类");
+                        orderCategory = project == null ? "未分类" : blankAs(project.getProjectCategory(), "未分类");
                     }
                     return normalizedCategory == null || normalizedCategory.equals(orderCategory);
                 })
@@ -248,14 +252,23 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                 .sorted()
                 .toList();
 
-        return priceDistributionResponse(range, normalizedCategory, amounts);
+        Map<String, Object> response = priceDistributionResponse(range, normalizedCategory, amounts);
+        response.put("unknownProjectCategoryCount", completedProjectOrders.stream().filter(order -> {
+            String value = snapshotCategories.get(order.getId());
+            if (value == null) {
+                Project project = fallbackProjects.get(order.getProjectId());
+                value = project == null ? null : project.getProjectCategory();
+            }
+            return value == null || !PROJECT_CATEGORIES.contains(value);
+        }).count());
+        return response;
     }
 
     private Map<String, Object> priceDistributionResponse(Range range, String category, List<BigDecimal> amounts) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("range", rangeMap(range));
-        response.put("category", category);
-        response.put("categoryLabel", category == null ? "全部类型" : category);
+        response.put("projectCategory", category);
+        response.put("projectCategoryLabel", category == null ? "全部企划类型" : category);
         response.put("sampleSize", amounts.size());
         long distinctPriceCount = amounts.stream().map(BigDecimal::stripTrailingZeros).distinct().count();
         response.put("distinctPriceCount", distinctPriceCount);
@@ -329,22 +342,13 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         return response;
     }
 
-    private String normalizeCategory(String category) {
-        if (category == null || category.isBlank() || "全部".equals(category.trim()) || "全部类型".equals(category.trim())) {
-            return null;
-        }
-        String normalized = category.trim();
-        if (!PROJECT_CATEGORIES.contains(normalized)) {
-            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "企划类型不存在");
-        }
-        return normalized;
-    }
-
     private String projectSnapshotCategory(String projectSnapshot) {
         if (projectSnapshot == null || projectSnapshot.isBlank()) return null;
         try {
-            JsonNode category = objectMapper.readTree(projectSnapshot).get("category");
-            return category == null || category.isNull() ? null : blankAs(category.asText(), null);
+            JsonNode snapshot = objectMapper.readTree(projectSnapshot);
+            // 新键存在即权威（即使无效）；仅缺新键时读旧键，绝不重写历史快照。
+            JsonNode category = snapshot.has("projectCategory") ? snapshot.get("projectCategory") : snapshot.get("category");
+            return category == null ? null : category.isTextual() ? blankAs(category.asText(), "未分类") : "未分类";
         } catch (Exception ignored) {
             return null;
         }
@@ -375,24 +379,18 @@ public class AdminStatsServiceImpl implements AdminStatsService {
     private List<Map<String, Object>> supplyDemandGap(Map<String, Long> demand, Map<String, Double> zeroRates) {
         List<Stall> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getDeleted, 0).eq(Stall::getStatus, 1).gt(Stall::getStock, 0));
-        Map<String, Long> activeStalls = countBy(stalls, stall -> blankAs(stall.getCategory(), "未分类"));
         Set<Long> certifiedPainters = userMapper.selectList(new LambdaQueryWrapper<User>()
                         .eq(User::getCertStatus, 2).eq(User::getStatus, 0).eq(User::getDeleted, 0))
                 .stream().map(User::getId).collect(Collectors.toSet());
         List<Work> works = certifiedPainters.isEmpty() ? List.of() : workMapper.selectList(new LambdaQueryWrapper<Work>()
                 .in(Work::getUserId, certifiedPainters).eq(Work::getVisibility, 1).eq(Work::getDeleted, 0));
-        Map<String, Long> painters = new HashMap<>();
-        works.stream().collect(Collectors.groupingBy(work -> blankAs(work.getCategory(), "未分类")))
-                .forEach((category, categoryWorks) -> painters.put(category,
-                        categoryWorks.stream().map(Work::getUserId).distinct().count()));
-        Set<String> categories = new HashSet<>(demand.keySet());
-        categories.addAll(activeStalls.keySet());
-        return categories.stream().map(category -> {
+        return PROJECT_CATEGORIES.stream().map(category -> {
+                    List<String> supply = ProjectCategoryRules.supplyCategories(category);
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("name", category);
                     item.put("demand", demand.getOrDefault(category, 0L));
-                    item.put("activeStalls", activeStalls.getOrDefault(category, 0L));
-                    item.put("certifiedPainters", painters.getOrDefault(category, 0L));
+                    item.put("activeStalls", stalls.stream().filter(s -> s.getCategory() != null && supply.contains(s.getCategory())).map(Stall::getId).distinct().count());
+                    item.put("certifiedPainters", works.stream().filter(w -> w.getCategory() != null && supply.contains(w.getCategory())).map(Work::getUserId).distinct().count());
                     item.put("zeroApplicationRate", zeroRates.getOrDefault(category, 0.0));
                     return item;
                 }).sorted(Comparator.comparingLong(item -> -(Long) item.get("demand"))).toList();
@@ -411,7 +409,8 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         Map<String, BigDecimal> amounts = new HashMap<>();
         for (OrderInfo order : completed) {
             String category = order.getProjectId() != null
-                    ? blankAs(projects.get(order.getProjectId()) == null ? null : projects.get(order.getProjectId()).getCategory(), "未分类")
+                    ? blankAs(projectSnapshotCategory(order.getProjectSnapshot()),
+                            blankAs(projects.get(order.getProjectId()) == null ? null : projects.get(order.getProjectId()).getProjectCategory(), "未分类"))
                     : blankAs(stalls.get(order.getStallId()) == null ? null : stalls.get(order.getStallId()).getCategory(), "未分类");
             totals.computeIfAbsent(category, ignored -> new long[1])[0]++;
             amounts.merge(category, order.getAmount() == null ? BigDecimal.ZERO : order.getAmount(), BigDecimal::add);

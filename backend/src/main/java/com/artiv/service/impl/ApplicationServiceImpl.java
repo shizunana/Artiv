@@ -176,7 +176,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             item.setProjectId(application.getProjectId());
             item.setProjectTitle(project == null ? "企划 #" + application.getProjectId() : project.getTitle());
             item.setProjectImages(project == null ? null : project.getImages());
-            item.setProjectCategory(project == null ? null : project.getCategory());
+            item.setProjectCategory(project == null ? null : project.getProjectCategory());
             item.setProjectDescription(project == null ? null : project.getDescription());
             item.setIntro(application.getIntro());
             item.setWorkLink(application.getWorkLink());

@@ -26,9 +26,9 @@
           <el-input v-model="form.description" type="textarea" :rows="7" maxlength="1000" show-word-limit />
         </el-form-item>
         <div class="form-grid">
-          <el-form-item label="类型">
-            <el-select v-model="form.category" placeholder="请选择类型">
-              <el-option v-for="item in CATEGORY_OPTIONS" :key="item" :label="item" :value="item" />
+          <el-form-item label="企划类型">
+            <el-select v-model="form.projectCategory" placeholder="请选择企划类型">
+              <el-option v-for="item in PROJECT_CATEGORY_OPTIONS" :key="item" :label="item" :value="item" />
             </el-select>
           </el-form-item>
           <el-form-item label="预算区间（元）" required>
@@ -39,10 +39,8 @@
             </div>
           </el-form-item>
         </div>
-        <el-form-item label="题材风格">
-          <el-checkbox-group v-model="form.subjects">
-            <el-checkbox v-for="item in SUBJECT_OPTIONS" :key="item" :value="item">{{ item }}</el-checkbox>
-          </el-checkbox-group>
+        <el-form-item label="题材风格（选填）">
+          <ProjectSubjectSelect v-model="form.subjects" :category="form.projectCategory" />
         </el-form-item>
       </section>
 
@@ -99,7 +97,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getProjectPanel, updateProjectContent } from '@/api/project'
 import { uploadFile } from '@/api/upload'
-import { CATEGORY_OPTIONS, SUBJECT_OPTIONS } from '@/constants/subjects'
+import ProjectSubjectSelect from '@/components/projects/ProjectSubjectSelect.vue'
+import { PROJECT_CATEGORY_OPTIONS } from '@/constants/projectCategories'
 import CreativePhaseEditor from '@/components/common/CreativePhaseEditor.vue'
 
 const route = useRoute()
@@ -112,7 +111,7 @@ const uploadedImageByUid = new Map()
 const FORMAT_OPTIONS = ['JPG', 'PNG', 'PSD', 'GIF', 'AI', 'SVG', 'TIF', '其他']
 const PERMISSION_OPTIONS = ['可以自由发布', '需经委托方同意发布', '不可以公开发布']
 const form = reactive({
-  title: '', description: '', category: '', budgetMin: 0, budgetMax: 0,
+  title: '', description: '', projectCategory: '', budgetMin: 0, budgetMax: 0,
   subjects: [], images: [],
   requirements: { size: '', colorMode: '', formats: [], publishPermission: '' },
   phases: [],
@@ -155,7 +154,7 @@ async function load() {
     project.value = await getProjectPanel(route.params.id)
     form.title = project.value.title || ''
     form.description = project.value.description || ''
-    form.category = project.value.category || ''
+    form.projectCategory = project.value.projectCategory || ''
     form.budgetMin = Number(project.value.budgetMin ?? project.value.budget ?? 0)
     form.budgetMax = Number(project.value.budgetMax ?? project.value.budget ?? 0)
     form.subjects = split(project.value.subject)
@@ -166,13 +165,14 @@ async function load() {
   } finally { loading.value = false }
 }
 async function save() {
+  if (!PROJECT_CATEGORY_OPTIONS.includes(form.projectCategory)) return ElMessage.warning('请选择企划类型')
   if (!form.title.trim() || !form.description.trim()) return ElMessage.warning('请填写企划标题和需求描述')
   if (!form.budgetMin || !form.budgetMax || form.budgetMin > form.budgetMax) return ElMessage.warning('请填写正确的预算区间')
   if (!form.phases.length || form.phases.some((item) => !item.name.trim())) return ElMessage.warning('请填写完整的创作阶段')
   saving.value = true
   try {
     await updateProjectContent(route.params.id, {
-      title: form.title, description: form.description, category: form.category,
+      title: form.title, description: form.description, projectCategory: form.projectCategory,
       budgetMin: form.budgetMin, budgetMax: form.budgetMax, subject: form.subjects,
       images: form.images.length ? form.images.join(',') : null,
       requirements: form.requirements,

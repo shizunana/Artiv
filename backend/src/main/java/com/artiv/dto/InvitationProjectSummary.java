@@ -16,7 +16,7 @@ public class InvitationProjectSummary {
 
     private String projectTitle;
 
-    private String category;
+    private String projectCategory;
 
     private String projectDescription;
 

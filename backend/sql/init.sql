@@ -207,7 +207,7 @@ CREATE TABLE `project` (
   `budget_max`      DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '预算区间上限（元）',
   `deadline`        DATE          NOT NULL COMMENT '截稿日期（招募截止及订单约定参考日期，当天有效）',
   `tags`            VARCHAR(255)  DEFAULT NULL COMMENT '标签，逗号分隔',
-  `category`        VARCHAR(50)   DEFAULT NULL COMMENT '稿件类型（与橱窗分类一致）',
+  `project_category` VARCHAR(50) DEFAULT NULL COMMENT '企划类型（六类）',
   `subject`         VARCHAR(255)  DEFAULT NULL COMMENT '题材风格，逗号分隔',
   `images`          TEXT          DEFAULT NULL COMMENT '参考图，逗号分隔',
   `requirements`    TEXT          DEFAULT NULL COMMENT '结构化项目要求 JSON',

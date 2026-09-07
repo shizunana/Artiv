@@ -11,15 +11,16 @@
       </el-steps>
 
       <div v-if="step === 0" class="wizard-body">
-        <h4>类型</h4>
-        <div class="type-tabs">
+        <h4>企划类型</h4>
+        <div class="type-tabs" role="group" aria-label="企划类型（单选）">
           <button
-            v-for="category in CATEGORY_OPTIONS"
+            v-for="category in PROJECT_CATEGORY_OPTIONS"
             :key="category"
             type="button"
             class="category-tab"
-            :class="{ 'is-active': form.category === category }"
-            @click="form.category = category"
+            :class="{ 'is-active': form.projectCategory === category }"
+            :aria-pressed="form.projectCategory === category"
+            @click="form.projectCategory = category"
           >
             {{ category }}
           </button>
@@ -136,19 +137,8 @@
         <div class="advanced-tip">在大多数情况下，使用默认设置即可满足您的需求。</div>
 
         <section class="option-section">
-          <h4>您需要哪些种题材风格</h4>
-          <div class="option-grid subject-grid">
-            <button
-              v-for="subject in subjectCards"
-              :key="subject"
-              type="button"
-              class="option-card"
-              :class="{ 'is-active': isSubjectActive(subject) }"
-              @click="toggleSubject(subject)"
-            >
-              {{ subject }}
-            </button>
-          </div>
+          <h4>题材风格（选填）</h4>
+          <ProjectSubjectSelect v-model="form.subjects" :category="form.projectCategory" presentation="buttons" />
         </section>
 
         <section class="option-section">
@@ -186,7 +176,7 @@
 
       <div v-else class="wizard-body">
         <el-descriptions :column="1" border class="preview-box">
-          <el-descriptions-item label="类型">{{ form.category }}</el-descriptions-item>
+          <el-descriptions-item label="企划类型">{{ form.projectCategory }}</el-descriptions-item>
           <el-descriptions-item label="用途">{{ form.usage === 'personal' ? '个人用途' : '商业用途' }}</el-descriptions-item>
           <el-descriptions-item label="截稿日期">{{ form.deadline || '-' }}</el-descriptions-item>
           <el-descriptions-item label="预算">¥{{ form.budgetMin }} — ¥{{ form.budgetMax }} / 张</el-descriptions-item>
@@ -290,7 +280,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowRight, Check, Plus, Search, Star, User } from '@element-plus/icons-vue'
@@ -300,7 +290,9 @@ import { disableBeforeProjectDeadline, minimumProjectDeadlineText } from '@/util
 import { getArtists, getPublicProfile } from '@/api/user'
 import { getFollowedPainters } from '@/api/social'
 import { useUserStore } from '@/stores/user'
-import { SUBJECT_OPTIONS, CATEGORY_OPTIONS } from '@/constants/subjects'
+import ProjectSubjectSelect from '@/components/projects/ProjectSubjectSelect.vue'
+import { retainProjectSubjects } from '@/constants/projectSubjects'
+import { PROJECT_CATEGORY_OPTIONS } from '@/constants/projectCategories'
 import CreativePhaseEditor from '@/components/common/CreativePhaseEditor.vue'
 
 const route = useRoute()
@@ -317,12 +309,11 @@ const pendingInvitePainterId = ref(null)
 const selectedInvitePainter = ref(null)
 let inviteSearchVersion = 0
 
-const subjectCards = ['不限', ...SUBJECT_OPTIONS]
 const formatOptions = ['JPG', 'PNG', 'PSD', 'GIF', 'AI', 'SVG', 'TIF', '其他']
 const permissionOptions = ['可以自由发布', '需经委托方同意发布', '不可以公开发布']
 
 const form = reactive({
-  category: '头像',
+  projectCategory: '头像',
   usage: 'personal',
   deadline: '',
   budgetMin: 300,
@@ -346,6 +337,14 @@ const form = reactive({
 const imageFileList = ref([])
 const uploadedImageByUid = new Map()
 const subjectSummary = computed(() => form.subjects.length ? form.subjects.join(' / ') : '不限')
+// 题材控件只在高级步骤挂载；返回第一步改类型也必须立即校准选择。
+watch(() => form.projectCategory, category => {
+  const retained = retainProjectSubjects(category, form.subjects)
+  if (retained.length !== form.subjects.length) {
+    form.subjects = retained
+    ElMessage.info('已移除不适用于当前企划类型的题材，其余选择已保留')
+  }
+}, { flush: 'sync' })
 const formatSummary = computed(() => form.requirements.formats.length ? form.requirements.formats.join(' / ') : '-')
 const phaseSummary = computed(() => form.phases.map((phase) => phase.name.trim()).filter(Boolean).join(' → '))
 const invitedPainterName = computed(() => {
@@ -479,20 +478,6 @@ function confirmInvitePainter() {
   inviteDialogVisible.value = false
 }
 
-function isSubjectActive(subject) {
-  return subject === '不限' ? form.subjects.length === 0 : form.subjects.includes(subject)
-}
-
-function toggleSubject(subject) {
-  if (subject === '不限') {
-    form.subjects = []
-    return
-  }
-  const index = form.subjects.indexOf(subject)
-  if (index === -1) form.subjects.push(subject)
-  else form.subjects.splice(index, 1)
-}
-
 function toggleFormat(format) {
   const index = form.requirements.formats.indexOf(format)
   if (index === -1) form.requirements.formats.push(format)
@@ -505,6 +490,7 @@ function disabledDate(date) {
 
 function next() {
   if (step.value === 0) {
+    if (!PROJECT_CATEGORY_OPTIONS.includes(form.projectCategory)) return ElMessage.warning('请选择企划类型')
     if (!form.deadline) {
       ElMessage.warning('请选择截稿日期')
       return
@@ -544,6 +530,7 @@ function next() {
 }
 
 async function submit() {
+  if (!PROJECT_CATEGORY_OPTIONS.includes(form.projectCategory)) return ElMessage.warning('请选择企划类型')
   submitting.value = true
   try {
     await createProject({
@@ -555,7 +542,7 @@ async function submit() {
       deadline: form.deadline,
       tags: form.tags,
       images: form.images.length ? form.images.join(',') : null,
-      category: form.category,
+      projectCategory: form.projectCategory,
       subject: form.subjects,
       requirements: form.requirements,
       phases: JSON.stringify(form.phases.map((phase) => ({ name: phase.name.trim() }))),
@@ -600,9 +587,9 @@ async function submit() {
 }
 
 .type-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  flex-wrap: wrap;
 }
 
 .category-tab,
@@ -612,22 +599,33 @@ async function submit() {
 }
 
 .category-tab {
-  padding: 8px 20px;
-  border-radius: 18px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 10px;
+  border-radius: 9px;
   background: #fff;
   border: 1px solid var(--artiv-border);
-  color: var(--artiv-text-secondary);
+  color: #384252;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.2s;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: .02em;
+  transition: background-color .15s, border-color .15s, color .15s;
 }
 
-.category-tab:hover,
-.category-tab.is-active {
-  color: #fff;
-  border-color: var(--artiv-primary);
-  background: var(--artiv-primary);
+.category-tab:hover {
+  background: #f5faff;
+  border-color: #a8daf0;
 }
+.category-tab.is-active {
+  color: #0088bc;
+  border-color: var(--artiv-primary);
+  background: #eaf8fe;
+}
+.category-tab.is-active:hover { background: #dff3fc; }
+.category-tab:focus-visible { outline: 2px solid var(--artiv-primary); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .category-tab { transition: none; } }
 
 .usage-group {
   display: grid;

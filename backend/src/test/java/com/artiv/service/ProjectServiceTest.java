@@ -65,6 +65,7 @@ class ProjectServiceTest {
     @Test
     void createSerializesStructuredRequirementsBeforePersistingProject() {
         ProjectRequest request = new ProjectRequest();
+        request.setProjectCategory("头像");
         request.setTitle("Project title");
         request.setDescription("Project description");
         request.setBudget(new BigDecimal("1200.00"));
@@ -227,8 +228,8 @@ class ProjectServiceTest {
         request.setBudgetMin(new BigDecimal("300.00"));
         request.setBudgetMax(new BigDecimal("800.00"));
         request.setTags(List.of("商用", "长期"));
-        request.setCategory("立绘");
-        request.setSubject(List.of("幻想", "女性"));
+        request.setProjectCategory("立绘");
+        request.setSubject(List.of("古风", "女性"));
         request.setImages("/uploads/a.png,/uploads/b.png");
         request.setRequirements(new ProjectRequirements("3000×4000 px", "RGB", List.of("PNG", "PSD"), "需经委托方同意发布"));
         request.setPhases("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]");
@@ -240,7 +241,7 @@ class ProjectServiceTest {
         assertEquals(new BigDecimal("800.00"), result.getBudgetMax());
         assertEquals(new BigDecimal("800.00"), result.getBudget());
         assertEquals("商用,长期", result.getTags());
-        assertEquals("幻想,女性", result.getSubject());
+        assertEquals("古风,女性", result.getSubject());
         assertEquals("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]", result.getPhases());
         verify(projectMapper).updateById(project);
     }
@@ -445,6 +446,7 @@ class ProjectServiceTest {
 
     private ProjectRequest validProjectRequest() {
         ProjectRequest request = new ProjectRequest();
+        request.setProjectCategory("头像");
         request.setTitle("Project title");
         request.setDescription("Project description");
         request.setBudget(new BigDecimal("1200.00"));

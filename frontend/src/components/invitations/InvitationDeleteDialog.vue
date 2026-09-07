@@ -27,7 +27,7 @@
           <strong :title="invitation.projectTitle">{{ invitation.projectTitle || '未命名企划' }}</strong>
           <small>邀请 #{{ invitation.invitationId }}</small>
         </div>
-        <div><small>企划类型</small><strong>{{ invitation.category || '未分类' }}</strong></div>
+        <div><small>企划类型</small><strong>{{ invitation.projectCategory || '未分类' }}</strong></div>
         <div><small>邀请类型</small><strong>{{ invitationType(invitation.invitationType) }}</strong></div>
         <div><small>邀请状态</small><el-tag :type="invitationStatus(invitation.status).type">{{ invitationStatus(invitation.status).text }}</el-tag></div>
         <div><small>邀请时间</small><strong>{{ formatDateTime(invitation.createdAt) }}</strong></div>

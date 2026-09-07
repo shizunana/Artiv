@@ -26,7 +26,7 @@
 
         <div class="summary-grid">
           <div><span>合作方式</span><strong>{{ isDirected ? '定向邀请' : '公开招募' }}</strong></div>
-          <div><span>类型</span><strong>{{ project.category || '未分类' }}</strong></div>
+          <div><span>企划类型</span><strong>{{ project.projectCategory || '未分类' }}</strong></div>
           <div><span>预算区间</span><strong class="accent">{{ formatProjectBudget(project) }}</strong></div>
           <div class="recruit-control">
             <span>上架状态</span>

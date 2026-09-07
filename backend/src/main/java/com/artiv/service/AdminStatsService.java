@@ -7,5 +7,5 @@ public interface AdminStatsService {
     Map<String, Object> overview();
     Map<String, Object> operations(LocalDate startDate, LocalDate endDate);
     Map<String, Object> demand(LocalDate startDate, LocalDate endDate);
-    Map<String, Object> priceDistribution(LocalDate startDate, LocalDate endDate, String category);
+    Map<String, Object> priceDistribution(LocalDate startDate, LocalDate endDate, String projectCategory);
 }

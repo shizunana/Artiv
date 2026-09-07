@@ -16,7 +16,7 @@
         <h3 :title="project.title">{{ truncate(project.title) }}</h3>
         <el-tag :type="cardStatus.type">{{ cardStatus.text }}</el-tag>
       </div>
-      <p>类型：{{ project.category || '未分类' }} · 发布时间：{{ formatDateTime(project.createdAt) }}</p>
+      <p>类型：{{ project.projectCategory || '未分类' }} · 发布时间：{{ formatDateTime(project.createdAt) }}</p>
       <p class="project-description" :title="project.description || ''">
         企划简介：{{ truncate(project.description || '暂无简介', 15) }}
       </p>

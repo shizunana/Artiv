@@ -1,7 +1,8 @@
 import request from '@/utils/request'
 
 export function getProjects(params) {
-  return request.get('/projects', { params })
+  // 重复键 projectCategories=头像&projectCategories=插画，避免 Axios 默认 [] 后缀。
+  return request.get('/projects', { params, paramsSerializer: { indexes: null } })
 }
 
 export function getMyProjects(params) {

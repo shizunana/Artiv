@@ -1,6 +1,9 @@
 package com.artiv.controller.admin;
 
 import com.artiv.common.Result;
+import com.artiv.common.BusinessException;
+import com.artiv.common.ResultCode;
+import jakarta.servlet.http.HttpServletRequest;
 import com.artiv.service.AdminStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -41,7 +44,10 @@ public class AdminStatsController {
     public Result<Map<String, Object>> priceDistribution(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String category) {
-        return Result.ok(adminStatsService.priceDistribution(startDate, endDate, category));
+            @RequestParam(required = false) String projectCategory, HttpServletRequest request) {
+        if (request.getParameterMap().containsKey("category")) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "企划字段 category 已停用，请刷新页面后使用 projectCategory");
+        }
+        return Result.ok(adminStatsService.priceDistribution(startDate, endDate, projectCategory));
     }
 }
