@@ -47,18 +47,34 @@ public class ProjectController {
                                       @RequestParam(required = false) String projectCategory,
                                       @RequestParam(required = false) java.util.List<String> projectCategories,
                                       @RequestParam(required = false) String subject,
+                                      @RequestParam(required = false) java.util.List<String> subjects,
                                       HttpServletRequest httpRequest) {
         if (httpRequest.getParameterMap().containsKey("category")) {
             throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "企划字段 category 已停用，请刷新页面后使用 projectCategory");
+        }
+        if (httpRequest.getParameterMap().containsKey("subject") && httpRequest.getParameterMap().containsKey("subjects")) {
+            throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "subject 与 subjects 不能同时传入");
         }
         if (httpRequest.getParameterMap().containsKey("projectCategories")) {
             if (httpRequest.getParameterMap().containsKey("projectCategory")) {
                 throw new BusinessException(ResultCode.PARAM_INVALID.getCode(), "projectCategory 与 projectCategories 不能同时传入");
             }
             var categories = com.artiv.common.ProjectSubjectRules.categories(projectCategories);
+            if (httpRequest.getParameterMap().containsKey("subjects")) {
+                var checkedSubjects = com.artiv.common.ProjectSubjectRules.queries(categories, subjects);
+                return Result.ok(projectService.listProjectsByCategoriesAndSubjects(page, size, keyword, status, sort,
+                        budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag, categories, checkedSubjects));
+            }
             String checkedSubject = com.artiv.common.ProjectSubjectRules.query(categories, subject);
             return Result.ok(projectService.listProjectsByCategories(page, size, keyword, status, sort,
                     budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag, categories, checkedSubject));
+        }
+        if (httpRequest.getParameterMap().containsKey("subjects")) {
+            var category = com.artiv.common.ProjectCategoryRules.optional(projectCategory);
+            var categories = category == null ? java.util.List.<String>of() : java.util.List.of(category);
+            var checkedSubjects = com.artiv.common.ProjectSubjectRules.queries(categories, subjects);
+            return Result.ok(projectService.listProjectsByCategoriesAndSubjects(page, size, keyword, status, sort,
+                    budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag, categories, checkedSubjects));
         }
         return Result.ok(projectService.listProjects(page, size, keyword, status, sort,
                 budgetMin, budgetMax, deadlineWithin, deadlineAfter, tag, projectCategory, subject));

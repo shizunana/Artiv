@@ -36,13 +36,23 @@ public final class ProjectSubjectRules {
     /** 无类型的旧单值调用可按企划题材全集查询，多类型不能夹带题材。 */
     public static String query(List<String> categories, String subject) {
         if (subject == null || subject.isBlank()) return null;
-        String value = subject.trim();
-        if (categories.size() > 1 || !OPTIONS.contains(value)) throw invalid();
-        if (categories.size() == 1 && !BY_CATEGORY.get(categories.getFirst()).contains(value)) throw invalid();
-        return value;
+        return queries(categories, List.of(subject)).getFirst();
+    }
+
+    /** 大厅多选题材按任意一个匹配；仍只允许在单个企划类型下细筛。 */
+    public static List<String> queries(List<String> categories, List<String> subjects) {
+        if (subjects == null || subjects.isEmpty()) return List.of();
+        if (categories.size() > 1 || subjects.size() > OPTIONS.size()) throw invalid();
+        var allowed = categories.size() == 1 ? BY_CATEGORY.get(categories.getFirst()) : OPTIONS;
+        var normalized = new LinkedHashSet<String>();
+        for (String subject : subjects) {
+            if (subject == null || !allowed.contains(subject.trim())) throw invalid();
+            normalized.add(subject.trim());
+        }
+        return List.copyOf(normalized);
     }
 
     private static BusinessException invalid() {
-        return new BusinessException(ResultCode.PARAM_INVALID.getCode(), "题材风格与企划类型不匹配；多选类型时请清空题材");
+        return new BusinessException(ResultCode.PARAM_INVALID.getCode(), "题材风格与企划类型不匹配；多选企划类型时请清空题材");
     }
 }

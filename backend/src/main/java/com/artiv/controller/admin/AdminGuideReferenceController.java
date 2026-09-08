@@ -20,7 +20,7 @@ public class AdminGuideReferenceController {
         var session = sessions.get(UserContext.getUserId(), sessionId);
         boolean found = session.messages().stream().flatMap(m -> m.references().stream())
                 .anyMatch(r -> r.kind().equals(kind) && r.id().equals(id));
-        if (!found || !id.matches("[1-9][0-9]{0,18}") || !java.util.Set.of("project", "artist").contains(kind)) throw unavailable();
+        if (!found || !id.matches("[1-9][0-9]{0,18}") || !java.util.Set.of("project", "stall", "artist").contains(kind)) throw unavailable();
         long number;
         try { number = Long.parseLong(id); } catch (NumberFormatException e) { throw unavailable(); }
         reader.requireVisible(kind, number);

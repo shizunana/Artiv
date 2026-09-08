@@ -53,6 +53,14 @@ public class GuideAnswerRunner {
             }
         }
         cancellation.check();
+        var cardKeys = references.values().stream().filter(ref -> ref.card() != null)
+                .map(ref -> ref.kind() + ":" + ref.id()).toList();
+        if (!cardKeys.isEmpty()) {
+            context.add(new GuideModelClient.Message("system",
+                    "前端会在本条回复下自动展示以下已核验资源的可点击卡片：" + String.join("、", cardKeys)
+                    + "。用户找企划、橱窗或画师时，正文只需1至3句简短说明，说明本页范围及必要提醒，引导点击下方卡片；不要再逐条列举候选，不要重复卡片的标题、预算、题材、截稿等详情，不输出Markdown列表或链接。"
+                    + "卡片是本轮实际查询到的候选，不保证满足无法筛选的主观偏好，不称为全平台最佳。若用户明确问详情、比较或具体问题，仍应回答问题所需的分析，不能只让用户点卡片。", null, null, List.of()));
+        }
         context.add(new GuideModelClient.Message("system", "现在直接回答，不再调用工具。角色需求讨论：尚未明确创作目标时，只概括1至2个可见特点并直接问1至2个关键问题，不提前生成需求说明；目标已明确且信息足够或用户要求直接总结时，输出约稿需求说明。不把图片可见元素自动列为需保留，不添加用户没说的要求。纯文本排版，不使用星号加粗、分隔线、HTML或链接。平台规则和候选只能依据本轮已读工具结果，没有结果不能编造；区分一般建议，不自动放宽条件。", null, null, List.of()));
         event.accept("tool_status", Map.of("message", "正在整理回答…"));
         var reply = client.stream(new GuideModelClient.Request(List.copyOf(context), false, List.of(), false), delta, cancellation);

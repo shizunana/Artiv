@@ -76,7 +76,19 @@ public class ProjectServiceImpl implements ProjectService {
                                       Integer deadlineWithin, Integer deadlineAfter, String tag,
                                       java.util.List<String> projectCategories, String subject) {
         var categories = com.artiv.common.ProjectSubjectRules.categories(projectCategories);
-        subject = com.artiv.common.ProjectSubjectRules.query(categories, subject);
+        var checkedSubject = com.artiv.common.ProjectSubjectRules.query(categories, subject);
+        var subjects = checkedSubject == null ? java.util.List.<String>of() : java.util.List.of(checkedSubject);
+        return listProjectsByCategoriesAndSubjects(page, size, keyword, status, sort, budgetMin, budgetMax,
+                deadlineWithin, deadlineAfter, tag, categories, subjects);
+    }
+
+    @Override
+    public Page<Project> listProjectsByCategoriesAndSubjects(long page, long size, String keyword, Integer status,
+                                      String sort, BigDecimal budgetMin, BigDecimal budgetMax,
+                                      Integer deadlineWithin, Integer deadlineAfter, String tag,
+                                      java.util.List<String> projectCategories, java.util.List<String> requestedSubjects) {
+        var categories = com.artiv.common.ProjectSubjectRules.categories(projectCategories);
+        var subjects = com.artiv.common.ProjectSubjectRules.queries(categories, requestedSubjects);
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
                 .eq(Project::getDeleted, 0)
                 .eq(Project::getMode, 0)
@@ -87,9 +99,15 @@ public class ProjectServiceImpl implements ProjectService {
                 .like(StringUtils.hasText(keyword), Project::getTitle, keyword)
                 .like(StringUtils.hasText(tag), Project::getTags, tag)
                 .in(!categories.isEmpty(), Project::getProjectCategory, categories)
-                .apply(StringUtils.hasText(subject), "FIND_IN_SET({0}, subject) > 0", subject)
                 .ge(budgetMin != null, Project::getBudgetMax, budgetMin)
                 .le(budgetMax != null, Project::getBudgetMin, budgetMax);
+        if (!subjects.isEmpty()) {
+            wrapper.and(group -> {
+                group.apply("FIND_IN_SET({0}, subject) > 0", subjects.getFirst());
+                subjects.stream().skip(1).forEach(subject ->
+                        group.or().apply("FIND_IN_SET({0}, subject) > 0", subject));
+            });
+        }
         if (deadlineWithin != null) {
             wrapper.le(Project::getDeadline, LocalDate.now().plusDays(deadlineWithin));
         }

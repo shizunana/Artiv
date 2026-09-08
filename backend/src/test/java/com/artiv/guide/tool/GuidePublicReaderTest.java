@@ -18,15 +18,23 @@ import static org.mockito.ArgumentMatchers.*;
 
 class GuidePublicReaderTest {
     ProjectService projects = mock(ProjectService.class); ArtistService artists = mock(ArtistService.class);
-    ProjectMapper projectMapper = mock(ProjectMapper.class); UserMapper users = mock(UserMapper.class); ReviewMapper reviews = mock(ReviewMapper.class);
-    GuidePublicReader reader = new GuidePublicReader(projects, artists, projectMapper, users, reviews);
+    StallService stalls = mock(StallService.class);
+    ProjectMapper projectMapper = mock(ProjectMapper.class); StallMapper stallMapper = mock(StallMapper.class);
+    UserMapper users = mock(UserMapper.class); ReviewMapper reviews = mock(ReviewMapper.class);
     ObjectMapper json = new ObjectMapper();
+    GuidePublicReader reader = new GuidePublicReader(projects, artists, stalls, projectMapper, stallMapper, users, reviews, json);
     Project project() {
         var p = new Project(); p.setId(11L); p.setMode(0); p.setStatus(0); p.setDeleted(0); p.setModerationStatus(0);
         p.setDeadline(LocalDate.now()); p.setTitle("公开测试企划"); p.setEmployerId(991L); p.setImages("private-image-marker"); p.setModerationReason("private-moderation-marker"); return p;
     }
     User artist() {
         var u = new User(); u.setId(21L); u.setStatus(0); u.setDeleted(0); u.setCertStatus(2); u.setPassword("secret-hash-marker"); return u;
+    }
+    Stall stall() {
+        var s = new Stall(); s.setId(31L); s.setStatus(1); s.setDeleted(0); s.setStock(2); s.setTitle("公开头像橱窗");
+        s.setCategory("头像"); s.setParams("{\"subject\":[\"Q版\",\"日系\"],\"private\":\"not-returned\"}");
+        s.setDescription("可约头像"); s.setPrice(new java.math.BigDecimal("128")); s.setDeliverTime("7天"); s.setCover("private-cover-marker");
+        s.setImages("private-images-marker"); s.setPainterId(991L); s.setPainterName("公开画师"); return s;
     }
     @Test void projectProjectionContainsOnlyPublicFieldsAndNeverUsesAdminDetail() throws Exception {
         when(projectMapper.selectById(11L)).thenReturn(project());
@@ -36,6 +44,25 @@ class GuidePublicReaderTest {
         for (String forbidden : List.of("991", "private-image-marker", "private-moderation-marker", "moderatedBy", "employerId")) assertFalse(body.contains(forbidden));
         verifyNoInteractions(projects, artists, users, reviews);
         verify(projectMapper).selectById(11L); verifyNoMoreInteractions(projectMapper);
+    }
+    @Test void publicCardsAreStructuredAndHandleMissingOrSingleEndedBudgets() throws Exception {
+        var p = project(); p.setProjectCategory("头像"); p.setSubject("日系");
+        p.setBudgetMin(new java.math.BigDecimal("290.00")); p.setBudgetMax(new java.math.BigDecimal("7100.00"));
+        when(projectMapper.selectById(11L)).thenReturn(p);
+        var ref = reader.project(11).references().getFirst();
+        assertEquals("头像", ref.card().category());
+        assertEquals(List.of(new GuideReference.Field("预算", "290～7100 元"),
+                new GuideReference.Field("题材", "日系"), new GuideReference.Field("截稿", LocalDate.now().toString())), ref.card().fields());
+        assertEquals(ref, json.readValue(json.writeValueAsString(ref), GuideReference.class));
+        p.setBudgetMin(null);
+        assertEquals("最高 7100 元", reader.project(11).references().getFirst().card().fields().getFirst().value());
+        p.setBudgetMax(null);
+        assertEquals("未提供", reader.project(11).references().getFirst().card().fields().getFirst().value());
+        p.setBudgetMin(new java.math.BigDecimal("100"));
+        assertEquals("最低 100 元", reader.project(11).references().getFirst().card().fields().getFirst().value());
+        p.setBudgetMax(new java.math.BigDecimal("100"));
+        assertEquals("100 元", reader.project(11).references().getFirst().card().fields().getFirst().value());
+        assertNull(json.readValue("{\"kind\":\"project\",\"id\":\"11\",\"title\":\"旧引用\"}", GuideReference.class).card());
     }
     @Test void directedHiddenDeletedExpiredAndModeratedProjectsAreAllUnavailable() {
         List<Project> cases = new ArrayList<>();
@@ -52,6 +79,39 @@ class GuidePublicReaderTest {
             assertThrows(BusinessException.class, () -> reader.requireVisible("project", 11));
         }
         verifyNoInteractions(projects, artists, users, reviews);
+    }
+    @Test void stallProjectionUsesPublicHallVisibilityAndOmitsImagesAndInternalParams() throws Exception {
+        when(stallMapper.selectById(31L)).thenReturn(stall());
+        String body = json.writeValueAsString(reader.stall(31));
+        assertTrue(body.contains("公开头像橱窗") && body.contains("Q版") && body.contains("128"));
+        var card = json.readTree(body).path("references").get(0).path("card");
+        assertEquals("头像", card.path("category").asText());
+        assertEquals("128 元", card.path("fields").get(0).path("value").asText());
+        for (String forbidden : List.of("private-cover-marker", "private-images-marker", "not-returned", "painterId", "991")) assertFalse(body.contains(forbidden));
+        verify(stallMapper).selectById(31L); verifyNoMoreInteractions(stallMapper);
+    }
+    @Test void offShelfSoldOutDeletedAndMissingStallsAreUnavailable() {
+        List<Stall> cases = new ArrayList<>();
+        var s = stall(); s.setStatus(0); cases.add(s);
+        s = stall(); s.setStock(0); cases.add(s);
+        s = stall(); s.setDeleted(1); cases.add(s);
+        cases.add(null);
+        for (Stall hidden : cases) {
+            when(stallMapper.selectById(31L)).thenReturn(hidden);
+            assertThrows(BusinessException.class, () -> reader.stall(31));
+            assertThrows(BusinessException.class, () -> reader.requireVisible("stall", 31));
+        }
+    }
+    @Test void stallSearchReusesPublicHallFiltersAndReturnsStallReferences() {
+        var visible = stall(); var hidden = stall(); hidden.setStock(0); hidden.setTitle("should-not-leak");
+        var page = new Page<Stall>(1, 5, 7); page.setRecords(List.of(visible, hidden));
+        when(stalls.listStalls(1, 5, "头像", "头像", "latest", "Q版", new java.math.BigDecimal("100"), new java.math.BigDecimal("200"), null)).thenReturn(page);
+        var result = reader.stalls(1, "头像", "头像", "Q版", new java.math.BigDecimal("100"), new java.math.BigDecimal("200"));
+        assertEquals(1, result.references().stream().filter(r -> r.kind().equals("stall")).count());
+        var data = (GuidePublicReader.SearchResult) result.data(); assertTrue(data.hasMore()); assertEquals(5, data.pageSize());
+        assertNull(result.references().getFirst().card()); // 查询元信息不是资源卡片。
+        verify(stalls).listStalls(1, 5, "头像", "头像", "latest", "Q版", new java.math.BigDecimal("100"), new java.math.BigDecimal("200"), null);
+        verifyNoMoreInteractions(stalls); verifyNoInteractions(stallMapper);
     }
     @Test void searchIsFixedToFivePublicCandidatesWithHonestPaging() {
         var visible = project(); var hidden = project(); hidden.setMode(1); hidden.setTitle("should-not-leak");
@@ -81,6 +141,7 @@ class GuidePublicReaderTest {
         var page = new Page<Review>(1, 3, 1); page.setRecords(List.of(review)); when(reviews.selectPublicPage(any(), eq(21L), eq("painter"))).thenReturn(page);
         String body = json.writeValueAsString(reader.artist(21));
         assertTrue(body.contains("公开作品") && body.contains("画得很认真"));
+        assertTrue(json.readTree(body).path("references").get(0).path("card").isObject());
         for (String forbidden : List.of("private-work-marker", "work-image-marker", "avatar-marker", "secret-hash-marker", "88881", "77771", "orderId", "fromId")) assertFalse(body.contains(forbidden));
         verify(reviews).selectPublicPage(any(), eq(21L), eq("painter")); verifyNoMoreInteractions(reviews);
     }

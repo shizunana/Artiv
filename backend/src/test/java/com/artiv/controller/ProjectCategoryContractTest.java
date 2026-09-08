@@ -47,6 +47,21 @@ class ProjectCategoryContractTest {
         verifyNoInteractions(service);
     }
 
+    @Test void multiSubjectBindingUsesUnionQueryContract() throws Exception {
+        mvc.perform(get("/api/v1/projects").param("projectCategories", "头像")
+                .param("subjects", "古风", "日系", "古风"));
+        verify(service).listProjectsByCategoriesAndSubjects(1,10,null,null,null,null,null,null,null,null,
+                java.util.List.of("头像"),java.util.List.of("古风","日系"));
+        clearInvocations(service);
+        for (var request : java.util.List.of(
+                get("/api/v1/projects").param("projectCategories","头像","插画").param("subjects","古风"),
+                get("/api/v1/projects").param("projectCategories","头像").param("subjects","场景"),
+                get("/api/v1/projects").param("projectCategories","头像").param("subject","古风").param("subjects","日系"))) {
+            mvc.perform(request).andExpect(jsonPath("code").value(2001));
+        }
+        verifyNoInteractions(service);
+    }
+
     @Test void oldJsonFieldIncludingNullCannotBeIgnored() throws Exception {
         for (String legacy : new String[]{"null", "\"头像\""}) {
             String body = "{\"title\":\"测试\",\"description\":\"需求\",\"deadline\":\"2026-12-01\",\"projectCategory\":\"插画\",\"category\":"+legacy+"}";

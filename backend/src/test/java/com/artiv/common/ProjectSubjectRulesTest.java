@@ -35,5 +35,9 @@ class ProjectSubjectRulesTest {
         assertThrows(BusinessException.class, () -> ProjectSubjectRules.query(List.of("头像","插画"),"古风"));
         assertThrows(BusinessException.class, () -> ProjectSubjectRules.query(List.of("角色设计"),"像素"));
         assertThrows(BusinessException.class, () -> ProjectSubjectRules.query(List.of(),"%"));
+        assertEquals(List.of("古风", "日系"), ProjectSubjectRules.queries(List.of("头像"), List.of("古风", "日系", "古风")));
+        assertEquals(List.of(), ProjectSubjectRules.queries(List.of("头像"), null));
+        assertThrows(BusinessException.class, () -> ProjectSubjectRules.queries(List.of("头像", "插画"), List.of("古风")));
+        assertThrows(BusinessException.class, () -> ProjectSubjectRules.queries(List.of("角色设计"), List.of("像素")));
     }
 }

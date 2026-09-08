@@ -137,6 +137,10 @@ class ProjectCategoryDatabaseTest {
         assertNull(projectMapper.selectById(a.getId()).getSubject());
         assertEquals(1,projects.listProjects(1,12,null,null,null,null,null,null,null,null,"头像",null).getTotal());
         assertEquals(0,projects.listProjects(1,12,null,null,null,null,null,null,null,null,"头像","古风").getTotal());
+        edit.setSubject(List.of("古风"));
+        projects.updateContent(a.getId(),edit,employer.getId());
+        assertEquals(1,projects.listProjectsByCategoriesAndSubjects(1,12,null,null,null,null,null,null,null,null,
+                List.of("头像"),List.of("古风","日系")).getTotal());
         edit.setSubject(List.of("场景"));
         assertThrows(BusinessException.class, () -> projects.updateContent(a.getId(),edit,employer.getId()));
         assertNull(projectMapper.selectById(a.getId()).getSubject());

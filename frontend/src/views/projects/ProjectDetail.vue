@@ -190,6 +190,7 @@ import ProjectApplicantList from '@/components/projects/ProjectApplicantList.vue
 import { formatDateTime } from '@/utils/date'
 import { formatProjectBudget } from '@/utils/budget'
 import { isProjectExpired } from '@/utils/projectDeadline'
+import { watchRouteResource } from '@/utils/routeResource'
 
 const route = useRoute()
 const router = useRouter()
@@ -234,6 +235,7 @@ const invitationAcceptRules = computed(() => ({
 const invitationRejectRules = {
   reason: [{ required: true, whitespace: true, message: '请填写婉拒理由', trigger: 'blur' }],
 }
+let projectLoadVersion = 0
 
 const employerName = computed(() => employer.value?.nickname || `企划方 #${project.value?.employerId || ''}`)
 const currentUserId = computed(() => Number(userStore.user?.id || 0))
@@ -357,13 +359,14 @@ async function submitApplication() {
   }
 }
 
-async function loadInvitation() {
+async function loadInvitation(projectId = project.value?.id) {
   currentInvitation.value = null
   if (!userStore.isLoggedIn || isOwner.value) return
   try {
-    currentInvitation.value = await getInvitationByProject(project.value.id)
+    const invitation = await getInvitationByProject(projectId)
+    if (Number(project.value?.id) === Number(projectId)) currentInvitation.value = invitation
   } catch {
-    currentInvitation.value = null
+    if (Number(project.value?.id) === Number(projectId)) currentInvitation.value = null
   }
 }
 
@@ -401,16 +404,17 @@ async function submitInvitationReject() {
   }
 }
 
-async function loadApplicants() {
+async function loadApplicants(projectId = project.value?.id) {
   loadingApplicants.value = true
   try {
-    const data = await getApplications(project.value.id, { page: 1, size: 50 })
+    const data = await getApplications(projectId, { page: 1, size: 50 })
+    if (Number(project.value?.id) !== Number(projectId)) return
     applicants.value = data.records || []
     applicantTotal.value = data.total || applicants.value.length
   } catch (error) {
-    ElMessage.error(error.message || '应征画师加载失败')
+    if (Number(project.value?.id) === Number(projectId)) ElMessage.error(error.message || '应征画师加载失败')
   } finally {
-    loadingApplicants.value = false
+    if (Number(project.value?.id) === Number(projectId)) loadingApplicants.value = false
   }
 }
 
@@ -466,16 +470,32 @@ async function submitQuoteUpdate() {
 }
 
 async function loadProject() {
+  const version = ++projectLoadVersion
+  const projectId = route.params.id
   loading.value = true
   try {
-    project.value = await getProject(route.params.id)
+    const nextProject = await getProject(projectId)
+    if (version !== projectLoadVersion) return
+    project.value = nextProject
     employer.value = project.value?.employer || null
-    await Promise.all([loadInvitation(), loadApplicants()])
+    await Promise.all([loadInvitation(project.value.id), loadApplicants(project.value.id)])
   } catch (error) {
-    ElMessage.error(error.message || '企划加载失败')
+    if (version === projectLoadVersion) ElMessage.error(error.message || '企划加载失败')
   } finally {
-    loading.value = false
+    if (version === projectLoadVersion) loading.value = false
   }
+}
+
+function resetRouteInteractions() {
+  applicationDialogVisible.value = false
+  quoteDialogVisible.value = false
+  invitationAcceptVisible.value = false
+  invitationRejectVisible.value = false
+  applicants.value = []
+  applicantTotal.value = 0
+  currentInvitation.value = null
+  employer.value = null
+  project.value = null
 }
 
 async function handleApplicationEntry() {
@@ -494,6 +514,11 @@ onMounted(async () => {
     await userStore.fetchMe().catch(() => null)
   }
   certificationReady.value = true
+  await loadProject()
+  await handleApplicationEntry()
+})
+watchRouteResource(route, async () => {
+  resetRouteInteractions()
   await loadProject()
   await handleApplicationEntry()
 })

@@ -30,7 +30,7 @@ public class GuideToolRegistry {
         schema.putArray("required").add("operation");
         var properties = schema.putObject("properties");
         properties.putObject("operation").put("type", "string").putArray("enum")
-                .add("rules").add("search_projects").add("project_detail").add("search_artists").add("artist_detail")
+                .add("rules").add("search_projects").add("project_detail").add("search_stalls").add("stall_detail").add("search_artists").add("artist_detail")
                 .add("my_projects").add("my_project").add("my_orders").add("my_order").add("my_invitations").add("my_invitation");
         properties.putObject("id").put("type", "integer").put("minimum", 1);
         properties.putObject("page").put("type", "integer").put("minimum", 1).put("maximum", 10);
@@ -39,12 +39,14 @@ public class GuideToolRegistry {
         properties.putObject("projectCategory").put("type", "string").set("enum", json.valueToTree(com.artiv.common.ProjectCategoryRules.OPTIONS));
         var subjectSchema = properties.putObject("subject").put("type", "string");
         subjectSchema.set("enum", options.path("subjects"));
-        subjectSchema.put("description", "画师查询使用原题材；企划仅允许对应类型题材：" + options.path("projectSubjectsByCategory"));
+        subjectSchema.put("description", "橱窗和画师查询使用原题材；企划仅允许对应类型题材：" + options.path("projectSubjectsByCategory"));
         properties.putObject("budgetMin").put("type", "number").put("minimum", 0).put("maximum", 10000000);
         properties.putObject("budgetMax").put("type", "number").put("minimum", 0).put("maximum", 10000000);
+        properties.putObject("priceMin").put("type", "number").put("minimum", 0).put("maximum", 10000000);
+        properties.putObject("priceMax").put("type", "number").put("minimum", 0).put("maximum", 10000000);
         return new GuideModelClient.ToolDefinition("read_artiv", "唯一函数名 read_artiv，以下名称全部是 operation 参数值而不是函数名。只读 Artiv。rules 只接 operation；涉及平台规则必须读取。"
-                + "search_projects 支持 page/keyword/projectCategory/subject/budgetMin/budgetMax，企划类型为独立六类；search_artists 只支持 page/keyword/category/subject，category 为作品原十类。禁止混用两种分类字段。每页最多5条，不自动放宽条件。"
-                + "project_detail/artist_detail 只接 operation 和正整数 id。画师详情含最多3条近期公开评价及公开作品文字。"
+                + "search_projects 支持 page/keyword/projectCategory/subject/budgetMin/budgetMax，企划类型为独立六类；search_stalls 支持 page/keyword/category/subject/priceMin/priceMax；search_artists 只支持 page/keyword/category/subject。橱窗和画师的 category 均为作品原十类。禁止混用两种分类字段。每页最多5条，不自动放宽条件。"
+                + "project_detail/stall_detail/artist_detail 只接 operation 和正整数 id。画师详情含最多3条近期公开评价及公开作品文字。"
                 + "my_projects/my_orders/my_invitations 只接 operation/page，查询本人企划、本人参与订单、本人收到且未隐藏邀请的状态；每页5条。"
                 + "my_project/my_order/my_invitation 只接 operation/id。身份由服务端传入，绝不接受 userId/owner/actor/role。无权/无记录如实说明，不冒用他人数据。全部只读，未指定筛选不填对应字段。", schema);
     }
@@ -77,19 +79,22 @@ public class GuideToolRegistry {
                 Long id = detail ? integer(args.path("id"), 1, Long.MAX_VALUE) : null;
                 int page = args.has("page") ? (int) integer(args.path("page"), 1, 10) : 1;
                 result = business.read(owner, operation, id, page);
-            } else if (Set.of("project_detail", "artist_detail").contains(operation)) {
+            } else if (Set.of("project_detail", "stall_detail", "artist_detail").contains(operation)) {
                 allowed(args, Set.of("operation", "id"));
                 long id = integer(args.path("id"), 1, Long.MAX_VALUE);
-                result = operation.equals("project_detail") ? publicReader.project(id) : publicReader.artist(id);
-            } else if (Set.of("search_projects", "search_artists").contains(operation)) {
+                result = operation.equals("project_detail") ? publicReader.project(id)
+                        : operation.equals("stall_detail") ? publicReader.stall(id) : publicReader.artist(id);
+            } else if (Set.of("search_projects", "search_stalls", "search_artists").contains(operation)) {
                 allowed(args, operation.equals("search_projects") ? Set.of("operation", "page", "keyword", "projectCategory", "subject", "budgetMin", "budgetMax")
+                        : operation.equals("search_stalls") ? Set.of("operation", "page", "keyword", "category", "subject", "priceMin", "priceMax")
                         : Set.of("operation", "page", "keyword", "category", "subject"));
                 int page = args.has("page") ? (int) integer(args.path("page"), 1, 10) : 1;
                 String keyword = text(args, "keyword", 60), subject = option(args, "subject", operation.equals("search_projects") ? "projectSubjects" : "subjects");
                 String category = operation.equals("search_projects")
                         ? com.artiv.common.ProjectCategoryRules.optional(text(args, "projectCategory", 50))
                         : option(args, "category", "categories");
-                var minimum = money(args, "budgetMin"); var maximum = money(args, "budgetMax");
+                var minimum = money(args, operation.equals("search_stalls") ? "priceMin" : "budgetMin");
+                var maximum = money(args, operation.equals("search_stalls") ? "priceMax" : "budgetMax");
                 if (operation.equals("search_projects")) {
                     try { subject = com.artiv.common.ProjectSubjectRules.query(category == null ? List.of() : List.of(category), subject); }
                     catch (com.artiv.common.BusinessException e) { throw invalid(); }
@@ -97,6 +102,7 @@ public class GuideToolRegistry {
                 if (minimum != null && maximum != null && minimum.compareTo(maximum) > 0) throw invalid();
                 cancellation.check();
                 result = operation.equals("search_projects") ? publicReader.projects(page, keyword, category, subject, minimum, maximum)
+                        : operation.equals("search_stalls") ? publicReader.stalls(page, keyword, category, subject, minimum, maximum)
                         : publicReader.artists(page, keyword, category, subject);
             } else throw invalid();
             cancellation.check();

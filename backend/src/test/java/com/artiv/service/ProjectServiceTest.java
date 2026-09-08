@@ -85,6 +85,22 @@ class ProjectServiceTest {
     }
 
     @Test
+    void projectHallMultipleSubjectsUseOneGroupedUnionCondition() {
+        when(projectMapper.selectPage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>());
+        projectService.listProjectsByCategoriesAndSubjects(1, 12, null, null, null, null, null,
+                null, null, null, List.of("头像"), List.of("古风", "日系"));
+        var wrapper = org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+        verify(projectMapper).selectPage(org.mockito.ArgumentMatchers.any(), wrapper.capture());
+        String sql = wrapper.getValue().getCustomSqlSegment();
+        assertEquals(2, sql.split("FIND_IN_SET", -1).length - 1);
+        assertTrue(sql.contains(" OR "));
+        var parameters = ((com.baomidou.mybatisplus.core.conditions.AbstractWrapper<?, ?, ?>) wrapper.getValue()).getParamNameValuePairs();
+        assertTrue(parameters.containsValue("古风"));
+        assertTrue(parameters.containsValue("日系"));
+    }
+
+    @Test
     void guideSummaryReusesEligibilityWithoutBusinessWritesOrAccountLookup() {
         var p = new Project(); p.setId(88L); p.setEmployerId(1L); p.setDeleted(0); p.setMode(1);
         var invite = new com.artiv.entity.Invitation(); invite.setStatus(0); invite.setProjectId(88L);

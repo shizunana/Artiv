@@ -16,16 +16,17 @@ test('project subject lists match backend guide and retain only intersection on 
   assert.deepEqual(retainProjectSubjects('立绘',['安头','古风','有背景']),['古风','有背景'])
   assert.deepEqual(PROJECT_SUBJECT_OPTIONS_BY_CATEGORY['平面设计'],['日系','古风','黑白','像素','Q版'])
 })
-test('zero/single/multiple types normalize query params and clear subject when type changes', () => {
-  assert.deepEqual(projectFilterParams({categories:[],subject:'古风'}),{})
-  const single = {categories:['头像'],subject:'古风'}
-  assert.deepEqual(projectFilterParams(single),{projectCategories:['头像'],subject:'古风'})
+test('zero/single/multiple types normalize multi-subject params and clear subjects when type changes', () => {
+  assert.deepEqual(projectFilterParams({categories:[],subjects:['古风']}),{})
+  const single = {categories:['头像'],subjects:['古风','日系','古风']}
+  assert.deepEqual(projectFilterParams(single),{projectCategories:['头像'],subjects:['日系','古风']})
   const multi = toggleProjectCategory(single,'插画')
-  assert.equal(multi.subject,'')
+  assert.deepEqual(multi.subjects,[])
   assert.deepEqual(projectFilterParams(multi),{projectCategories:['头像','插画']})
-  assert.equal(toggleProjectCategory(multi,'头像').subject,'')
-  assert.equal(copyProjectFilter({categories:['角色设计'],subject:'像素'}).subject,'')
-  assert.deepEqual(single,{categories:['头像'],subject:'古风'})
+  assert.deepEqual(toggleProjectCategory(multi,'头像').subjects,[])
+  assert.deepEqual(copyProjectFilter({categories:['角色设计'],subjects:['像素']}).subjects,[])
+  assert.deepEqual(copyProjectFilter({categories:['头像'],subject:'古风'}),{categories:['头像'],subjects:['古风']})
+  assert.deepEqual(single,{categories:['头像'],subjects:['古风','日系','古风']})
 })
 
 // 编译实际 SFC setup，注入 Vue 响应式和轻量 UI 替身，不启动服务、不请求业务。
@@ -39,27 +40,30 @@ function component(name) {
 }
 const Popover = component('ProjectFilterPopover')
 
-test('popover subject heading and options share a single-category condition without empty hints', () => {
+test('popover subject heading and multi-select options share a single-category condition without empty hints', () => {
   const source = readFileSync(new URL('../src/components/projects/ProjectFilterPopover.vue', import.meta.url), 'utf8')
   const { descriptor } = parse(source)
   const template = descriptor.template.content
-  assert.match(template, /<template v-if="draft.categories.length === 1">\s*<h3>题材风格<\/h3>\s*<div[^>]+aria-label="题材风格（选填）"/)
+  assert.match(template, /<template v-if="draft.categories.length === 1">\s*<h3>题材风格<\/h3>\s*<div[^>]+aria-label="题材风格（可多选）"/)
+  assert.match(template, /draft\.subjects\.includes\(subject\)/)
   assert.doesNotMatch(template, /filter-hint|选择一个企划类型可细筛题材|多选类型时不筛选题材/)
 })
 test('popover edits/reset/cancel stay drafts; only confirm emits a copied filter', () => {
   const scope=effectScope(), emitted=[]
-  const props=reactive({modelValue:{categories:['头像'],subject:'古风'}})
+  const props=reactive({modelValue:{categories:['头像'],subjects:['古风','日系']}})
   const state=scope.run(() => Popover.setup(props,{expose(){},emit:(...args)=>emitted.push(args)}))
   state.begin()
   state.draft.value=toggleProjectCategory(state.draft.value,'插画')
   assert.equal(emitted.length,0)
   state.close(); state.begin()
-  assert.deepEqual(state.draft.value,{categories:['头像'],subject:'古风'})
+  assert.deepEqual(state.draft.value,{categories:['头像'],subjects:['日系','古风']})
+  state.toggleSubject('Q版'); state.toggleSubject('日系')
+  assert.deepEqual(state.draft.value.subjects,['古风','Q版'])
   state.draft.value=copyProjectFilter()
   assert.equal(emitted.length,0)
   state.apply()
-  assert.deepEqual(emitted,[['apply',{categories:[],subject:''}]])
-  assert.deepEqual(props.modelValue,{categories:['头像'],subject:'古风'})
+  assert.deepEqual(emitted,[['apply',{categories:[],subjects:[]}]])
+  assert.deepEqual(props.modelValue,{categories:['头像'],subjects:['古风','日系']})
   scope.stop()
 })
 

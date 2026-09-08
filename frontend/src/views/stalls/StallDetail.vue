@@ -206,6 +206,7 @@ import { SUBJECT_OPTIONS } from '@/constants/subjects'
 import RatingSummary from '@/components/reviews/RatingSummary.vue'
 import FavoriteIcon from '@/components/common/FavoriteIcon.vue'
 import { favoriteStall, getStallFavoriteStatus, unfavoriteStall } from '@/api/social'
+import { watchRouteResource } from '@/utils/routeResource'
 
 const route = useRoute()
 const router = useRouter()
@@ -223,6 +224,7 @@ const favorited = ref(false)
 const favoriteLoading = ref(false)
 const subjectOptions = SUBJECT_OPTIONS
 const editForm = ref({ stock: 0, subjects: [] })
+let stallLoadVersion = 0
 
 const phaseList = computed(() => {
   try {
@@ -267,29 +269,36 @@ const hasStock = computed(() => Number(stall.value?.stock || 0) > 0)
 const canPurchase = computed(() => stall.value?.status === 1 && hasStock.value)
 
 async function load() {
+  const version = ++stallLoadVersion
+  const stallId = route.params.id
   loading.value = true
   try {
-    stall.value = await getStall(route.params.id)
+    const nextStall = await getStall(stallId)
+    if (version !== stallLoadVersion) return
+    stall.value = nextStall
     try {
-      painterProfile.value = await getPublicProfile(stall.value.painterId, 'painter')
+      const profile = await getPublicProfile(stall.value.painterId, 'painter')
+      if (version !== stallLoadVersion) return
+      painterProfile.value = profile
     } catch {
-      painterProfile.value = null
+      if (version === stallLoadVersion) painterProfile.value = null
     }
     favorited.value = false
     if (userStore.isLoggedIn && Number(userStore.user?.id) !== Number(stall.value.painterId)) {
       try {
         const state = await getStallFavoriteStatus(stall.value.id)
-        favorited.value = Boolean(state?.favorited)
+        if (version === stallLoadVersion) favorited.value = Boolean(state?.favorited)
       } catch {
-        favorited.value = false
+        if (version === stallLoadVersion) favorited.value = false
       }
     }
+    if (version !== stallLoadVersion) return
     document.title = `${stall.value.title} - 艺绘`
     if (route.query.edit === '1' && Number(userStore.user?.id) === Number(stall.value.painterId)) {
       openEdit()
     }
   } finally {
-    loading.value = false
+    if (version === stallLoadVersion) loading.value = false
   }
 }
 
@@ -401,6 +410,13 @@ async function removeStall() {
 }
 
 onMounted(load)
+watchRouteResource(route, () => {
+  confirmVisible.value = false
+  editVisible.value = false
+  stall.value = null
+  painterProfile.value = null
+  void load()
+})
 </script>
 
 <style scoped>

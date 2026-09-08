@@ -16,10 +16,10 @@
       </div>
       <template v-if="draft.categories.length === 1">
         <h3>题材风格</h3>
-        <div class="option-grid" role="group" aria-label="题材风格（选填）">
+        <div class="option-grid" role="group" aria-label="题材风格（可多选）">
           <button v-for="subject in subjects" :key="subject" type="button" class="filter-option"
-            :class="{ selected: draft.subject === subject }" :aria-pressed="draft.subject === subject"
-            @click="draft.subject = draft.subject === subject ? '' : subject">{{ subject }}</button>
+            :class="{ selected: draft.subjects.includes(subject) }" :aria-pressed="draft.subjects.includes(subject)"
+            @click="toggleSubject(subject)">{{ subject }}</button>
         </div>
       </template>
       <footer><el-button @click="draft = copyProjectFilter()">重置</el-button><el-button type="primary" @click="apply">确定</el-button></footer>
@@ -38,11 +38,18 @@ const emit = defineEmits(['apply'])
 const visible = ref(false), trigger = ref(null), draft = ref(copyProjectFilter())
 const subjects = computed(() => projectSubjects(draft.value.categories[0]))
 const summary = computed(() => {
-  const { categories, subject } = props.modelValue
+  const { categories, subjects } = copyProjectFilter(props.modelValue)
   if (!categories.length) return '类型与题材'
-  return categories.length > 1 ? `已选 ${categories.length} 类` : categories[0] + (subject ? ` · ${subject}` : '')
+  if (categories.length > 1) return `已选 ${categories.length} 类`
+  if (!subjects.length) return categories[0]
+  return `${categories[0]} · ${subjects.length === 1 ? subjects[0] : `${subjects.length} 项题材`}`
 })
 function begin() { draft.value = copyProjectFilter(props.modelValue) }
+function toggleSubject(subject) {
+  draft.value.subjects = draft.value.subjects.includes(subject)
+    ? draft.value.subjects.filter(item => item !== subject)
+    : [...draft.value.subjects, subject]
+}
 function close() { visible.value = false; trigger.value?.focus() }
 function apply() { emit('apply', copyProjectFilter(draft.value)); close() }
 </script>

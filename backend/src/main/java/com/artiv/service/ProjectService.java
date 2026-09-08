@@ -20,6 +20,11 @@ public interface ProjectService {
                                Integer deadlineWithin, Integer deadlineAfter, String tag,
                                java.util.List<String> projectCategories, String subject);
 
+    Page<Project> listProjectsByCategoriesAndSubjects(long page, long size, String keyword, Integer status,
+                               String sort, BigDecimal budgetMin, BigDecimal budgetMax,
+                               Integer deadlineWithin, Integer deadlineAfter, String tag,
+                               java.util.List<String> projectCategories, java.util.List<String> subjects);
+
     Page<Project> listMine(long page, long size, Long employerId, Integer mode);
 
     Project create(ProjectRequest request, Long employerId);

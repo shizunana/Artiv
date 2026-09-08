@@ -19,7 +19,7 @@
       <p>{{ capabilities.chatEnabled ? '发来你的角色图和动作、服装等参考图，一次最多 4 张。说说每张图想参考什么，我会和你确认，再整理成约稿需求说明。' : '未来可协助了解平台规则、整理约稿需求和理解参考图。' }}</p>
       <div class="guide-status" role="status">
         <strong>{{ capabilities.chatEnabled ? '像聊天一样，把需求聊清楚' : '聊天与图片上传尚未开放' }}</strong>
-        <p>{{ capabilities.chatEnabled ? '例如：“图 1 是我的 OC，保留外观，只参考图 2 的动作，想约一张全身图。”也可咨询规则、查找公开企划和画师，或询问自己企划、订单及收到邀请的状态。' : '模型尚未配置或适配器尚未接入，当前可查看入口和布局。' }}</p>
+        <p>{{ capabilities.chatEnabled ? '例如：“图 1 是我的 OC，保留外观，只参考图 2 的动作，想约一张全身图。”也可咨询规则、查找公开企划、橱窗和画师，或询问自己企划、订单及收到邀请的状态。' : '模型尚未配置或适配器尚未接入，当前可查看入口和布局。' }}</p>
       </div>
       <p class="guide-disclaimer">向导使用模型辅助理解信息，回答可能出错。询问本人业务时，仅将权限内的必要状态摘要交给模型；不会替你发布、删除或执行交易操作。</p>
     </section>
@@ -38,15 +38,10 @@
             <span v-else-if="message.status === 'truncated'" class="guide-message__hint">已达到单次输出上限 · 可继续追问</span>
             <span v-else-if="message.status === 'error'" class="guide-message__hint">{{ message.error || '回答中断，请手动重试' }}</span>
             <button v-if="message.role === 'assistant' && message.status === 'complete' && message.text" type="button" class="guide-copy" @click="copyReply(message)">{{ copied === message.id ? '已复制' : message.text.includes('约稿需求说明') ? '复制需求说明' : '复制回复' }}</button>
-            <details v-if="message.references?.length" class="guide-references">
-              <summary>本次查询依据（{{ message.references.length }}）</summary>
-              <div v-for="source in message.references" :key="`${source.kind}:${source.id}`" class="guide-reference">
-                <strong>{{ source.title }}</strong>
-                <p>{{ source.detail }}</p>
-                <small>{{ source.kind === 'rule' ? '规则核对' : '查询时间' }}：{{ source.checkedAt }}</small>
-                <button v-if="guideReferenceRoute(source)" class="guide-reference__link" type="button" :disabled="openingReference" @click="openReference(source)">{{ source.kind === 'project' ? '查看企划' : '查看画师主页' }}</button>
-              </div>
-            </details>
+            <nav v-if="navigableReferences(message).length" class="guide-related" aria-label="相关资源卡片">
+              <GuideResourceCard v-for="source in navigableReferences(message)" :key="`${source.kind}:${source.id}`"
+                :source="source" :disabled="openingReference" @open="openReference" />
+            </nav>
           </article>
         </div>
       </div>
@@ -84,7 +79,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useGuideStore } from '@/stores/guide'
 import { useRouter } from 'vue-router'
 import { guideReferenceRoute } from '@/utils/guideReferences'
+import { scrollGuideToLatest } from '@/utils/guideScroll'
 import GuidePrivateImage from './GuidePrivateImage.vue'
+import GuideResourceCard from './GuideResourceCard.vue'
 defineProps({ capabilities: { type: Object, default: () => ({}) } })
 const guide = useGuideStore()
 const router = useRouter()
@@ -100,8 +97,12 @@ function selectFile(event) {
   event.target.value = ''
 }
 const messageImages = message => message.imageIds?.length ? message.imageIds : message.imageId ? [message.imageId] : []
+const navigableReferences = message => (message.references || []).filter(source => guideReferenceRoute(source))
 async function copyReply(message) {
-  try { await navigator.clipboard.writeText(message.text); copied.value = message.id }
+  const cards = navigableReferences(message).map(source => [source.title, source.card?.category,
+    ...(source.card?.fields || []).filter(field => field.value?.trim()).map(field => `${field.label}：${field.value}`),
+    source.card?.summary].filter(Boolean).join('\n'))
+  try { await navigator.clipboard.writeText([message.text, ...cards].filter(Boolean).join('\n\n')); copied.value = message.id }
   catch (_) { ElMessage.warning('浏览器未允许复制，请选中回复文字手动复制') }
 }
 async function openReference(source) {
@@ -126,11 +127,11 @@ async function clearChat() {
   await guide.clear()
 }
 
-watch(() => [guide.messages.length, guide.messages.at(-1)?.text], async () => {
+watch(() => [guide.messages.length, guide.messages.at(-1)?.text, guide.messages.at(-1)?.references], async () => {
   const area = scrollArea.value
   const follow = !area || area.scrollHeight - area.scrollTop - area.clientHeight < 100
   await nextTick()
-  if (follow && scrollArea.value) scrollArea.value.scrollTop = scrollArea.value.scrollHeight
+  if (follow) scrollGuideToLatest(scrollArea.value)
 })
 
 function close() {
@@ -140,8 +141,15 @@ function close() {
 
 watch(opened, async value => {
   if (!value) return
+  // v-show 恢复布局后再定位；第二个 tick 覆盖同轮恢复历史消息的情况。
   await nextTick()
-  if (opened.value) windowRef.value?.focus({ preventScroll: true })
+  if (!opened.value) return
+  scrollGuideToLatest(scrollArea.value)
+  await nextTick()
+  if (opened.value) {
+    scrollGuideToLatest(scrollArea.value)
+    windowRef.value?.focus({ preventScroll: true })
+  }
 })
 </script>
 
@@ -185,17 +193,13 @@ watch(opened, async value => {
 .guide-window__footer { flex-shrink: 0; padding: 20px; text-align: right; }
 .guide-messages { display: flex; flex-direction: column; gap: 18px; padding: 8px 0 20px; }
 .guide-message { max-width: 95%; align-self: flex-start; }
+.guide-message--assistant { width: 95%; }
 .guide-message--user { align-self: flex-end; }
 .guide-message__role { display: block; margin-bottom: 5px; font-size: 12px; color: #7b8c96; }
 .guide-message__text { padding: 10px 12px; border-radius: 12px; background: #f5f8fa; color: #344d5c; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; font-size: 14px; }
 .guide-message--user .guide-message__text { background: #e5f7ff; }
 .guide-message__hint { display: block; margin-top: 4px; font-size: 12px; color: #8a7272; }
-.guide-references { margin-top: 8px; font-size: 12px; color: #536c7b; }
-.guide-references summary { cursor: pointer; color: #087da6; }
-.guide-reference { margin-top: 8px; padding: 10px; border: 1px solid #e5edf2; border-radius: 8px; overflow-wrap: anywhere; line-height: 1.6; }
-.guide-reference small { color: #7b8c96; }
-.guide-reference__link { display: block; margin-top: 8px; border: 0; padding: 4px 0; color: #087da6; background: transparent; font: inherit; cursor: pointer; }
-.guide-reference__link:disabled { opacity: .5; cursor: wait; }
+.guide-related { display: grid; gap: 10px; margin-top: 10px; }
 .guide-input { display: block; box-sizing: border-box; width: 100%; max-height: 150px; min-height: 72px; padding: 10px; resize: vertical; border: 1px solid #d8e5ec; border-radius: 10px; font: inherit; font-size: 14px; line-height: 1.5; }
 .guide-input:focus { outline: 2px solid #bde9f8; border-color: #00aeef; }
 .guide-input__actions { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-top: 10px; }

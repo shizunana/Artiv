@@ -16,11 +16,14 @@ class GuideReferenceTest {
         var sessions = new GuideSessionStore(new GuideConfig()); var reader = mock(GuidePublicReader.class);
         var controller = new AdminGuideReferenceController(sessions, reader);
         var session = sessions.create(1).id(); var run = sessions.begin(1, session, "test", "x", "s");
-        sessions.references(run, List.of(new GuideReference("project", "11", "公开企划", "", "today")));
+        sessions.references(run, List.of(new GuideReference("project", "11", "公开企划", "", "today"),
+                new GuideReference("stall", "31", "公开橱窗", "", "today")));
         sessions.finish(run, "complete", null, null);
         login(1L);
         assertNotNull(controller.resolve(session, "project", "11"));
         verify(reader).requireVisible("project", 11L);
+        assertNotNull(controller.resolve(session, "stall", "31"));
+        verify(reader).requireVisible("stall", 31L);
         assertThrows(BusinessException.class, () -> controller.resolve(session, "project", "99"));
         assertThrows(BusinessException.class, () -> controller.resolve(session, "order", "11"));
         login(2L);
