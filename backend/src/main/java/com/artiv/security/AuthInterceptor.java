@@ -57,6 +57,16 @@ public class AuthInterceptor implements HandlerInterceptor {
                 throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "仅正常状态的管理员可访问后台");
             }
             UserContext.set(new LoginUser(userId, user.getUsername(), user.getRole()));
+        } else if (request.getRequestURI().equals("/api/v1/guide")
+                || request.getRequestURI().startsWith("/api/v1/guide/")) {
+            // 向导开放不依赖默认工作台或画师认证，但逐请求检查实际账号状态。
+            User user = userMapper.selectById(userId);
+            if (user == null || !java.util.Set.of(1, 2, 3).contains(user.getRole() == null ? 0 : user.getRole())
+                    || !Integer.valueOf(0).equals(user.getStatus())
+                    || !Integer.valueOf(0).equals(user.getDeleted())) {
+                throw new BusinessException(ResultCode.NO_PERMISSION.getCode(), "仅正常状态的登录账号可使用艺绘向导");
+            }
+            UserContext.set(new LoginUser(userId, user.getUsername(), user.getRole()));
         } else {
             UserContext.set(new LoginUser(userId, null, null));
         }

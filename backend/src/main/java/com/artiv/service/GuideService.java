@@ -19,7 +19,6 @@ public class GuideService {
         boolean configured = router.supported()
                 && config.getApiKey() != null && !config.getApiKey().isBlank();
         return new GuideCapabilities(config.isEnabled(), config.isEnabled() && configured,
-                config.isEnabled() && configured, config.isEnabled() && configured && "deepseek".equals(config.getProvider())
-                && "deepseek-v4-flash-vision-exp".equals(config.getVisionModel()), config.getProvider(), config.getTextModel(), Math.min(4000, config.getMaxInputChars()));
+                config.isEnabled() && configured, config.isEnabled() && configured && config.supportsVisionModel(), config.getProvider(), config.getTextModel(), Math.min(4000, config.getMaxInputChars()));
     }
 }

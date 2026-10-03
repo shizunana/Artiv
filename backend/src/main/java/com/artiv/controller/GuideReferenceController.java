@@ -1,4 +1,4 @@
-package com.artiv.controller.admin;
+package com.artiv.controller;
 
 import com.artiv.common.BusinessException;
 import com.artiv.common.Result;
@@ -10,11 +10,11 @@ import java.util.Map;
 
 /** 用户点击来源时复验：必须是本人会话中实际返回过的公开资源，且当前仍可见。 */
 @RestController
-@RequestMapping("/api/v1/admin/guide/sessions")
-public class AdminGuideReferenceController {
+@RequestMapping({"/api/v1/guide/sessions", "/api/v1/admin/guide/sessions"})
+public class GuideReferenceController {
     private final GuideSessionStore sessions;
     private final GuidePublicReader reader;
-    public AdminGuideReferenceController(GuideSessionStore sessions, GuidePublicReader reader) { this.sessions = sessions; this.reader = reader; }
+    public GuideReferenceController(GuideSessionStore sessions, GuidePublicReader reader) { this.sessions = sessions; this.reader = reader; }
     @GetMapping("/{sessionId}/references/{kind}/{id}")
     public Result<Map<String, String>> resolve(@PathVariable String sessionId, @PathVariable String kind, @PathVariable String id) {
         var session = sessions.get(UserContext.getUserId(), sessionId);

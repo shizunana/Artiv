@@ -32,8 +32,8 @@ artiv:
     enabled: ${ARTIV_GUIDE_ENABLED:false}
     provider: ${ARTIV_GUIDE_PROVIDER:deepseek}
     api-key: ${ARTIV_GUIDE_API_KEY:}
-    text-model: ${ARTIV_GUIDE_TEXT_MODEL:deepseek-v4-flash-vision-exp}
-    vision-model: ${ARTIV_GUIDE_VISION_MODEL:deepseek-v4-flash-vision-exp}
+    text-model: ${ARTIV_GUIDE_TEXT_MODEL:deepseek-flash}
+    vision-model: ${ARTIV_GUIDE_VISION_MODEL:deepseek-flash}
     # glm 的适配接口已预留，提供对应 Key 并完成适配验证后再启用；不复用 DeepSeek Key。
     timeout-seconds: ${ARTIV_GUIDE_REQUEST_TIMEOUT_SECONDS:90}
     max-output-tokens: ${ARTIV_GUIDE_MAX_OUTPUT_TOKENS:2048}

@@ -13,7 +13,7 @@
       </header>
       <div ref="scrollArea" class="guide-window__body">
     <section v-if="!guide.messages.length" class="guide-empty">
-      <span class="guide-label">管理员测试版 · {{ capabilities.chatEnabled ? '约稿需求助手' : '基础框架' }}</span>
+      <span class="guide-label">{{ capabilities.chatEnabled ? '约稿需求助手' : '艺绘向导' }}</span>
       <div class="guide-symbol"><el-icon :size="32"><ChatDotRound /></el-icon></div>
       <h2>你的约稿小向导</h2>
       <p>{{ capabilities.chatEnabled ? '发来你的角色图和动作、服装等参考图，一次最多 4 张。说说每张图想参考什么，我会和你确认，再整理成约稿需求说明。' : '未来可协助了解平台规则、整理约稿需求和理解参考图。' }}</p>

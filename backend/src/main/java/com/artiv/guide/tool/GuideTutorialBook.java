@@ -24,7 +24,7 @@ public class GuideTutorialBook {
         this.users = users;
         var loaded = new ArrayList<Topic>();
         for (String file : FILES) {
-            boolean adminOnly = file.startsWith("07-") || file.startsWith("08-");
+            boolean adminOnly = file.startsWith("08-");
             String markdown;
             try (var in = new ClassPathResource("guide/tutorials/" + file).getInputStream()) {
                 markdown = new String(in.readAllBytes(), StandardCharsets.UTF_8);

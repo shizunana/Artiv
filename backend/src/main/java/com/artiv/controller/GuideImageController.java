@@ -1,4 +1,4 @@
-package com.artiv.controller.admin;
+package com.artiv.controller;
 
 import com.artiv.common.Result;
 import com.artiv.guide.workspace.GuideImageStore;
@@ -9,11 +9,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/v1/admin/guide/sessions/{sessionId}/images")
-public class AdminGuideImageController {
+@RequestMapping({"/api/v1/guide/sessions/{sessionId}/images", "/api/v1/admin/guide/sessions/{sessionId}/images"})
+public class GuideImageController {
     private final GuideImageStore images;
     private final GuideChatService chat;
-    public AdminGuideImageController(GuideImageStore images, GuideChatService chat) { this.images = images; this.chat = chat; }
+    public GuideImageController(GuideImageStore images, GuideChatService chat) { this.images = images; this.chat = chat; }
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<GuideImageStore.Uploaded> upload(@PathVariable String sessionId, @RequestPart("file") MultipartFile file) {
         chat.requireReady();

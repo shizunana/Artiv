@@ -2,7 +2,7 @@ package com.artiv.guide.tool;
 
 import com.artiv.common.BusinessException;
 import com.artiv.config.GuideConfig;
-import com.artiv.controller.admin.AdminGuideReferenceController;
+import com.artiv.controller.GuideReferenceController;
 import com.artiv.guide.session.GuideSessionStore;
 import com.artiv.security.UserContext;
 import org.junit.jupiter.api.*;
@@ -14,7 +14,7 @@ class GuideReferenceTest {
     @AfterEach void clear() { UserContext.clear(); }
     @Test void onlyOwnedReturnedAndStillPublicReferencesCanNavigate() {
         var sessions = new GuideSessionStore(new GuideConfig()); var reader = mock(GuidePublicReader.class);
-        var controller = new AdminGuideReferenceController(sessions, reader);
+        var controller = new GuideReferenceController(sessions, reader);
         var session = sessions.create(1).id(); var run = sessions.begin(1, session, "test", "x", "s");
         sessions.references(run, List.of(new GuideReference("project", "11", "公开企划", "", "today"),
                 new GuideReference("stall", "31", "公开橱窗", "", "today")));
@@ -34,6 +34,6 @@ class GuideReferenceTest {
         assertThrows(BusinessException.class, () -> controller.resolve(session, "project", "11"));
     }
     void login(long id) {
-        var user = new com.artiv.security.LoginUser(); user.setId(id); user.setRole(3); UserContext.set(user);
+        var user = new com.artiv.security.LoginUser(); user.setId(id); user.setRole(1); UserContext.set(user);
     }
 }

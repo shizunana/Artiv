@@ -50,7 +50,7 @@ class DeepSeekGuideLiveTest {
 
     private static void record(String stage, GuideModelClient.Reply reply) {
         // 仅输出阶段、耗时、token 数和结束原因；不输出 Key、正文、图片或工具参数。
-        System.out.printf("GUIDE_LIVE stage=%s model=deepseek-v4-flash-vision-exp elapsedMs=%d inputTokens=%s outputTokens=%s finish=%s%n",
+        System.out.printf("GUIDE_LIVE stage=%s model=deepseek-flash elapsedMs=%d inputTokens=%s outputTokens=%s finish=%s%n",
                 stage, reply.elapsedMillis(), reply.usage().inputTokens(), reply.usage().outputTokens(), reply.finishReason());
         assertNotNull(reply.usage().inputTokens(), "缺少真实用量统计");
         assertNotNull(reply.usage().outputTokens(), "缺少真实用量统计");

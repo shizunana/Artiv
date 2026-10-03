@@ -1,4 +1,4 @@
-package com.artiv.controller.admin;
+package com.artiv.controller;
 
 import com.artiv.common.Result;
 import com.artiv.dto.guide.GuideCapabilities;
@@ -15,15 +15,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 沿用 /admin/** 的数据库管理员鉴权；所有会话操作都再次检查当前用户归属。 */
+/** 正常登录账号的向导入口；旧管理员路径保留，所有会话操作复验本人归属。 */
 @RestController
-@RequestMapping("/api/v1/admin/guide")
-public class AdminGuideController {
+@RequestMapping({"/api/v1/guide", "/api/v1/admin/guide"})
+public class GuideController {
     private final GuideService guideService;
     private final GuideChatService chat;
     private final GuideSessionStore sessions;
 
-    public AdminGuideController(GuideService guideService, GuideChatService chat, GuideSessionStore sessions) {
+    public GuideController(GuideService guideService, GuideChatService chat, GuideSessionStore sessions) {
         this.guideService = guideService;
         this.chat = chat;
         this.sessions = sessions;

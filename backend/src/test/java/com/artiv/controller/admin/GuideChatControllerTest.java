@@ -44,7 +44,7 @@ class GuideChatControllerTest {
             var user = new User(); user.setId(id); user.setRole(id == 3 ? 1 : 3); user.setStatus(0); user.setDeleted(0);
             when(mapper.selectById(id)).thenReturn(user);
         }
-        mvc = MockMvcBuilders.standaloneSetup(new AdminGuideController(new GuideService(config, router), chat, sessions), new AdminGuideImageController(images, chat))
+        mvc = MockMvcBuilders.standaloneSetup(new com.artiv.controller.GuideController(new GuideService(config, router), chat, sessions), new com.artiv.controller.GuideImageController(images, chat))
                 .setControllerAdvice(new GlobalExceptionHandler()).addInterceptors(new AuthInterceptor(jwt, mapper)).build();
     }
     @AfterEach void close() { chat.close(); UserContext.clear(); }
@@ -65,6 +65,37 @@ class GuideChatControllerTest {
     String imagePayload(String image, String text, boolean consent) throws Exception {
         return json.writeValueAsString(Map.of("clientMessageId", UUID.randomUUID().toString(), "text", text, "imageId", image, "imageConsent", consent));
     }
+    @Test void ordinaryUserCanChatAndUploadOnlyWithinOwnSession() throws Exception {
+        immediateReply();
+        var created = mvc.perform(post("/api/v1/guide/sessions").header("Authorization", "Bearer ordinary"))
+                .andExpect(jsonPath("$.code").value(200)).andReturn();
+        String own = json.readTree(created.getResponse().getContentAsByteArray()).path("data").path("id").asText();
+        String path = "/api/v1/guide/sessions/" + own;
+        var uploaded = mvc.perform(multipart(path + "/images").file(fixture()).header("Authorization", "Bearer ordinary"))
+                .andExpect(jsonPath("$.code").value(200)).andReturn();
+        String image = json.readTree(uploaded.getResponse().getContentAsByteArray()).path("data").path("id").asText();
+        mvc.perform(get(path + "/images/" + image).header("Authorization", "Bearer ordinary"))
+                .andExpect(content().contentType("image/jpeg")).andExpect(header().string("Cache-Control", "no-store"));
+        for (String other : List.of("a", "b")) {
+            mvc.perform(get(path).header("Authorization", "Bearer " + other)).andExpect(jsonPath("$.code").value(404));
+            mvc.perform(get(path + "/images/" + image).header("Authorization", "Bearer " + other)).andExpect(jsonPath("$.code").value(404));
+            mvc.perform(delete(path).header("Authorization", "Bearer " + other)).andExpect(jsonPath("$.code").value(404));
+            mvc.perform(post(path + "/messages/" + UUID.randomUUID() + "/cancel").header("Authorization", "Bearer " + other))
+                    .andExpect(jsonPath("$.code").value(404));
+            mvc.perform(post(path + "/messages/stream").header("Authorization", "Bearer " + other)
+                    .contentType("application/json").content(payload(UUID.randomUUID().toString())))
+                    .andExpect(jsonPath("$.code").value(404));
+        }
+        verify(client, never()).stream(any(), any(), any());
+        var pending = mvc.perform(post(path + "/messages/stream").header("Authorization", "Bearer ordinary")
+                .contentType("application/json").content(payload(UUID.randomUUID().toString())))
+                .andExpect(request().asyncStarted()).andReturn();
+        pending.getAsyncResult(3000);
+        mvc.perform(asyncDispatch(pending)).andExpect(content().contentTypeCompatibleWith("text/event-stream"));
+        assertEquals("complete", sessions.get(3, own).messages().getLast().status());
+        verify(client, times(1)).stream(any(), any(), any());
+    }
+
     @Test void imageConversationCarriesObservationButDoesNotResendPixelsOnFollowup() throws Exception {
         var session = sessions.create(1).id(); var image = images.upload(1, session, fixture()).id();
         when(client.complete(any())).thenReturn(new GuideModelClient.Reply("可见红色发饰，文字模糊。", List.of(), new GuideModelClient.Usage(5L, 3L), "stop", 1));

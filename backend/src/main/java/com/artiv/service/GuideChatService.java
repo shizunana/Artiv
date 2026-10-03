@@ -22,7 +22,7 @@ public class GuideChatService {
     private final GuideSessionStore store;
     private final GuideAnswerRunner answers;
     private final com.artiv.guide.workspace.GuideImageStore images;
-    // 无等待队列：最多四个真实运行；会话存储另限制每个管理员同时一个运行。
+    // 无等待队列：最多四个真实运行；会话存储另限制每个账号同时一个运行。
     private final ExecutorService workers = new ThreadPoolExecutor(4, 4, 0L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), Thread.ofPlatform().daemon().name("guide-run-", 0).factory(), new ThreadPoolExecutor.AbortPolicy());
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().name("guide-timer").factory());

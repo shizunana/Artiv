@@ -32,7 +32,7 @@ class AdminGuideControllerTest {
         user.setId(8L); user.setRole(3); user.setStatus(0); user.setDeleted(0);
         when(mapper.selectById(8L)).thenAnswer(ignored -> user);
         var router = new com.artiv.guide.client.GuideModelRouter(config, java.util.List.of(request -> null));
-        mvc = MockMvcBuilders.standaloneSetup(new AdminGuideController(new GuideService(config, router), mock(com.artiv.service.GuideChatService.class), new com.artiv.guide.session.GuideSessionStore(config)))
+        mvc = MockMvcBuilders.standaloneSetup(new com.artiv.controller.GuideController(new GuideService(config, router), mock(com.artiv.service.GuideChatService.class), new com.artiv.guide.session.GuideSessionStore(config)))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .addInterceptors(new AuthInterceptor(jwt, mapper)).build();
     }
@@ -67,6 +67,30 @@ class AdminGuideControllerTest {
         user.setRole(3); user.setStatus(1); assertForbidden();
         user.setStatus(0); user.setDeleted(1); assertForbidden();
         user = null; assertForbidden();
+    }
+
+    @Test void userEndpointAllowsBothWorkbenchesAndAdminWithoutArtistCertification() throws Exception {
+        for (int role : new int[]{1, 2, 3}) {
+            user.setRole(role); user.setCertStatus(0);
+            mvc.perform(get("/api/v1/guide/capabilities").header("Authorization", "Bearer test-token"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200));
+        }
+    }
+
+    @Test void userEndpointRequiresValidLoginAndNormalExistingAccount() throws Exception {
+        mvc.perform(get("/api/v1/guide/capabilities"))
+                .andExpect(jsonPath("$.code").value(401));
+        mvc.perform(get("/api/v1/guide/capabilities").header("Authorization", "Bearer invalid"))
+                .andExpect(jsonPath("$.code").value(401));
+        user.setStatus(1); assertUserForbidden();
+        user.setStatus(0); user.setDeleted(1); assertUserForbidden();
+        user.setDeleted(0); user.setRole(99); assertUserForbidden();
+        user = null; assertUserForbidden();
+    }
+
+    private void assertUserForbidden() throws Exception {
+        mvc.perform(get("/api/v1/guide/capabilities").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value(2003));
     }
 
     private void assertForbidden() throws Exception {

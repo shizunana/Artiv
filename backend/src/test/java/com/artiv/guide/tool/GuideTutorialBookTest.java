@@ -25,8 +25,8 @@ class GuideTutorialBookTest {
     @Test void packagedCatalogContainsOnlyWhitelistedTopicsAndNoBodyOrInternalSources() throws Exception {
         var book = new GuideTutorialBook(users);
         var normal = json.valueToTree(book.read(null, null, List.of()));
-        assertEquals(45, normal.path("topics").size());
-        assertFalse(normal.toString().contains("ADMIN-")); assertFalse(normal.toString().contains("GUIDE-"));
+        assertEquals(50, normal.path("topics").size());
+        assertFalse(normal.toString().contains("ADMIN-")); assertTrue(normal.toString().contains("GUIDE-"));
         assertFalse(normal.toString().contains("body"));
         when(users.selectById(7L)).thenReturn(user(3, 0, 0));
         var admin = json.valueToTree(book.read(7L, null, List.of()));
@@ -44,7 +44,7 @@ class GuideTutorialBookTest {
         for (User forbidden : List.of(user(1,0,0), user(2,0,0), user(3,1,0), user(3,0,1))) {
             when(users.selectById(7L)).thenReturn(forbidden);
             assertThrows(GuideModelException.class, () -> book.read(7L, null, List.of("ACCOUNT-01", "ADMIN-03")));
-            assertThrows(GuideModelException.class, () -> book.read(7L, null, List.of("GUIDE-01")));
+            assertTrue(json.writeValueAsString(book.read(7L, null, List.of("GUIDE-01"))).contains("艺绘向导"));
             assertFalse(json.writeValueAsString(book.read(7L, "发放资金", List.of())).contains("ADMIN-"));
         }
         when(users.selectById(7L)).thenReturn(null);

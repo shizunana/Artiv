@@ -38,8 +38,7 @@ public class GuideImageStore {
     }
     private synchronized void removeSession(String id) { images.remove(id); observations.remove(id); }
     public void requireVision() {
-        if (!config.isEnabled() || !"deepseek".equals(config.getProvider())
-                || !"deepseek-v4-flash-vision-exp".equals(config.getVisionModel()))
+        if (!config.isEnabled() || !config.supportsVisionModel())
             throw new BusinessException(503, "当前模型尚未开启图片分析");
     }
     public Uploaded upload(long owner, String sessionId, MultipartFile file) {

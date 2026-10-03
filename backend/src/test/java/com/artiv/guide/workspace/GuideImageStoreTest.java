@@ -24,6 +24,17 @@ class GuideImageStoreTest {
         var out = new ByteArrayOutputStream(); javax.imageio.ImageIO.write(image, "png", out);
         return new MockMultipartFile("file", "role.png", "image/png", out.toByteArray());
     }
+    @Test void supportedFlashAndLegacyAliasAllowRealUploadsButUnknownModelsDoNot() throws Exception {
+        var session = sessions.create(1).id();
+        for (String model : List.of("deepseek-flash", "deepseek-v4-flash-vision-exp")) {
+            config.setVisionModel(model);
+            assertNotNull(images.upload(1, session, fixture(0)).id());
+        }
+        config.setVisionModel("deepseek-unknown");
+        assertThrows(BusinessException.class, () -> images.upload(1, session, fixture(0)));
+        config.setVisionModel("deepseek-flash"); config.setProvider("glm");
+        assertThrows(BusinessException.class, () -> images.upload(1, session, fixture(0)));
+    }
     @Test void rejectsSpoofedCorruptMissingMimeAndOversizedFiles() throws Exception {
         var good = fixture(0);
         assertThrows(BusinessException.class, () -> GuideImageCodec.decode(new MockMultipartFile("file", "wrong.jpg", "image/jpeg", good.getBytes())));

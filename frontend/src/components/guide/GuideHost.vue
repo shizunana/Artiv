@@ -3,7 +3,6 @@
     <button v-show="!opened" ref="launcher" class="guide-launcher" type="button" aria-haspopup="dialog" aria-controls="artiv-guide-window" :aria-expanded="opened" @click="opened = true">
       <el-icon :size="20"><ChatDotRound /></el-icon>
       <span>艺绘向导</span>
-      <span class="guide-launcher__badge">测试</span>
     </button>
     <ArtivGuideDrawer v-model="opened" :capabilities="capabilities" @close="focusLauncher" />
   </template>
@@ -24,7 +23,7 @@ const route = useRoute()
 const opened = ref(false)
 const launcher = ref(null)
 const capabilities = ref(null)
-const eligible = computed(() => Boolean(userStore.token && userStore.isAdmin
+const eligible = computed(() => Boolean(userStore.token && userStore.user && userStore.user.status === 0
   && !['Login', 'Register'].includes(route.name)))
 const visible = computed(() => eligible.value && capabilities.value?.enabled === true)
 

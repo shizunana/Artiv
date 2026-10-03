@@ -31,7 +31,7 @@ try {
   let capabilityCalls = 0
   let deferred = null
   await context.route('**/api/v1/**', async route => {
-    if (route.request().url().endsWith('/admin/guide/capabilities')) {
+    if (route.request().url().endsWith('/guide/capabilities')) {
       capabilityCalls++
       const snapshot = { ...capabilities }
       if (deferred) await deferred
@@ -42,7 +42,7 @@ try {
   })
   await context.addInitScript(() => {
     localStorage.setItem('artiv_token', 'isolated-test-token')
-    localStorage.setItem('artiv_user', JSON.stringify({ id: 99999, username: '测试管理员', nickname: '测试管理员', role: 3 }))
+    localStorage.setItem('artiv_user', JSON.stringify({ id: 99999, username: '测试管理员', nickname: '测试管理员', role: 3, status: 0 }))
   })
   await page.goto(`${base}/guides/employer`)
   const launcher = page.locator('.guide-launcher')
@@ -95,7 +95,7 @@ try {
   console.log('PASS mobile drawer fits viewport')
 
   capabilities.enabled = false
-  const disabledResponse = page.waitForResponse(r => r.url().endsWith('/admin/guide/capabilities'))
+  const disabledResponse = page.waitForResponse(r => r.url().endsWith('/guide/capabilities'))
   await page.reload()
   await disabledResponse
   assert.equal(await launcher.count(), 0)
@@ -110,26 +110,45 @@ try {
   assert.match(await drawer.innerText(), /聊天与图片上传尚未开放/)
   await page.evaluate(async () => {
     const { useUserStore } = await import('/src/stores/user.js')
-    useUserStore().updateCurrentUser({ id: 99998, role: 2 })
+    useUserStore().updateCurrentUser({ id: 99998, role: 2, status: 0 })
   })
-  await launcher.waitFor({ state: 'hidden' })
   await drawer.waitFor({ state: 'hidden' })
+  await launcher.waitFor()
+  await launcher.click()
+  await drawer.waitFor()
+  assert.doesNotMatch(await drawer.innerText(), /管理员测试版/)
+  await page.getByRole('button', { name: '收起艺绘向导' }).click()
   const before = capabilityCalls
   await navigate('/guides/painter-certification')
   assert.equal(capabilityCalls, before)
-  console.log('PASS account/role switch clears drawer; ordinary account makes no guide request')
+  console.log('PASS account switch clears old drawer; ordinary painter can open guide')
+
+  await page.evaluate(async () => {
+    const { useUserStore } = await import('/src/stores/user.js')
+    useUserStore().updateCurrentUser({ id: 99996, role: 1, status: 0 })
+  })
+  await launcher.waitFor()
+  await launcher.click()
+  await drawer.waitFor()
+  await page.evaluate(async () => {
+    const { useUserStore } = await import('/src/stores/user.js')
+    useUserStore().updateCurrentUser({ id: 99996, role: 1, status: 1 })
+  })
+  await drawer.waitFor({ state: 'hidden' })
+  await launcher.waitFor({ state: 'hidden' })
+  console.log('PASS ordinary planner eligible; banned account hides and clears guide')
 
   let release
   deferred = new Promise(resolve => { release = resolve })
-  const pendingCapability = page.waitForRequest(r => r.url().endsWith('/admin/guide/capabilities'))
+  const pendingCapability = page.waitForRequest(r => r.url().endsWith('/guide/capabilities'))
   await page.evaluate(async () => {
     const { useUserStore } = await import('/src/stores/user.js')
-    useUserStore().updateCurrentUser({ id: 99997, role: 3 })
+    useUserStore().updateCurrentUser({ id: 99997, role: 3, status: 0 })
   })
   await pendingCapability
   await navigate('/login')
   const lateResponse = page.waitForEvent('requestfailed', {
-    predicate: request => request.url().endsWith('/admin/guide/capabilities'), timeout: 3000,
+    predicate: request => request.url().endsWith('/guide/capabilities'), timeout: 3000,
   }).catch(() => null)
   release()
   deferred = null

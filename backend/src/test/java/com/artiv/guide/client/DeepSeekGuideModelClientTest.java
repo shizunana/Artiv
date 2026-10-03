@@ -80,7 +80,7 @@ class DeepSeekGuideModelClientTest {
                 assertEquals("deepseek-v4-flash", body.path("model").asText());
                 assertEquals("hello", body.path("messages").path(0).path("content").asText());
             } else {
-                assertEquals("deepseek-v4-flash-vision-exp", body.path("model").asText());
+                assertEquals("deepseek-flash", body.path("model").asText());
                 assertEquals("image_url", body.path("messages").path(0).path("content").path(1).path("type").asText());
                 assertEquals("required", body.path("tool_choice").asText());
                 assertEquals(GuideProbeFixture.TOOL_NAME, body.path("tools").path(0).path("function").path("name").asText());
