@@ -74,6 +74,7 @@
 - 后端：Spring Boot 3.3.4、MyBatis-Plus 3.5.7、JWT 0.12.6、WebSocket
 - 数据库：MySQL 8（utf8mb4 / InnoDB）
 - 开发环境：JDK 21、Maven 3.9+；跨电脑部署沿用 Node.js 20+ 指引，本机辅助启动器配置为 Node.js 24.19.0。依赖声明见 `frontend/package.json`，锁定版本见 `frontend/package-lock.json`。
+- 后续开发与功能验证以 macOS 本机环境为主；Windows 跨电脑部署仍按本文的部署文档执行。
 
 ## 演示账号
 
