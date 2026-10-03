@@ -57,7 +57,7 @@
               </div>
               <p class="project-card__summary">{{ project.description }}</p>
               <div class="project-card__tags">
-                <span class="tag">{{ project.mode === 1 ? '定向邀请' : '公开招募' }}</span>
+                <span v-if="isProjectUsage(project.usageType)" class="tag">{{ projectUsageLabel(project.usageType) }}</span>
                 <span v-for="item in subjectList(project.subject)" :key="item" class="tag tag-subject">{{ item }}</span>
               </div>
             </div>
@@ -100,6 +100,7 @@ import ProjectFilterPopover from '@/components/projects/ProjectFilterPopover.vue
 import { copyProjectFilter, projectFilterParams } from '@/utils/projectFilters'
 import { PROJECT_STATUS, statusText, statusType } from '@/utils/status'
 import { formatProjectBudget } from '@/utils/budget'
+import { isProjectUsage, projectUsageLabel } from '@/utils/projectUsage'
 import Pagination from '@/components/common/Pagination.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 

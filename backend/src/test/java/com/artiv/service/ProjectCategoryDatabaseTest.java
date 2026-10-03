@@ -81,6 +81,27 @@ class ProjectCategoryDatabaseTest {
             orders.reviewStage(order.getId(), employer.getId(), review);
         }
     }
+    @ParameterizedTest @ValueSource(strings={"personal","commercial"})
+    void usagePersistsThroughEditReadAndOrderWithoutChangingMoney(String usage) throws Exception {
+        ProjectRequest request = request("头像"); request.setUsageType(usage);
+        Project p = projects.create(request, employer.getId());
+        assertEquals(usage, jdbc.queryForObject("SELECT usage_type FROM project WHERE id=?", String.class, p.getId()));
+        assertEquals(usage, projectMapper.selectById(p.getId()).getUsageType());
+        assertEquals(usage, projects.listProjects(1,12,null,null,null,null,null,null,null,null,"头像",null)
+                .getRecords().get(0).getUsageType());
+        ProjectContentUpdateRequest edit = new ProjectContentUpdateRequest();
+        edit.setTitle(p.getTitle()); edit.setDescription(p.getDescription()); edit.setProjectCategory("头像");
+        edit.setBudgetMin(p.getBudgetMin()); edit.setBudgetMax(p.getBudgetMax()); edit.setPhases(p.getPhases());
+        edit.setUsageType(usage.equals("personal") ? "commercial" : "personal");
+        projects.updateContent(p.getId(), edit, employer.getId());
+        assertEquals(edit.getUsageType(), projects.getPanel(p.getId(), employer.getId()).getUsageType());
+        OrderInfo o = order(projectMapper.selectById(p.getId()));
+        assertEquals(edit.getUsageType(), json.readTree(o.getProjectSnapshot()).path("usageType").asText());
+        assertEquals(0, new BigDecimal("150").compareTo(o.getAmount()));
+        assertThrows(BusinessException.class, () -> projects.updateContent(p.getId(), edit, employer.getId()));
+        deliver(o);
+        assertEquals(3, jdbc.queryForObject("SELECT status FROM order_info WHERE id=?", Integer.class, o.getId()));
+    }
     @ParameterizedTest @ValueSource(strings={"头像","立绘","角色设计","插画","平面设计","自设/OC"})
     void sixCategoriesPersistFilterAndCompleteWithoutChangingMoney(String category) throws Exception {
         Project p = projects.create(request(category), employer.getId());
@@ -143,7 +164,8 @@ class ProjectCategoryDatabaseTest {
                 List.of("头像"),List.of("古风","日系")).getTotal());
         edit.setSubject(List.of("场景"));
         assertThrows(BusinessException.class, () -> projects.updateContent(a.getId(),edit,employer.getId()));
-        assertNull(projectMapper.selectById(a.getId()).getSubject());
+        // 非法修改不得覆盖前一步已经保存的题材。
+        assertEquals("古风", projectMapper.selectById(a.getId()).getSubject());
         for (String column : List.of("mode","moderation_status","deleted","status")) {
             jdbc.update("UPDATE project SET "+column+"=1 WHERE id=?",b.getId());
             assertEquals(1,projects.listProjectsByCategories(1,12,null,null,null,null,null,null,null,null,cats,null).getTotal());

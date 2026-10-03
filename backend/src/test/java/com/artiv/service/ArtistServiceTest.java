@@ -48,6 +48,9 @@ class ArtistServiceTest {
     @Mock
     private ReviewService reviewService;
 
+    @Mock
+    private com.artiv.mapper.StallMapper stallMapper;
+
     @InjectMocks
     private ArtistServiceImpl artistService;
 
@@ -129,6 +132,26 @@ class ArtistServiceTest {
         assertEquals(12, secondPage.getTotal());
         assertEquals(2, secondPage.getRecords().size());
         assertEquals("测试画师11", secondPage.getRecords().get(0).getNickname());
+    }
+
+    @Test
+    void guideUnionsAvailableStallCategoriesButSubjectsRemainPersonalTags() {
+        mockPainterPage(List.of(painter(14L, "只开橱窗画师", "日系")), 1);
+        when(workMapper.selectPublicPreviews(anyList(), eq(5))).thenReturn(List.of());
+        when(workMapper.selectPublicCategories(anyList())).thenReturn(List.of(categories(14L, "头像")));
+        when(stallMapper.selectGuideCategories(List.of(14L))).thenReturn(List.of(categories(14L, "头像,立绘")));
+        var page = artistService.listGuideArtists(1, 5, "立绘", "日系", null);
+        assertEquals(List.of("头像", "立绘"), page.getRecords().getFirst().getCategories());
+        assertEquals("日系", page.getRecords().getFirst().getTags());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Wrapper<User>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(userMapper).selectPage(any(Page.class), captor.capture());
+        String sql = captor.getValue().getCustomSqlSegment();
+        assertTrue(sql.contains(" OR EXISTS (SELECT 1 FROM stall"));
+        assertTrue(sql.contains("s.deleted = 0 AND s.status = 1 AND s.stock > 0"));
+        assertTrue(sql.contains("FIND_IN_SET") && sql.contains("COALESCE(tags"));
+        assertFalse(sql.contains("w.subject") || sql.contains("s.params"));
+        assertTrue(sql.contains("cert_status") && sql.contains("status") && sql.contains("deleted"));
     }
 
     @Test

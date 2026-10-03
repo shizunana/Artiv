@@ -32,7 +32,7 @@
                 <figcaption>图 {{ index + 1 }}</figcaption>
               </figure>
             </div>
-            <div v-if="message.text || !messageImages(message).length" class="guide-message__text">{{ message.text || (message.status === 'generating' ? '正在思考…' : '未返回内容') }}</div>
+            <div v-if="message.text || !messageImages(message).length" class="guide-message__text">{{ (message.role === 'assistant' ? guidePlainText(message.text) : message.text) || (message.status === 'generating' ? '正在思考…' : '未返回内容') }}</div>
             <span v-if="message.status === 'generating'" class="guide-message__hint">{{ message.toolStatus || '正在生成…' }}</span>
             <span v-else-if="message.status === 'cancelled'" class="guide-message__hint">已停止 · 内容可能不完整</span>
             <span v-else-if="message.status === 'truncated'" class="guide-message__hint">已达到单次输出上限 · 可继续追问</span>
@@ -80,6 +80,7 @@ import { useGuideStore } from '@/stores/guide'
 import { useRouter } from 'vue-router'
 import { guideReferenceRoute } from '@/utils/guideReferences'
 import { scrollGuideToLatest } from '@/utils/guideScroll'
+import { guidePlainText } from '@/utils/guideText'
 import GuidePrivateImage from './GuidePrivateImage.vue'
 import GuideResourceCard from './GuideResourceCard.vue'
 defineProps({ capabilities: { type: Object, default: () => ({}) } })
@@ -102,7 +103,7 @@ async function copyReply(message) {
   const cards = navigableReferences(message).map(source => [source.title, source.card?.category,
     ...(source.card?.fields || []).filter(field => field.value?.trim()).map(field => `${field.label}：${field.value}`),
     source.card?.summary].filter(Boolean).join('\n'))
-  try { await navigator.clipboard.writeText([message.text, ...cards].filter(Boolean).join('\n\n')); copied.value = message.id }
+  try { await navigator.clipboard.writeText([guidePlainText(message.text), ...cards].filter(Boolean).join('\n\n')); copied.value = message.id }
   catch (_) { ElMessage.warning('浏览器未允许复制，请选中回复文字手动复制') }
 }
 async function openReference(source) {

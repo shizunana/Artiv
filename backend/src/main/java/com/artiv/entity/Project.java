@@ -42,6 +42,9 @@ public class Project {
     /** 企划类型（独立六类） */
     private String projectCategory;
 
+    /** 稿件用途：personal 个人用途、commercial 商业用途。 */
+    private String usageType;
+
     /** 题材风格，逗号分隔 */
     private String subject;
 

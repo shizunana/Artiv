@@ -61,9 +61,11 @@
             />
           </el-form-item>
           <el-form-item label="稿酬预算（元/张）" required class="inline-item">
-            <el-input-number v-model="form.budgetMin" :min="1" :max="100000" placeholder="最低" />
-            <span class="range-sep">—</span>
-            <el-input-number v-model="form.budgetMax" :min="1" :max="100000" placeholder="最高" />
+            <div class="budget-range" role="group" aria-label="每张稿件的预算区间">
+              <el-input-number v-model="form.budgetMin" :min="1" :max="100000" placeholder="最低" aria-label="最低稿酬预算" />
+              <span class="range-sep" aria-hidden="true">至</span>
+              <el-input-number v-model="form.budgetMax" :min="1" :max="100000" placeholder="最高" aria-label="最高稿酬预算" />
+            </div>
           </el-form-item>
         </div>
       </div>
@@ -543,6 +545,7 @@ async function submit() {
       tags: form.tags,
       images: form.images.length ? form.images.join(',') : null,
       projectCategory: form.projectCategory,
+      usageType: form.usage,
       subject: form.subjects,
       requirements: form.requirements,
       phases: JSON.stringify(form.phases.map((phase) => ({ name: phase.name.trim() }))),
@@ -664,20 +667,104 @@ async function submit() {
 }
 
 .form-row {
-  display: flex;
-  gap: 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 24px;
   margin-top: 24px;
 }
 
 .inline-item {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.inline-item :deep(.el-form-item__label) {
+  justify-content: flex-start;
+  height: auto;
+  padding: 0;
+  line-height: 22px;
+}
+
+.inline-item :deep(.el-form-item__content) {
+  display: block;
+  min-width: 0;
+}
+
+.inline-item :deep(.el-date-editor.el-input) {
+  width: 100%;
+  height: 42px;
+}
+
+.budget-range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
 }
 
-.range-sep {
-  margin: 0 8px;
+.budget-range :deep(.el-input-number) {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  line-height: 40px;
+}
+
+.budget-range :deep(.el-input) {
+  height: 100%;
+}
+
+.budget-range :deep(.el-input__wrapper) {
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--artiv-border) inset;
+}
+
+.budget-range :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--artiv-primary) inset;
+}
+
+.budget-range :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--artiv-primary) inset, 0 0 0 3px rgb(0 168 233 / 10%);
+}
+
+.budget-range :deep(.el-input__inner) {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--artiv-text);
+}
+
+.budget-range :deep(.el-input-number__decrease),
+.budget-range :deep(.el-input-number__increase) {
+  top: 5px;
+  bottom: 5px;
+  width: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: #f4f7fa;
   color: var(--artiv-text-secondary);
+}
+
+.budget-range :deep(.el-input-number__decrease) { left: 5px; }
+.budget-range :deep(.el-input-number__increase) { right: 5px; }
+
+.budget-range :deep(.el-input-number__decrease:hover:not(.is-disabled)),
+.budget-range :deep(.el-input-number__increase:hover:not(.is-disabled)) {
+  color: var(--artiv-primary);
+  background: var(--artiv-primary-light);
+}
+
+.budget-range :deep(.el-input-number__decrease.is-disabled),
+.budget-range :deep(.el-input-number__increase.is-disabled) {
+  color: #bec6cf;
+}
+
+.range-sep {
+  color: var(--artiv-text-secondary);
+  font-size: 12px;
 }
 
 .field-tip {

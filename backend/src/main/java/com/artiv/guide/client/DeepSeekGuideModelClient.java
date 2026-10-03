@@ -200,6 +200,7 @@ public class DeepSeekGuideModelClient implements GuideModelClient {
                 function.put("name", tool.name()).put("description", tool.description()).set("parameters", tool.parameters());
             }
             body.put("tool_choice", request.requireTool() ? "required" : "auto");
+            body.put("parallel_tool_calls", false);
         }
         return body;
     }

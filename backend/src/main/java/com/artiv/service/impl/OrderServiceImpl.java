@@ -557,6 +557,7 @@ public class OrderServiceImpl implements OrderService {
         snapshot.put("title", project.getTitle());
         snapshot.put("description", project.getDescription());
         snapshot.put("projectCategory", project.getProjectCategory());
+        snapshot.put("usageType", project.getUsageType());
         snapshot.put("subject", project.getSubject());
         snapshot.put("requirements", project.getRequirements());
         snapshot.put("phases", project.getPhases());

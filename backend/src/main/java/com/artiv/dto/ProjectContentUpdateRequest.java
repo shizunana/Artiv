@@ -37,6 +37,9 @@ public class ProjectContentUpdateRequest extends ProjectCategoryInput {
     @Size(max = 50, message = "企划类型最长 50 字")
     private String projectCategory;
 
+    /** personal / commercial；未传时保留原用途。 */
+    private String usageType;
+
     private List<String> subject;
 
     private String images;

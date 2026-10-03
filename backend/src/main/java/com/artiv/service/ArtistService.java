@@ -10,5 +10,10 @@ public interface ArtistService {
 
     Page<ArtistSummary> listArtists(long page, long size, String category, String subjects, String keyword);
 
+    /** 向导专用：类型取公开作品与当前在售橱窗并集，题材仍仅匹配个人标签。 */
+    Page<ArtistSummary> listGuideArtists(long page, long size, String category, String subjects, String keyword);
+
+    List<ArtistSummary> buildGuideSummaries(List<User> painters);
+
     List<ArtistSummary> buildSummaries(List<User> painters);
 }

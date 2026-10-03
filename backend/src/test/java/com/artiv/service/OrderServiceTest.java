@@ -116,8 +116,9 @@ class OrderServiceTest {
         verify(messageService).createStallPurchaseCommunication(eq(result), eq(stall));
     }
 
-    @Test
-    void createProjectOrderUsesApplicationQuoteAfterDeadlineAndDoesNotChangeProjectState() throws Exception {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"personal", "commercial"})
+    void createProjectOrderUsesApplicationQuoteAfterDeadlineAndDoesNotChangeProjectState(String usage) throws Exception {
         Application application = new Application();
         application.setId(31L);
         application.setProjectId(8L);
@@ -132,6 +133,7 @@ class OrderServiceTest {
         project.setEmployerId(15L);
         project.setTitle("企划测试");
         project.setDescription("测试需求");
+        project.setUsageType(usage);
         project.setBudget(new BigDecimal("500.00"));
         project.setImages("/uploads/project.png,/uploads/other.png");
         project.setStatus(0);
@@ -160,6 +162,10 @@ class OrderServiceTest {
         assertEquals("/uploads/project.png", result.getProjectCover());
         assertEquals("[{\"name\":\"草图\"},{\"name\":\"终稿\"}]", result.getPhaseSnapshot());
         assertEquals("2020-08-30", objectMapper.readTree(result.getProjectSnapshot()).path("deadline").asText());
+        assertEquals(usage, objectMapper.readTree(result.getProjectSnapshot()).path("usageType").asText());
+        // 以后企划对象改变也不影响下单时保存的历史用途。
+        project.setUsageType("changed-after-order");
+        assertEquals(usage, objectMapper.readTree(result.getProjectSnapshot()).path("usageType").asText());
         assertEquals(0, project.getStatus());
         verify(projectMapper, never()).updateById(any(Project.class));
         verify(messageService).createProjectOrderCommunication(result, project);

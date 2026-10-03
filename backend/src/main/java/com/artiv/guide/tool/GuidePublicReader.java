@@ -44,9 +44,10 @@ public class GuidePublicReader {
     public ReadResult projects(int page, String keyword, String projectCategory, String subject, BigDecimal minimum, BigDecimal maximum) {
         var result = projects.listProjects(page, 5, keyword, null, "latest", minimum, maximum, null, null, null, projectCategory, subject);
         // 公共服务已筛选；再次检查可见性，避免未来复用方法扩权后向导意外泄露。
-        var cards = result.getRecords().stream().filter(this::publicProject).limit(5).map(this::projectCard).toList();
+        var visible = result.getRecords().stream().filter(this::publicProject).limit(5).toList();
+        var cards = visible.stream().map(this::projectCard).toList();
         String now = Instant.now().toString();
-        var refs = new ArrayList<>(cards.stream().map(c -> projectRef(c, now)).toList());
+        var refs = new ArrayList<>(visible.stream().map(p -> projectRef(projectCard(p), now, p)).toList());
         refs.addFirst(new GuideReference("query", "projects-page-" + page, "公开企划查询", "第 " + page + " 页 · 每页最多5条 · 匹配总数 " + result.getTotal()
                 + " · 本页返回 " + cards.size() + " 条；类型=" + Objects.toString(projectCategory, "不限") + "，题材=" + Objects.toString(subject, "不限")
                 + "，标题关键词=" + Objects.toString(keyword, "不限") + "，预算=" + Objects.toString(minimum, "不限") + "～" + Objects.toString(maximum, "不限"), now));
@@ -57,13 +58,14 @@ public class GuidePublicReader {
         var project = projectMapper.selectById(id);
         if (!publicProject(project)) throw unavailable();
         var card = projectCard(project); String now = Instant.now().toString();
-        return new ReadResult(card, List.of(projectRef(card, now)));
+        return new ReadResult(card, List.of(projectRef(card, now, project)));
     }
     public ReadResult stalls(int page, String keyword, String category, String subject, BigDecimal minimum, BigDecimal maximum) {
         var result = stalls.listStalls(page, 5, category, keyword, "latest", subject, minimum, maximum, null);
-        var cards = result.getRecords().stream().filter(this::publicStall).limit(5).map(this::stallCard).toList();
+        var visible = result.getRecords().stream().filter(this::publicStall).limit(5).toList();
+        var cards = visible.stream().map(this::stallCard).toList();
         String now = Instant.now().toString();
-        var refs = new ArrayList<>(cards.stream().map(c -> stallRef(c, now)).toList());
+        var refs = new ArrayList<>(visible.stream().map(s -> stallRef(stallCard(s), now, s)).toList());
         refs.addFirst(new GuideReference("query", "stalls-page-" + page, "公开橱窗查询", "第 " + page + " 页 · 每页最多5条 · 匹配总数 " + result.getTotal()
                 + " · 本页返回 " + cards.size() + " 条；类型=" + Objects.toString(category, "不限") + "，题材=" + Objects.toString(subject, "不限")
                 + "，标题关键词=" + Objects.toString(keyword, "不限") + "，价格=" + Objects.toString(minimum, "不限") + "～" + Objects.toString(maximum, "不限"), now));
@@ -73,33 +75,68 @@ public class GuidePublicReader {
     public ReadResult stall(long id) {
         var stall = stallMapper.selectById(id);
         if (!publicStall(stall)) throw unavailable();
+        // Mapper 详情不带大厅的画师展示字段，只补公开昵称与头像。
+        var painter = userMapper.selectById(stall.getPainterId());
+        if (painter != null && Integer.valueOf(0).equals(painter.getDeleted())) {
+            stall.setPainterName(painter.getNickname() == null || painter.getNickname().isBlank() ? painter.getUsername() : painter.getNickname());
+            stall.setPainterAvatar(painter.getAvatar());
+        }
         var card = stallCard(stall); String now = Instant.now().toString();
-        return new ReadResult(card, List.of(stallRef(card, now)));
+        return new ReadResult(card, List.of(stallRef(card, now, stall)));
     }
     public ReadResult artists(int page, String keyword, String category, String subjects) {
-        var result = artists.listArtists(page, 5, category, subjects, keyword);
-        var cards = result.getRecords().stream().limit(5)
+        var result = artists.listGuideArtists(page, 5, category, subjects, keyword);
+        var visible = result.getRecords().stream().limit(5)
                 .filter(a -> publicArtist(userMapper.selectById(a.getId())))
-                .map(this::artistCard).toList();
+                .toList();
+        var cards = visible.stream().map(this::artistCard).toList();
         String now = Instant.now().toString();
-        var refs = new ArrayList<>(cards.stream().map(c -> artistRef(c, now)).toList());
+        var refs = new ArrayList<>(visible.stream().map(a -> artistRef(artistCard(a), now, a)).toList());
         refs.addFirst(new GuideReference("query", "artists-page-" + page, "公开画师查询", "第 " + page + " 页 · 每页最多5条 · 匹配总数 " + result.getTotal()
                 + " · 本页返回 " + cards.size() + " 条；类型=" + Objects.toString(category, "不限") + "，题材=" + Objects.toString(subjects, "不限")
                 + "，关键词=" + Objects.toString(keyword, "不限") + "；按用户ID排序，非最佳排名", now));
-        return new ReadResult(new SearchResult("正常认证画师；本页候选按用户ID排序，不是最佳排名；无统一报价、实时档期或授权范围", page, 5,
+        return new ReadResult(new SearchResult("正常认证画师；类型匹配公开作品或在售橱窗，题材仅匹配个人标签；本页候选按用户ID排序，不是最佳排名；无统一报价、实时档期或授权范围", page, 5,
                 result.getTotal(), result.getTotal() > (long) page * 5, now, cards), List.copyOf(refs));
     }
     public ReadResult artist(long id) {
         var user = userMapper.selectById(id);
         if (!publicArtist(user)) throw unavailable();
-        var card = artistCard(artists.buildSummaries(List.of(user)).getFirst());
+        var summary = artists.buildGuideSummaries(List.of(user)).getFirst();
+        var card = artistCard(summary);
         // 复用公开评价 SQL，不调用会装载订单标题/图片/申诉信息的完整评价 DTO。
         var reviews = reviewMapper.selectPublicPage(new Page<>(1, 3), id, "painter");
         var texts = reviews.getRecords().stream().filter(r -> Integer.valueOf(0).equals(r.getDeleted()))
                 .limit(3).map(r -> new ReviewText(r.getScore(), clip(r.getContent(), 300), String.valueOf(r.getCreatedAt()))).toList();
         String now = Instant.now().toString();
         return new ReadResult(Map.of("artist", card, "latestPublicReviews", texts, "reviewsTotal", reviews.getTotal(),
-                "reviewScope", "最多3条近期公开评价，非全部评价；不提供订单或评价者身份", "checkedAt", now), List.of(artistRef(card, now)));
+                "reviewScope", "最多3条近期公开评价，非全部评价；不提供订单或评价者身份", "checkedAt", now), List.of(artistRef(card, now, summary)));
+    }
+    /** 按类型各取一位，最多十类；单次受控读取，去重卡片并保留每类命中关系。 */
+    public ReadResult artistsByCategory(List<String> categories, String subject, com.artiv.guide.client.GuideCancellation cancellation) {
+        var groups = new ArrayList<Map<String, Object>>();
+        var records = new LinkedHashMap<String, ArtistCard>();
+        var refs = new LinkedHashMap<String, GuideReference>();
+        String now = Instant.now().toString();
+        for (String category : categories) {
+            cancellation.check();
+            var page = artists.listGuideArtists(1, 1, category, subject, null);
+            var summary = page.getRecords().stream().filter(a -> publicArtist(userMapper.selectById(a.getId()))).findFirst();
+            if (summary.isEmpty()) {
+                groups.add(Map.of("category", category, "total", page.getTotal(), "artistId", "", "matched", false));
+                continue;
+            }
+            var a = summary.get(); var card = artistCard(a);
+            // 批量推荐只保留简短资料，最多十位，避免逐类完整作品描述超出工具结果容量。
+            records.put(card.id(), new ArtistCard(card.id(), card.name(), clip(card.bio(), 160), card.tags(), card.categories(), List.of(), card.averageScore(), card.reviewCount()));
+            refs.put(card.id(), artistRef(card, now, a));
+            groups.add(Map.of("category", category, "total", page.getTotal(), "artistId", card.id(), "matched", true));
+        }
+        var references = new ArrayList<GuideReference>();
+        references.add(new GuideReference("query", "artists-by-category", "按类型推荐画师",
+                "每类按用户ID取首位；同一画师可匹配多类，卡片去重；题材=" + Objects.toString(subject, "不限"), now));
+        references.addAll(refs.values());
+        return new ReadResult(Map.of("scope", "每个指定类型最多一位认证画师；类型依据公开作品或在售橱窗，题材仅依据个人标签；不是最佳排名。同一画师可匹配多类，无结果的类型不能编造候选。",
+                "groups", groups, "records", records.values(), "checkedAt", now), List.copyOf(references));
     }
     public void requireVisible(String kind, long id) {
         if ("project".equals(kind)) { if (!publicProject(projectMapper.selectById(id))) throw unavailable(); }
@@ -146,21 +183,24 @@ public class GuidePublicReader {
         } catch (Exception ignored) { }
         return List.of();
     }
-    private GuideReference projectRef(ProjectCard c, String now) {
+    private GuideReference projectRef(ProjectCard c, String now, Project project) {
         return new GuideReference("project", c.id(), c.title(), "公开企划 · " + c.projectCategory() + " · 预算 " + c.budgetMin() + "～" + c.budgetMax() + " 元 · 截稿 " + c.deadline(), now,
                 new GuideReference.Card(c.projectCategory(), List.of(
                         new GuideReference.Field("预算", budget(c.budgetMin(), c.budgetMax())),
                         new GuideReference.Field("题材", c.subject().isBlank() ? "不限" : c.subject()),
-                        new GuideReference.Field("截稿", c.deadline())), clip(c.description(), 160)));
+                        new GuideReference.Field("截稿", c.deadline())), clip(c.description(), 160), firstImage(project.getImages()), null, null));
     }
-    private GuideReference artistRef(ArtistCard c, String now) {
+    private GuideReference artistRef(ArtistCard c, String now, ArtistSummary artist) {
+        String cover = (artist.getWorks() == null ? List.<Work>of() : artist.getWorks()).stream()
+                .filter(w -> Integer.valueOf(0).equals(w.getDeleted()) && Integer.valueOf(1).equals(w.getVisibility()))
+                .map(w -> publicImage(w.getImage())).filter(Objects::nonNull).findFirst().orElse(null);
         return new GuideReference("artist", c.id(), c.name(), "认证画师 · " + String.join("、", c.categories()) + " · 公开评价 " + c.reviewCount() + " 条；报价与档期需另行确认", now,
                 new GuideReference.Card(String.join("、", c.categories()), List.of(
                         new GuideReference.Field("公开评价", c.reviewCount() + " 条" + (c.reviewCount() > 0 && c.averageScore() != null ? " · " + c.averageScore() + " 分" : "")),
                         new GuideReference.Field("风格", c.tags()),
-                        new GuideReference.Field("约稿", "报价与档期需另行确认")), clip(c.bio(), 160)));
+                        new GuideReference.Field("约稿", "报价与档期需另行确认")), clip(c.bio(), 160), cover, publicImage(artist.getAvatar()), c.name()));
     }
-    private GuideReference stallRef(StallCard c, String now) {
+    private GuideReference stallRef(StallCard c, String now, Stall stall) {
         return new GuideReference("stall", c.id(), c.title(), "公开橱窗 · " + c.category() + " · " + c.price() + " 元 · 库存 " + c.stock()
                 + " · 交付 " + c.deliverTime(), now,
                 new GuideReference.Card(c.category(), List.of(
@@ -168,7 +208,28 @@ public class GuidePublicReader {
                         new GuideReference.Field("题材", c.subjects().isEmpty() ? "不限" : String.join("、", c.subjects())),
                         new GuideReference.Field("交付", c.deliverTime()),
                         new GuideReference.Field("库存", String.valueOf(c.stock())),
-                        new GuideReference.Field("画师", c.painterName())), clip(c.description(), 160)));
+                        new GuideReference.Field("画师", c.painterName())), clip(c.description(), 160), publicImage(stall.getCover()), publicImage(stall.getPainterAvatar()), c.painterName()));
+    }
+    // 媒体只放入页面引用，不放入传给模型的 data；兼容企划 JSON 数组与历史逗号分隔图片。
+    private String firstImage(String images) {
+        if (images == null || images.isBlank()) return null;
+        try {
+            var node = json.readTree(images);
+            if (node.isArray()) return node.isEmpty() || !node.get(0).isTextual() ? null : publicImage(node.get(0).asText());
+        } catch (Exception ignored) { }
+        return Arrays.stream(images.split(",")).map(String::trim).filter(s -> !s.isEmpty()).findFirst().map(this::publicImage).orElse(null);
+    }
+    private String publicImage(String value) {
+        if (value == null || value.isBlank() || value.length() > 2048) return null;
+        String url = value.trim();
+        try {
+            var uri = java.net.URI.create(url);
+            if (uri.getRawUserInfo() != null || url.contains("\\") || url.chars().anyMatch(Character::isISOControl)) return null;
+            if (!uri.isAbsolute()) return url.startsWith("/uploads/") && uri.getRawAuthority() == null
+                    && uri.normalize().equals(uri) ? url : null;
+            return ("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))
+                    && uri.getHost() != null ? url : null;
+        } catch (IllegalArgumentException ignored) { return null; }
     }
     private String money(BigDecimal value) { return value == null ? "未提供" : value.stripTrailingZeros().toPlainString() + " 元"; }
     private String budget(BigDecimal min, BigDecimal max) {

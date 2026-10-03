@@ -139,6 +139,8 @@ npm.cmd run dev
 
 ## 测试数据库基线
 
+2026-09-11 稿件用途增量：新版后端需要 `project.usage_type`。存量库先备份，再在目标库执行 [`20260911_project_usage.sql`](backend/sql/migrations/20260911_project_usage.sql)；首次执行将全部旧企划设为个人用途，重复执行不会覆盖后来的商业用途。新建数据库的 `init.sql` 已包含该字段。用途只记录约定，不改变招募模式、交易流程，也不新增大厅筛选；具体接口见[接口文档](docs/接口文档.md)。
+
 仓库提供 [`scripts/database-baseline.ps1`](scripts/database-baseline.ps1) 保存测试开始前的数据库基线。基线 SQL 含账号、消息和订单等本地数据，因此被 Git 忽略；是否存在有效基线须在当前电脑执行 `Status` 确认，不能由 Git 同步状态推断。
 
 查看基线状态：
@@ -168,6 +170,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\database-baseline.ps1 -Ac
 | 文档 | 用途 |
 | --- | --- |
 | [功能说明](docs/功能说明.md) | 当前版本全部用户功能、治理能力、业务边界和文档导航 |
+| [平台功能使用教程](docs/使用教程/README.md) | 8 个分册、61 个操作主题；供用户查阅及向导后续接入，保留已有发布企划和认证指南页面 |
 | [功能模块说明（图文版）](docs/功能模块说明(图文版).md) | 通过代表性项目截图快速了解核心页面和业务闭环 |
 | [项目开发计划书](docs/项目开发计划书.md) | F1–F11 需求、当前边界、页面与验收清单 |
 | [后续开发交接说明](docs/后续开发交接说明.md) | 每次开发必须执行的操作、禁止事项与交接验收清单 |

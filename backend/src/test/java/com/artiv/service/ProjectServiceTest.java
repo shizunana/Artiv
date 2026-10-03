@@ -35,6 +35,15 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ProjectServiceTest {
 
+    @org.junit.jupiter.api.BeforeAll
+    static void initializeLambdaMetadata() {
+        for (Class<?> type : List.of(Project.class, com.artiv.entity.Invitation.class)) {
+            com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                    new org.apache.ibatis.builder.MapperBuilderAssistant(
+                            new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), type);
+        }
+    }
+
     @Mock
     private ProjectMapper projectMapper;
 
@@ -133,6 +142,53 @@ class ProjectServiceTest {
         assertEquals(new BigDecimal("300.00"), persisted.getBudgetMin());
         assertEquals(new BigDecimal("500.00"), persisted.getBudgetMax());
         assertEquals(new BigDecimal("500.00"), persisted.getBudget());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.NullSource
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"personal", "commercial"})
+    void createPersistsUsageAndDefaultsOnlyMissingValue(String usage) {
+        ProjectRequest request = validProjectRequest();
+        request.setUsageType(usage);
+        Project created = projectService.create(request, 1L);
+        assertEquals(usage == null ? "personal" : usage, created.getUsageType());
+        verify(projectMapper).insert(created);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"", "business", "个人用途", "COMMERCIAL"})
+    void invalidUsageCannotBeCreatedOrEdited(String usage) {
+        ProjectRequest request = validProjectRequest();
+        request.setUsageType(usage);
+        assertThrows(com.artiv.common.BusinessException.class, () -> projectService.create(request, 1L));
+        verify(projectMapper, never()).insert(org.mockito.ArgumentMatchers.any(Project.class));
+        when(projectMapper.selectById(9L)).thenReturn(ownedProject());
+        ProjectContentUpdateRequest edit = usageEditRequest();
+        edit.setUsageType(usage);
+        assertThrows(com.artiv.common.BusinessException.class, () -> projectService.updateContent(9L, edit, 12L));
+        verify(projectMapper, never()).updateById(org.mockito.ArgumentMatchers.any(Project.class));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.NullSource
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"personal", "commercial"})
+    void editPersistsUsageOrPreservesExistingValueForOldClients(String usage) {
+        Project project = ownedProject();
+        project.setUsageType("commercial");
+        when(projectMapper.selectById(9L)).thenReturn(project);
+        ProjectContentUpdateRequest edit = usageEditRequest();
+        edit.setUsageType(usage);
+        assertEquals(usage == null ? "commercial" : usage,
+                projectService.updateContent(9L, edit, 12L).getUsageType());
+        verify(projectMapper).updateById(project);
+    }
+
+    private ProjectContentUpdateRequest usageEditRequest() {
+        ProjectContentUpdateRequest edit = new ProjectContentUpdateRequest();
+        edit.setTitle("用途测试"); edit.setDescription("保持业务规则");
+        edit.setProjectCategory("头像"); edit.setSubject(List.of("古风"));
+        edit.setBudgetMin(new BigDecimal("100")); edit.setBudgetMax(new BigDecimal("200"));
+        return edit;
     }
 
     @Test

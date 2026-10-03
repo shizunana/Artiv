@@ -9,6 +9,11 @@ public record GuideReference(String kind, String id, String title, String detail
         this(kind, id, title, detail, checkedAt, null);
     }
     /** 仅由公开资源的白名单投影生成；不包含原始查询信息或模型提供的链接。 */
-    public record Card(String category, List<Field> fields, String summary) { }
+    public record Card(String category, List<Field> fields, String summary,
+                       String coverUrl, String avatarUrl, String creatorName) {
+        public Card(String category, List<Field> fields, String summary) {
+            this(category, fields, summary, null, null, null);
+        }
+    }
     public record Field(String label, String value) { }
 }

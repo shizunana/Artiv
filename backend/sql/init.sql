@@ -208,6 +208,7 @@ CREATE TABLE `project` (
   `deadline`        DATE          NOT NULL COMMENT '截稿日期（招募截止及订单约定参考日期，当天有效）',
   `tags`            VARCHAR(255)  DEFAULT NULL COMMENT '标签，逗号分隔',
   `project_category` VARCHAR(50) DEFAULT NULL COMMENT '企划类型（六类）',
+  `usage_type` VARCHAR(16) NOT NULL DEFAULT 'personal' COMMENT '稿件用途：personal个人用途、commercial商业用途',
   `subject`         VARCHAR(255)  DEFAULT NULL COMMENT '题材风格，逗号分隔',
   `images`          TEXT          DEFAULT NULL COMMENT '参考图，逗号分隔',
   `requirements`    TEXT          DEFAULT NULL COMMENT '结构化项目要求 JSON',

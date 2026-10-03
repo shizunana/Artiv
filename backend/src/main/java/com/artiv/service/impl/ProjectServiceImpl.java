@@ -171,6 +171,8 @@ public class ProjectServiceImpl implements ProjectService {
         project.setSubject(join(com.artiv.common.ProjectSubjectRules.normalize(project.getProjectCategory(), request.getSubject())));
         project.setImages(request.getImages());
         project.setRequirements(serializeRequirements(request));
+        project.setUsageType(com.artiv.common.ProjectUsageRules.require(
+                request.getUsageType() == null ? "personal" : request.getUsageType()));
         project.setPhases(normalizePhases(request.getPhases()));
         project.setMode(mode);
         project.setStatus(0);
@@ -288,6 +290,9 @@ public class ProjectServiceImpl implements ProjectService {
         project.setSubject(join(com.artiv.common.ProjectSubjectRules.normalize(project.getProjectCategory(), request.getSubject())));
         project.setImages(trimToNull(request.getImages()));
         project.setRequirements(serializeRequirements(request.getRequirements()));
+        if (request.getUsageType() != null) {
+            project.setUsageType(com.artiv.common.ProjectUsageRules.require(request.getUsageType()));
+        }
         project.setPhases(normalizePhases(request.getPhases()));
         project.setUpdatedAt(LocalDateTime.now());
         // updateById 默认忽略 null；仅内容编辑明确清空题材，不改变其他更新的空值策略。

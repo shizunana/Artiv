@@ -32,9 +32,19 @@ public class ArtistServiceImpl implements ArtistService {
     private final UserMapper userMapper;
     private final WorkMapper workMapper;
     private final ReviewService reviewService;
+    private final com.artiv.mapper.StallMapper stallMapper;
 
     @Override
     public Page<ArtistSummary> listArtists(long page, long size, String category, String subjects, String keyword) {
+        return search(page, size, category, subjects, keyword, false);
+    }
+
+    @Override
+    public Page<ArtistSummary> listGuideArtists(long page, long size, String category, String subjects, String keyword) {
+        return search(page, size, category, subjects, keyword, true);
+    }
+
+    private Page<ArtistSummary> search(long page, long size, String category, String subjects, String keyword, boolean guide) {
         long safePage = Math.max(page, 1);
         long safeSize = Math.min(Math.max(size, 1), 50);
         Set<String> requestedSubjects = splitValues(subjects);
@@ -44,10 +54,12 @@ public class ArtistServiceImpl implements ArtistService {
         LambdaQueryWrapper<User> query = new LambdaQueryWrapper<User>()
                 .eq(User::getCertStatus, 2)
                 .eq(User::getStatus, 0)
-                .eq(User::getDeleted, 0)
-                .apply(normalizedCategory != null,
-                        "EXISTS (SELECT 1 FROM work w WHERE w.user_id = `user`.id AND w.visibility = 1 AND w.deleted = 0 AND w.category = {0})",
-                        normalizedCategory);
+                .eq(User::getDeleted, 0);
+        if (normalizedCategory != null) {
+            String categorySql = "EXISTS (SELECT 1 FROM work w WHERE w.user_id = `user`.id AND w.visibility = 1 AND w.deleted = 0 AND w.category = {0})";
+            if (guide) categorySql = "(" + categorySql + " OR EXISTS (SELECT 1 FROM stall s WHERE s.painter_id = `user`.id AND s.deleted = 0 AND s.status = 1 AND s.stock > 0 AND s.category = {0}))";
+            query.apply(categorySql, normalizedCategory);
+        }
         requestedSubjects.forEach(subject -> query.apply(
                 "FIND_IN_SET({0}, REPLACE(COALESCE(tags, ''), ' ', '')) > 0", subject));
         if (normalizedKeyword != null) {
@@ -64,10 +76,24 @@ public class ArtistServiceImpl implements ArtistService {
             return new Page<>(safePage, safeSize, painterPage.getTotal());
         }
 
-        List<ArtistSummary> records = buildSummaries(painters);
+        List<ArtistSummary> records = guide ? buildGuideSummaries(painters) : buildSummaries(painters);
         Page<ArtistSummary> result = new Page<>(safePage, safeSize, painterPage.getTotal());
         result.setRecords(records);
         return result;
+    }
+
+    @Override
+    public List<ArtistSummary> buildGuideSummaries(List<User> painters) {
+        var summaries = buildSummaries(painters);
+        if (summaries.isEmpty()) return summaries;
+        var stallCategories = stallMapper.selectGuideCategories(painters.stream().map(User::getId).toList()).stream()
+                .collect(Collectors.toMap(ArtistCategoryAggregate::getUserId, a -> splitValues(a.getCategories())));
+        for (var summary : summaries) {
+            var categories = new LinkedHashSet<>(summary.getCategories());
+            categories.addAll(stallCategories.getOrDefault(summary.getId(), Set.of()));
+            summary.setCategories(new ArrayList<>(categories));
+        }
+        return summaries;
     }
 
     @Override

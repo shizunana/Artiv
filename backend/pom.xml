@@ -89,6 +89,20 @@
     </dependencies>
 
     <build>
+        <!-- 固定白名单，禁止将维护索引、测试或配置文档打包为向导知识。 -->
+        <resources>
+            <resource><directory>src/main/resources</directory><filtering>false</filtering></resource>
+            <resource>
+                <directory>${project.basedir}/../docs/使用教程</directory>
+                <targetPath>guide/tutorials</targetPath><filtering>false</filtering>
+                <includes>
+                    <include>01-账号与身份.md</include><include>02-浏览与收藏.md</include>
+                    <include>03-企划与应征邀请.md</include><include>04-作品与橱窗管理.md</include>
+                    <include>05-订单交付与评价.md</include><include>06-消息与安全互动.md</include>
+                    <include>07-艺绘向导.md</include><include>08-管理员操作.md</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

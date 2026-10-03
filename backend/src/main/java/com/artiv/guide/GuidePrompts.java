@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 /** 固定后端系统提示；客户端只提交当前用户消息，不能覆盖系统角色或模板。 */
 public final class GuidePrompts {
     private GuidePrompts() { }
-    public static final String VERSION = "character-chat-v4-multi-image";
+    public static final String VERSION = "character-chat-v5-tutorials";
     public static final String SYSTEM = load();
     public static final String IMAGE_OBSERVATION = "你只负责联合观察本轮 1～4 张参考图，为后续对话提供按来源分开的记录，不生成约稿需求、不替用户确认设定。"
             + "必须按上传顺序逐图标注图 1、图 2、图 3、图 4（只列实际收到的图），不能交换编号或把不同图的人物、特征混成同一个角色。"

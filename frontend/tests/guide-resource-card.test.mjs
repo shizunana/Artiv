@@ -30,3 +30,21 @@ test('legacy references without card data remain clickable and busy state disabl
   assert.ok(busy.includes('正在确认…'))
   assert.ok((await render({ kind: 'artist', id: '21', title: '画师' })).includes('查看画师主页'))
 })
+
+test('recommendation cards display covers and artist avatars with usable fallbacks', async () => {
+  for (const kind of ['project', 'stall', 'artist']) {
+    const html = await render({ kind, title: '测试资源', card: {
+      coverUrl: '/uploads/cover.png', avatarUrl: '/uploads/avatar.png', creatorName: '测试画师', fields: []
+    } })
+    assert.ok(html.includes('src="/uploads/cover.png"'))
+    assert.equal(html.includes('src="/uploads/avatar.png"'), kind !== 'project')
+    assert.ok(html.includes('loading="lazy"') && html.includes('referrerpolicy="no-referrer"'))
+  }
+  const missing = await render({ kind: 'artist', title: '画师甲', card: { fields: [] } })
+  assert.ok(missing.includes('作品预览') && missing.includes('认证画师'))
+  assert.ok(!missing.includes('<img'))
+  for (const url of ['javascript:alert(1)', 'data:image/svg+xml,evil', '//evil.example/a.png', '/api/v1/admin/private']) {
+    const html = await render({ kind: 'artist', title: '画师', card: { coverUrl: url, avatarUrl: url, fields: [] } })
+    assert.ok(!html.includes('<img'))
+  }
+})

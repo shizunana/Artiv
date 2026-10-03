@@ -42,6 +42,9 @@ public class ProjectRequest extends ProjectCategoryInput {
     @Size(max = 50, message = "企划类型最长 50 字")
     private String projectCategory;
 
+    /** 稿件用途；旧客户端未传时兼容为个人用途。 */
+    private String usageType;
+
     /** 题材风格列表 */
     private List<String> subject;
 

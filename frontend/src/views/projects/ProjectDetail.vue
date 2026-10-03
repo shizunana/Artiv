@@ -191,6 +191,7 @@ import { formatDateTime } from '@/utils/date'
 import { formatProjectBudget } from '@/utils/budget'
 import { isProjectExpired } from '@/utils/projectDeadline'
 import { watchRouteResource } from '@/utils/routeResource'
+import { projectUsageLabel } from '@/utils/projectUsage'
 
 const route = useRoute()
 const router = useRouter()
@@ -297,6 +298,7 @@ const requirementItems = computed(() => [
   { label: '颜色模式', value: requirements.value.colorMode || '需与画师商议' },
   { label: '稿件格式', value: Array.isArray(requirements.value.formats) ? requirements.value.formats.join('、') : requirements.value.formats || '需与画师商议' },
   { label: '发布权限', value: requirements.value.publishPermission || '需与画师商议' },
+  { label: '稿件用途', value: projectUsageLabel(project.value?.usageType) },
 ])
 
 function handleApplyButton() {

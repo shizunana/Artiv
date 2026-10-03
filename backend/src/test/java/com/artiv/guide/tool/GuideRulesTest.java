@@ -129,6 +129,26 @@ class GuideRulesTest {
         assertEquals(List.of(ref), saved);
         assertEquals(List.of(List.of(ref)), emitted);
     }
+    @Test void artistBatchHasBoundedValidatedCategoriesAndNoArbitraryFilters() throws Exception {
+        var reader = mock(GuidePublicReader.class);
+        when(reader.artistsByCategory(anyList(), isNull(), any())).thenReturn(new GuidePublicReader.ReadResult(List.of(), List.of()));
+        var registry = new GuideToolRegistry(json, new GuideRuleBook(json), reader);
+        registry.execute(call("{\"operation\":\"recommend_artists_by_category\",\"categories\":[\"头像\",\"立绘\",\"头像\"]}"), new GuideCancellation());
+        verify(reader).artistsByCategory(eq(List.of("头像", "立绘")), isNull(), any());
+        for (String args : List.of("{\"categories\":[]}", "{\"categories\":[\"角色设计\"]}", "{\"ownerId\":3}", "{\"categories\":\"头像\"}")) {
+            assertThrows(GuideModelException.class, () -> registry.execute(call(args.replace("{", "{\"operation\":\"recommend_artists_by_category\",")), new GuideCancellation()));
+        }
+    }
+    @Test void explicitArtistSearchRequiresRealToolExecutionBeforeAnswering() throws Exception {
+        var model = mock(GuideModelClient.class);
+        when(model.complete(any())).thenAnswer(i -> {
+            assertTrue(i.<GuideModelClient.Request>getArgument(0).requireTool());
+            return new GuideModelClient.Reply("请稍等", List.of(), null, "stop", 1);
+        });
+        assertThrows(GuideModelException.class, () -> new GuideAnswerRunner(registry()).answer(model,
+                List.of(GuideModelClient.Message.user("能找点画师给我参考下吗")), s -> {}, (n,d) -> {}, r -> {}, new GuideCancellation()));
+        verify(model, never()).stream(any(), any(), any());
+    }
     @Test void duplicateReadCannotLoopAndNoStreamAfterCancellation() throws Exception {
         var model = mock(GuideModelClient.class);
         when(model.complete(any())).thenReturn(new GuideModelClient.Reply("", List.of(call("{\"operation\":\"rules\"}")), null, "tool_calls", 1));

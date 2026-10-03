@@ -37,6 +37,7 @@
           <el-image v-if="order.projectCover" class="source-cover" :src="order.projectCover" fit="cover" />
           <div>
             <p><b>企划标题：</b>{{ projectSnapshot.title || order.projectTitle }}</p>
+            <p><b>稿件用途：</b>{{ projectUsageLabel(projectSnapshot.usageType) }}</p>
             <p><b>应征报价：</b>¥{{ money(projectSnapshot.applicationQuote || order.amount) }}</p>
             <p><b>企划截稿日期（约定参考）：</b>{{ projectSnapshot.deadline || '待商议' }}</p>
             <p class="deadline-note">该日期用于订单建立时的约定记录与准时率统计，不限制订单后续流转。</p>
@@ -103,6 +104,7 @@ import { acceptOrder, addDisputeEvidence, cancelOrder, createOrderDispute, getCu
 import { uploadFile } from '@/api/upload'
 import { ORDER_STATUS, orderStatusText, statusType } from '@/utils/status'
 import { formatDateTime } from '@/utils/date'
+import { projectUsageLabel } from '@/utils/projectUsage'
 import { useUserStore } from '@/stores/user'
 import ReviewDialog from '@/components/reviews/ReviewDialog.vue'
 

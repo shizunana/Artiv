@@ -42,6 +42,11 @@
         <el-form-item label="题材风格（选填）">
           <ProjectSubjectSelect v-model="form.subjects" :category="form.projectCategory" />
         </el-form-item>
+        <el-form-item label="稿件用途" required>
+          <el-radio-group v-model="form.usageType">
+            <el-radio-button v-for="item in PROJECT_USAGE_OPTIONS" :key="item.value" :value="item.value">{{ item.label }}</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
       </section>
 
       <section class="form-section">
@@ -99,6 +104,7 @@ import { getProjectPanel, updateProjectContent } from '@/api/project'
 import { uploadFile } from '@/api/upload'
 import ProjectSubjectSelect from '@/components/projects/ProjectSubjectSelect.vue'
 import { PROJECT_CATEGORY_OPTIONS } from '@/constants/projectCategories'
+import { PROJECT_USAGE_OPTIONS, isProjectUsage } from '@/utils/projectUsage'
 import CreativePhaseEditor from '@/components/common/CreativePhaseEditor.vue'
 
 const route = useRoute()
@@ -113,6 +119,7 @@ const PERMISSION_OPTIONS = ['可以自由发布', '需经委托方同意发布',
 const form = reactive({
   title: '', description: '', projectCategory: '', budgetMin: 0, budgetMax: 0,
   subjects: [], images: [],
+  usageType: '',
   requirements: { size: '', colorMode: '', formats: [], publishPermission: '' },
   phases: [],
 })
@@ -155,6 +162,7 @@ async function load() {
     form.title = project.value.title || ''
     form.description = project.value.description || ''
     form.projectCategory = project.value.projectCategory || ''
+    form.usageType = project.value.usageType || ''
     form.budgetMin = Number(project.value.budgetMin ?? project.value.budget ?? 0)
     form.budgetMax = Number(project.value.budgetMax ?? project.value.budget ?? 0)
     form.subjects = split(project.value.subject)
@@ -166,6 +174,7 @@ async function load() {
 }
 async function save() {
   if (!PROJECT_CATEGORY_OPTIONS.includes(form.projectCategory)) return ElMessage.warning('请选择企划类型')
+  if (!isProjectUsage(form.usageType)) return ElMessage.warning('请选择稿件用途')
   if (!form.title.trim() || !form.description.trim()) return ElMessage.warning('请填写企划标题和需求描述')
   if (!form.budgetMin || !form.budgetMax || form.budgetMin > form.budgetMax) return ElMessage.warning('请填写正确的预算区间')
   if (!form.phases.length || form.phases.some((item) => !item.name.trim())) return ElMessage.warning('请填写完整的创作阶段')
@@ -173,6 +182,7 @@ async function save() {
   try {
     await updateProjectContent(route.params.id, {
       title: form.title, description: form.description, projectCategory: form.projectCategory,
+      usageType: form.usageType,
       budgetMin: form.budgetMin, budgetMax: form.budgetMax, subject: form.subjects,
       images: form.images.length ? form.images.join(',') : null,
       requirements: form.requirements,
